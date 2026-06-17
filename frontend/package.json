@@ -1,0 +1,36 @@
+{
+  "name": "disk-cerveja-manager-ui",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=18.13"
+  },
+  "scripts": {
+    "start": "ng serve disk-cerveja-manager-ui",
+    "build": "ng build disk-cerveja-manager-ui",
+    "watch": "ng build disk-cerveja-manager-ui --watch --configuration development",
+    "sync:backend": "npm run build && rm -rf ../backend/src/main/resources/static && mkdir -p ../backend/src/main/resources/static && cp -R dist/disk-cerveja-manager-ui/browser/. ../backend/src/main/resources/static/"
+  },
+  "dependencies": {
+    "@angular/animations": "^17.3.12",
+    "@angular/cdk": "^17.3.10",
+    "@angular/common": "^17.3.12",
+    "@angular/compiler": "^17.3.12",
+    "@angular/core": "^17.3.12",
+    "@angular/forms": "^17.3.12",
+    "@angular/material": "^17.3.10",
+    "@angular/platform-browser": "^17.3.12",
+    "@angular/platform-browser-dynamic": "^17.3.12",
+    "@angular/router": "^17.3.12",
+    "html5-qrcode": "^2.3.8",
+    "rxjs": "~7.8.1",
+    "tslib": "^2.6.2",
+    "zone.js": "~0.14.4"
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "^17.3.8",
+    "@angular/cli": "^17.3.8",
+    "@angular/compiler-cli": "^17.3.12",
+    "typescript": "~5.4.5"
+  }
+}

@@ -1,0 +1,119 @@
+<div class="erp-page-heading">
+  <div>
+    <p class="erp-page-heading__eyebrow">Relatórios</p>
+    <h2 class="erp-page-heading__title">Pedidos por período</h2>
+    <p class="erp-page-heading__subtitle">Vendas entregues entram no caixa na sessão do dia do pedido.</p>
+  </div>
+  <button mat-stroked-button type="button" (click)="carregar()" [disabled]="carregando()">
+    Atualizar
+  </button>
+</div>
+
+<mat-tab-group [selectedIndex]="tabIndex()" (selectedIndexChange)="onTabChange($event)">
+  <mat-tab label="Hoje"></mat-tab>
+  <mat-tab label="Semana"></mat-tab>
+  <mat-tab label="Mês"></mat-tab>
+  <mat-tab label="Ano"></mat-tab>
+</mat-tab-group>
+
+@if (carregando()) {
+  <mat-progress-bar mode="indeterminate" style="margin-top: 4px"></mat-progress-bar>
+}
+
+@if (!carregando()) {
+  @if (dados(); as d) {
+
+    <mat-card class="resumo">
+      <mat-card-content>
+        <div class="resumo-grid">
+          <div class="resumo-stat">
+            <span class="resumo-stat__label">Período</span>
+            <strong class="resumo-stat__value">{{ d.periodoDescricao }}</strong>
+            <span class="resumo-stat__sub">{{ d.dataInicio }} → {{ d.dataFim }}</span>
+          </div>
+          <div class="resumo-stat">
+            <span class="resumo-stat__label">Total pedidos</span>
+            <strong class="resumo-stat__value">R$ {{ d.somaTotalPedidos | number: '1.2-2' }}</strong>
+          </div>
+          <div class="resumo-stat resumo-stat--destaque">
+            <span class="resumo-stat__label">Total entregue</span>
+            <strong class="resumo-stat__value">R$ {{ d.somaVendasEntregues | number: '1.2-2' }}</strong>
+          </div>
+        </div>
+
+        @if (d.quantidadeEntreguesSemCaixa > 0) {
+          <div class="alerta">
+            ⚠ {{ d.quantidadeEntreguesSemCaixa }} entregue(s) sem lançamento no caixa
+          </div>
+        }
+
+        <div class="acoes">
+          <button mat-flat-button color="primary" type="button" (click)="sincronizarCaixa()">
+            Sincronizar com o caixa
+          </button>
+          <button mat-stroked-button type="button" (click)="carregar()">Atualizar</button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <div class="table-wrapper">
+      <table mat-table [dataSource]="d.pedidos" class="mat-elevation-z1 wide">
+        <ng-container matColumnDef="id">
+          <th mat-header-cell *matHeaderCellDef>#</th>
+          <td mat-cell *matCellDef="let r">{{ r.id }}</td>
+        </ng-container>
+        <ng-container matColumnDef="data">
+          <th mat-header-cell *matHeaderCellDef>Data</th>
+          <td mat-cell *matCellDef="let r">{{ r.dataHora | date: 'dd/MM HH:mm' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="cliente">
+          <th mat-header-cell *matHeaderCellDef>Cliente</th>
+          <td mat-cell *matCellDef="let r">{{ r.clienteNome || '—' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="tipo">
+          <th mat-header-cell *matHeaderCellDef>Tipo</th>
+          <td mat-cell *matCellDef="let r">
+            <span class="tipo-chip tipo-chip--{{ r.tipo | lowercase }}">{{ r.tipo | statusLabel }}</span>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let r">
+            <span class="status-chip status-chip--{{ r.status | lowercase }}">{{ r.status | statusLabel }}</span>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="total">
+          <th mat-header-cell *matHeaderCellDef>Total</th>
+          <td mat-cell *matCellDef="let r"><strong>R$ {{ r.total | number: '1.2-2' }}</strong></td>
+        </ng-container>
+        <ng-container matColumnDef="pagamento">
+          <th mat-header-cell *matHeaderCellDef>Pagamento</th>
+          <td mat-cell *matCellDef="let r">
+            <span class="pag-chip pag-chip--{{ r.formaPagamento | lowercase }}">{{ r.formaPagamento | statusLabel }}</span>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="caixa">
+          <th mat-header-cell *matHeaderCellDef>Caixa</th>
+          <td mat-cell *matCellDef="let r">
+            @if (r.status === 'ENTREGUE') {
+              <span class="status-chip" [class.status-chip--entregue]="r.registradoNoCaixa" [class.status-chip--cancelado]="!r.registradoNoCaixa">
+                {{ r.registradoNoCaixa ? 'Sim' : 'Não' }}
+              </span>
+            } @else { — }
+          </td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="cols"></tr>
+        <tr mat-row *matRowDef="let row; columns: cols"></tr>
+        <tr class="mat-mdc-row" *matNoDataRow>
+          <td class="mat-mdc-cell empty-state" [attr.colspan]="cols.length">Nenhum pedido neste período.</td>
+        </tr>
+      </table>
+    </div>
+
+  } @else {
+    <div class="empty-periodo">
+      <p>Nenhum dado encontrado para este período.</p>
+      <button mat-stroked-button type="button" (click)="carregar()">Tentar novamente</button>
+    </div>
+  }
+}

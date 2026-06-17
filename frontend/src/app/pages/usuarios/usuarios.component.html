@@ -1,0 +1,159 @@
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="card-title mb-0">Usuários</h4>
+        <button class="btn btn-primary btn-sm" (click)="abrirNovo()">
+          <i class="fa fa-plus me-1"></i> Novo Usuário
+        </button>
+      </div>
+      <div class="card-body">
+
+        @if (erro()) {
+          <div class="alert alert-danger alert-dismissible">
+            {{ erro() }}
+            <button type="button" class="btn-close" (click)="erro.set(null)"></button>
+          </div>
+        }
+        @if (sucesso()) {
+          <div class="alert alert-success alert-dismissible">
+            {{ sucesso() }}
+            <button type="button" class="btn-close" (click)="sucesso.set(null)"></button>
+          </div>
+        }
+
+        @if (loading()) {
+          <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status"></div>
+          </div>
+        } @else {
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Nome</th>
+                  <th>Login</th>
+                  <th>Perfil</th>
+                  <th>Status</th>
+                  <th class="text-end">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (u of usuarios(); track u.id) {
+                  <tr>
+                    <td>{{ u.nome }}</td>
+                    <td><code>{{ u.login }}</code></td>
+                    <td>
+                      <span class="badge"
+                        [class.bg-danger]="u.perfil === 'ADMIN'"
+                        [class.bg-primary]="u.perfil === 'OPERADOR'"
+                        [class.bg-secondary]="u.perfil === 'ENTREGADOR'">
+                        {{ u.perfil }}
+                      </span>
+                    </td>
+                    <td>
+                      <span class="badge" [class.bg-success]="u.ativo" [class.bg-secondary]="!u.ativo">
+                        {{ u.ativo ? 'Ativo' : 'Inativo' }}
+                      </span>
+                    </td>
+                    <td class="text-end">
+                      <button class="btn btn-sm btn-outline-primary me-1" (click)="abrirEdicao(u)" title="Editar">
+                        <i class="fa fa-pencil"></i>
+                      </button>
+                      <button class="btn btn-sm"
+                        [class.btn-outline-warning]="u.ativo"
+                        [class.btn-outline-success]="!u.ativo"
+                        (click)="toggleAtivo(u)"
+                        [title]="u.ativo ? 'Inativar' : 'Reativar'">
+                        <i class="fa" [class.fa-ban]="u.ativo" [class.fa-check]="!u.ativo"></i>
+                      </button>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5" class="text-center text-muted py-4">Nenhum usuário encontrado.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+@if (modalAberto()) {
+  <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.5)">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">{{ editando() ? 'Editar Usuário' : 'Novo Usuário' }}</h5>
+          <button type="button" class="btn-close" (click)="fecharModal()"></button>
+        </div>
+        <form [formGroup]="form" (ngSubmit)="salvar()">
+          <div class="modal-body">
+
+            <div class="mb-3">
+              <label class="form-label">Nome <span class="text-danger">*</span></label>
+              <input class="form-control" formControlName="nome" placeholder="Nome completo"
+                [class.is-invalid]="campo('nome')?.invalid && campo('nome')?.touched">
+              @if (campo('nome')?.errors?.['required'] && campo('nome')?.touched) {
+                <div class="invalid-feedback">Nome é obrigatório.</div>
+              }
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Login <span class="text-danger">*</span></label>
+              <input class="form-control" formControlName="login" placeholder="Login de acesso"
+                [class.is-invalid]="campo('login')?.invalid && campo('login')?.touched">
+              @if (campo('login')?.errors?.['required'] && campo('login')?.touched) {
+                <div class="invalid-feedback">Login é obrigatório.</div>
+              }
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">
+                Senha {{ editando() ? '(deixe em branco para manter)' : '*' }}
+              </label>
+              <input type="password" class="form-control" formControlName="senha" placeholder="Senha"
+                [class.is-invalid]="campo('senha')?.invalid && campo('senha')?.touched">
+              @if (campo('senha')?.errors?.['required'] && campo('senha')?.touched) {
+                <div class="invalid-feedback">Senha é obrigatória.</div>
+              }
+              @if (campo('senha')?.errors?.['minlength'] && campo('senha')?.touched) {
+                <div class="invalid-feedback">Mínimo 6 caracteres.</div>
+              }
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Perfil <span class="text-danger">*</span></label>
+              <select class="form-select" formControlName="perfil">
+                @for (p of perfis; track p) {
+                  <option [value]="p">{{ p }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" formControlName="ativo" id="ativoSwitch">
+              <label class="form-check-label" for="ativoSwitch">Usuário ativo</label>
+            </div>
+
+            @if (erro()) {
+              <div class="alert alert-danger mt-3 mb-0">{{ erro() }}</div>
+            }
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="fecharModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary" [disabled]="salvando()">
+              @if (salvando()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+              Salvar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}

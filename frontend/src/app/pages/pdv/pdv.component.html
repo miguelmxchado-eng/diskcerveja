@@ -1,0 +1,375 @@
+<div class="erp-page-heading">
+  <div>
+    <p class="erp-page-heading__eyebrow">Vendas</p>
+    <h2 class="erp-page-heading__title">Pedidos (PDV)</h2>
+    <p class="erp-page-heading__subtitle">ERP operacional · vendas, estoque e caixa</p>
+  </div>
+</div>
+
+<div class="erp-kpi-grid pdv-kpis">
+  <div class="erp-kpi">
+    <span class="erp-kpi__icon"><mat-icon>shopping_cart</mat-icon></span>
+    <div>
+      <span class="erp-kpi__label">Itens no carrinho</span>
+      <span class="erp-kpi__value">{{ totalQuantidade() }}</span>
+    </div>
+  </div>
+  <div class="erp-kpi">
+    <span class="erp-kpi__icon"><mat-icon>payments</mat-icon></span>
+    <div>
+      <span class="erp-kpi__label">Total do pedido</span>
+      <span class="erp-kpi__value">R$ {{ totalPedido() | number: '1.2-2' }}</span>
+    </div>
+  </div>
+  <div class="erp-kpi">
+    <span class="erp-kpi__icon"><mat-icon>inventory_2</mat-icon></span>
+    <div>
+      <span class="erp-kpi__label">Produtos carregados</span>
+      <span class="erp-kpi__value">{{ produtos().length }}</span>
+    </div>
+  </div>
+</div>
+
+<div class="pdv-grid">
+  <!-- Coluna: Catálogo -->
+  <div class="catalogo">
+    <div class="pdv-search-panel" [class.pdv-search-panel--flash]="scanFlash()">
+      <div class="barcode-box">
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Leitor de código de barras</mat-label>
+          <mat-icon matPrefix>qr_code_scanner</mat-icon>
+          <input
+            matInput
+            [(ngModel)]="codigoBarras"
+            (keyup.enter)="lerCodigoBarras()"
+            autocomplete="off"
+            placeholder="Escaneie, digite ou use leitor USB"
+          />
+        </mat-form-field>
+        <button class="add-barcode-btn" mat-flat-button type="button" (click)="lerCodigoBarras()">
+          Adicionar
+        </button>
+        <button
+          class="scan-camera-btn"
+          mat-flat-button
+          type="button"
+          [class.scan-camera-btn--active]="scanner.isOpen()"
+          (click)="toggleScanner()"
+        >
+          <mat-icon>qr_code_scanner</mat-icon>
+          {{ scanner.isOpen() ? 'Scanner ON' : 'Código de barras' }}
+        </button>
+      </div>
+
+      @if (ultimoScan(); as s) {
+        <div class="pdv-last-scan">
+          <mat-icon>check_circle</mat-icon>
+          <div>
+            <strong>{{ s.nome }}</strong>
+            <span>· {{ s.qtd }} un · R$ {{ s.preco | number: '1.2-2' }}</span>
+            <code>{{ s.code }}</code>
+          </div>
+        </div>
+      }
+
+      @if (historicoScans().length) {
+        <div class="pdv-scan-history">
+          <span class="pdv-scan-history__title">Últimos scans</span>
+          <ul>
+            @for (h of historicoScans(); track h.at) {
+              <li [class.pdv-scan-history__item--ok]="h.ok" [class.pdv-scan-history__item--err]="!h.ok">
+                <code>{{ h.code }}</code>
+                @if (h.nome) {
+                  <span>{{ h.nome }}</span>
+                } @else if (!h.ok) {
+                  <span>Não encontrado</span>
+                }
+              </li>
+            }
+          </ul>
+        </div>
+      }
+
+      <div class="search-row">
+        <mat-form-field appearance="outline" class="grow">
+          <mat-label>Buscar produto (nome, código ou categoria)...</mat-label>
+          <input matInput [(ngModel)]="q" (keyup.enter)="buscarProdutos()" />
+          <mat-icon matPrefix>search</mat-icon>
+        </mat-form-field>
+        <button mat-stroked-button type="button" (click)="buscarProdutos()" [disabled]="loadingProdutos()">
+          <mat-icon>tune</mat-icon>
+          Filtros
+        </button>
+      </div>
+    </div>
+
+    @if (loadingProdutos()) {
+      <mat-progress-bar mode="indeterminate" style="margin-bottom: 8px"></mat-progress-bar>
+    }
+
+    <div class="quick-section">
+      <div class="quick-title">Atalhos rápidos</div>
+      <div class="quick-actions">
+        <button type="button" class="quick-chip" [class.quick-chip--active]="atalhoAtivo() === 'todos'" (click)="selecionarAtalho('todos')">
+          <mat-icon>apps</mat-icon> Todos
+        </button>
+        <button type="button" class="quick-chip" [class.quick-chip--active]="atalhoAtivo() === 'maisVendidos'" (click)="selecionarAtalho('maisVendidos')">
+          <mat-icon>local_fire_department</mat-icon> Mais vendidos
+        </button>
+        <button type="button" class="quick-chip" [class.quick-chip--active]="atalhoAtivo() === 'combos'" (click)="selecionarAtalho('combos')">
+          <mat-icon>redeem</mat-icon> Combos
+        </button>
+        <button type="button" class="quick-chip" [class.quick-chip--active]="atalhoAtivo() === 'favoritos'" (click)="selecionarAtalho('favoritos')">
+          <mat-icon>star_border</mat-icon> Favoritos
+        </button>
+        <button type="button" class="quick-chip" (click)="repetirUltimo()">
+          <mat-icon>history</mat-icon> Últimos pedidos
+        </button>
+      </div>
+    </div>
+
+    @if (mostrandoCombos()) {
+      <div class="produtos-header">Combos disponíveis</div>
+
+      @if (loadingCombos()) {
+        <mat-progress-bar mode="indeterminate" style="margin-bottom: 8px"></mat-progress-bar>
+      }
+
+      <div class="produto-grid">
+        @for (c of combosVisiveis(); track c.id) {
+          <article class="produto-card combo-card" (click)="addCombo(c)">
+            <div class="produto-card__image combo-card__image" aria-hidden="true">
+              @if (c.imagem) {
+                <img [src]="c.imagem" alt="" />
+              } @else {
+                🎁
+              }
+            </div>
+
+            <div class="produto-card__info">
+              <div class="produto-card__name">{{ c.nome }}</div>
+              <div class="produto-card__cat">
+                {{ c.itens.length }} {{ c.itens.length === 1 ? 'produto' : 'produtos' }}
+              </div>
+              <div class="combo-card__itens">
+                @for (it of c.itens; track it.produtoId) {
+                  <span>{{ it.quantidade }}x {{ it.produtoNome }}</span>
+                }
+              </div>
+              <div
+                class="produto-card__stock"
+                [class.produto-card__stock--low]="c.estoqueDisponivel <= 0"
+              >
+                monta {{ c.estoqueDisponivel }} un
+              </div>
+            </div>
+
+            <div class="produto-card__bottom">
+              <strong>R$ {{ c.precoVenda | number: '1.2-2' }}</strong>
+              <button class="produto-add" type="button" (click)="addCombo(c); $event.stopPropagation()">
+                <mat-icon>add</mat-icon>
+              </button>
+            </div>
+          </article>
+        } @empty {
+          @if (!loadingCombos()) {
+            <div class="lista__empty produto-grid__empty">
+              <mat-icon>redeem</mat-icon>
+              <span>Nenhum combo ativo. Cadastre em Estoque › Combos.</span>
+            </div>
+          }
+        }
+      </div>
+    } @else {
+      <div class="produtos-header">Produtos</div>
+
+      <div class="produto-grid">
+        @for (p of produtosVisiveis(); track p.id) {
+          <article class="produto-card" (click)="add(p)">
+            <button class="favorito-btn" type="button" (click)="toggleFavorito(p, $event)" [class.favorito-btn--active]="isFavorito(p)">
+              <mat-icon>{{ isFavorito(p) ? 'star' : 'star_border' }}</mat-icon>
+            </button>
+
+            <div class="produto-card__image" aria-hidden="true">{{ produtoImagem(p) }}</div>
+
+            <div class="produto-card__info">
+              <div class="produto-card__name">{{ p.nome }}</div>
+              <div class="produto-card__cat">{{ p.categoria | statusLabel }}</div>
+              @if (p.codigoBarras) {
+                <div class="produto-card__barcode">{{ p.codigoBarras }}</div>
+              }
+              <div class="produto-card__stock" [class.produto-card__stock--low]="p.estoqueAtual <= p.estoqueMinimo">
+                estoque: {{ p.estoqueAtual }}
+              </div>
+            </div>
+
+            <div class="produto-card__bottom">
+              <strong>R$ {{ p.preco | number: '1.2-2' }}</strong>
+              <button class="produto-add" type="button" (click)="add(p); $event.stopPropagation()">
+                <mat-icon>add</mat-icon>
+              </button>
+            </div>
+          </article>
+        } @empty {
+          @if (!loadingProdutos()) {
+            <div class="lista__empty produto-grid__empty">
+              <mat-icon>search_off</mat-icon>
+              <span>Nenhum produto encontrado.</span>
+            </div>
+          }
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Coluna: Carrinho -->
+  <div class="cart-column">
+    <mat-card class="cart-card">
+      <mat-card-title>
+        <span>Carrinho</span>
+        <button mat-icon-button type="button" (click)="limpar()" aria-label="Limpar carrinho">
+          <mat-icon>delete_outline</mat-icon>
+        </button>
+      </mat-card-title>
+      <mat-card-content>
+
+        <!-- Itens -->
+        <div class="itens-lista">
+          @for (l of carrinho(); track linhaKey(l); let i = $index) {
+            <div class="line">
+              <div class="grow">
+                <div class="nome">
+                  @if (l.isCombo) {
+                    <mat-icon class="line-combo-icon">redeem</mat-icon>
+                  }
+                  {{ l.nome }}
+                </div>
+                <div class="meta">
+                  R$ {{ l.preco | number: '1.2-2' }} · subtotal R$ {{ l.qtd * l.preco | number: '1.2-2' }}
+                  @if (l.ultimoCodigo) {
+                    · <code class="line-code">{{ l.ultimoCodigo }}</code>
+                  }
+                </div>
+                @if (l.isCombo && l.componentes) {
+                  <div class="line-combo-itens">{{ l.componentes }}</div>
+                }
+              </div>
+              <button mat-icon-button type="button" (click)="dec(i)"><mat-icon>remove</mat-icon></button>
+              <span class="qtd">{{ l.qtd }}</span>
+              <button mat-icon-button type="button" (click)="inc(i)"><mat-icon>add</mat-icon></button>
+            </div>
+          } @empty {
+            <div class="empty">
+              <mat-icon>shopping_cart_outlined</mat-icon>
+              <span>Nenhum item no carrinho.</span>
+            </div>
+          }
+        </div>
+
+        <!-- Totais -->
+        <div class="totais">
+          <div class="totais__linha">
+            <span>Itens</span>
+            <strong>R$ {{ totalItens() | number: '1.2-2' }}</strong>
+          </div>
+          @if (tipo === 'ENTREGA' && taxaEntrega > 0) {
+            <div class="totais__linha">
+              <span>Taxa de entrega</span>
+              <strong>R$ {{ taxaEntrega | number: '1.2-2' }}</strong>
+            </div>
+          }
+          <div class="totais__linha totais__total">
+            <span>Total</span>
+            <strong>R$ {{ totalPedido() | number: '1.2-2' }}</strong>
+          </div>
+        </div>
+
+        <!-- Dados do pedido -->
+        <div class="row mt">
+          <mat-form-field appearance="outline" class="half">
+            <mat-label>Cliente</mat-label>
+            <mat-icon matPrefix>person_outline</mat-icon>
+            <input matInput [(ngModel)]="clienteNome" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="half">
+            <mat-label>Telefone</mat-label>
+            <mat-icon matPrefix>phone</mat-icon>
+            <input matInput [(ngModel)]="telefone" />
+          </mat-form-field>
+        </div>
+
+        <div class="row">
+          <mat-form-field appearance="outline" class="half">
+            <mat-label>Tipo</mat-label>
+            <mat-select [(ngModel)]="tipo" name="tipo">
+              <mat-option value="BALCAO">Balcão</mat-option>
+              <mat-option value="RETIRADA">Retirada</mat-option>
+              <mat-option value="ENTREGA">Entrega</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="half">
+            <mat-label>Pagamento</mat-label>
+            <mat-select [(ngModel)]="formaPagamento" name="fp">
+              <mat-option value="PIX">PIX</mat-option>
+              <mat-option value="DINHEIRO">Dinheiro</mat-option>
+              <mat-option value="CARTAO">Cartão</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        @if (tipo === 'ENTREGA') {
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Endereço de entrega</mat-label>
+            <mat-icon matPrefix>location_on</mat-icon>
+            <textarea matInput rows="2" [(ngModel)]="enderecoEntrega"></textarea>
+          </mat-form-field>
+          <div class="row">
+            <mat-form-field appearance="outline" class="half">
+              <mat-label>Taxa entrega</mat-label>
+              <span matPrefix>R$&nbsp;</span>
+              <input matInput type="number" [(ngModel)]="taxaEntrega" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="half">
+              <mat-label>Entregador</mat-label>
+              <mat-icon matPrefix>delivery_dining</mat-icon>
+              <input matInput [(ngModel)]="entregadorNome" />
+            </mat-form-field>
+          </div>
+        }
+
+        @if (pedidoPendenteConfirmacao(); as pid) {
+          <div class="pendente">
+            <mat-icon>info_outline</mat-icon>
+            <span><strong>Pedido #{{ pid }}</strong> salvo — confirme para lançar no caixa e baixar estoque.</span>
+          </div>
+        }
+
+        <div class="actions">
+          <button mat-stroked-button class="cart-action" type="button" (click)="limpar()">
+            <mat-icon>delete_outline</mat-icon> Limpar
+          </button>
+          <button mat-stroked-button class="cart-action" type="button" (click)="repetirUltimo()">
+            <mat-icon>replay</mat-icon> Repetir
+          </button>
+          <button mat-flat-button class="cart-action whatsapp-btn" type="button" (click)="whatsapp()">
+            <mat-icon>chat</mat-icon> WhatsApp
+          </button>
+          <button mat-stroked-button class="cart-action" color="primary" type="button" (click)="salvarPedido()">
+            <mat-icon>save</mat-icon> Salvar pedido
+          </button>
+          <button mat-flat-button class="confirm-btn" type="button"
+            [disabled]="pedidoPendenteConfirmacao() == null || confirmando()"
+            (click)="confirmarVenda()">
+            <mat-icon>{{ confirmando() ? 'hourglass_empty' : 'check_circle' }}</mat-icon>
+            @if (confirmando()) {
+              Confirmando…
+            } @else {
+              Confirmar venda
+            }
+          </button>
+        </div>
+
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>

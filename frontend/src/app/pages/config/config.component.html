@@ -1,0 +1,55 @@
+<div class="row justify-content-center">
+  <div class="col-12 col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h4 class="card-title mb-0">Configurações do Sistema</h4>
+      </div>
+      <div class="card-body">
+
+        @if (erro()) {
+          <div class="alert alert-danger alert-dismissible">
+            {{ erro() }}
+            <button type="button" class="btn-close" (click)="erro.set(null)"></button>
+          </div>
+        }
+        @if (sucesso()) {
+          <div class="alert alert-success alert-dismissible">
+            {{ sucesso() }}
+            <button type="button" class="btn-close" (click)="sucesso.set(null)"></button>
+          </div>
+        }
+
+        @if (loading()) {
+          <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status"></div>
+          </div>
+        } @else {
+          <h6 class="mb-3 text-muted text-uppercase fw-semibold" style="font-size:.75rem; letter-spacing:.05em">
+            Caixa
+          </h6>
+
+          <div class="form-check form-switch mb-2">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="caixaObrigatorioSwitch"
+              [checked]="caixaObrigatorio()"
+              (change)="caixaObrigatorio.set(!caixaObrigatorio())"
+            >
+            <label class="form-check-label" for="caixaObrigatorioSwitch">
+              Exigir abertura de caixa antes de registrar pedidos
+            </label>
+          </div>
+          <p class="text-muted small mb-4">
+            Quando ativado, o sistema bloqueia novos pedidos se não houver uma sessão de caixa aberta.
+          </p>
+
+          <button class="btn btn-primary" (click)="salvar()" [disabled]="salvando()">
+            @if (salvando()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+            Salvar configurações
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+</div>

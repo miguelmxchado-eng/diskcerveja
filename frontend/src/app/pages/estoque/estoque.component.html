@@ -1,0 +1,530 @@
+<div class="erp-page-heading">
+  <div>
+    <p class="erp-page-heading__eyebrow">Operação</p>
+    <h2 class="erp-page-heading__title">Gestão de estoque</h2>
+    <p class="erp-page-heading__subtitle">Acompanhe alertas, entradas, ajustes e histórico de movimentações.</p>
+  </div>
+  <button mat-stroked-button type="button" (click)="reloadMovs(); reloadBaixo(); reloadProdutos()">
+    <mat-icon>refresh</mat-icon>
+    Atualizar
+  </button>
+</div>
+
+<div class="erp-kpi-grid">
+  <div class="erp-kpi">
+    <span class="erp-kpi__icon"><mat-icon>inventory</mat-icon></span>
+    <div>
+      <span class="erp-kpi__label">Produtos ativos</span>
+      <span class="erp-kpi__value">{{ totalProdutos() }}</span>
+    </div>
+  </div>
+  <div class="erp-kpi">
+    <span class="erp-kpi__icon"><mat-icon>warning_amber</mat-icon></span>
+    <div>
+      <span class="erp-kpi__label">Alertas</span>
+      <span class="erp-kpi__value">{{ totalAlertas() }}</span>
+    </div>
+  </div>
+  <div class="erp-kpi">
+    <span class="erp-kpi__icon"><mat-icon>sync_alt</mat-icon></span>
+    <div>
+      <span class="erp-kpi__label">Movimentos</span>
+      <span class="erp-kpi__value">{{ totalMovimentos() }}</span>
+    </div>
+  </div>
+</div>
+
+<mat-tab-group>
+  <!-- Aba Produtos / códigos -->
+  <mat-tab label="Produtos">
+    <div class="estoque-prod-toolbar">
+      <mat-form-field appearance="outline" class="estoque-prod-search">
+        <mat-label>Buscar nome ou código</mat-label>
+        <mat-icon matPrefix>search</mat-icon>
+        <input matInput [(ngModel)]="filtroProdutos" name="filtroEst" autocomplete="off" />
+      </mat-form-field>
+      <mat-checkbox [(ngModel)]="filtroSomenteComCodigo" name="filtroCodEst">
+        Somente com código
+      </mat-checkbox>
+      <button
+        mat-flat-button
+        color="primary"
+        type="button"
+        (click)="toggleScannerBusca()"
+      >
+        <mat-icon>qr_code_scanner</mat-icon>
+        {{ scanner.isOpen() ? 'Fechar scanner' : 'Escanear código' }}
+      </button>
+      <button mat-stroked-button type="button" (click)="reloadProdutos()" [disabled]="loadingProdutos()">
+        <mat-icon>refresh</mat-icon>
+      </button>
+    </div>
+    @if (loadingProdutos()) {
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    }
+    <div class="table-wrapper">
+      <table mat-table [dataSource]="produtosFiltrados()" class="mat-elevation-z0 wide">
+        <ng-container matColumnDef="nome">
+          <th mat-header-cell *matHeaderCellDef>Produto</th>
+          <td mat-cell *matCellDef="let p" [class.estoque-row--highlight]="produtoDestacadoId() === p.id">
+            {{ p.nome }}
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="codigo">
+          <th mat-header-cell *matHeaderCellDef>Código</th>
+          <td mat-cell *matCellDef="let p">
+            @if (codigoExibicao(p); as cod) {
+              <div class="codigo-cell">
+                <code class="barcode-code">{{ cod }}</code>
+                <span class="codigo-cell__tipo">{{ tipoCodigo(p) }}</span>
+                <button
+                  mat-icon-button
+                  type="button"
+                  (click)="copiarCodigo(p, $event)"
+                  matTooltip="Copiar"
+                  aria-label="Copiar código"
+                >
+                  <mat-icon>content_copy</mat-icon>
+                </button>
+              </div>
+            } @else {
+              —
+            }
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="categoria">
+          <th mat-header-cell *matHeaderCellDef>Categoria</th>
+          <td mat-cell *matCellDef="let p">{{ p.categoria | statusLabel }}</td>
+        </ng-container>
+        <ng-container matColumnDef="estoque">
+          <th mat-header-cell *matHeaderCellDef>Estoque</th>
+          <td mat-cell *matCellDef="let p">
+            <span [class.estoque-baixo]="p.estoqueAtual <= p.estoqueMinimo">{{ p.estoqueAtual }}</span>
+            <small> / mín {{ p.estoqueMinimo }}</small>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="preco">
+          <th mat-header-cell *matHeaderCellDef>Preço</th>
+          <td mat-cell *matCellDef="let p">R$ {{ p.preco | number: '1.2-2' }}</td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="prodCols"></tr>
+        <tr mat-row *matRowDef="let row; columns: prodCols"></tr>
+        <tr class="mat-mdc-row" *matNoDataRow>
+          <td class="mat-mdc-cell empty-state" colspan="5">Nenhum produto encontrado.</td>
+        </tr>
+      </table>
+    </div>
+    @if (produtosFiltrados().length === 1) {
+      <div class="estoque-quick-actions">
+        <span class="estoque-quick-actions__label">Produto filtrado:</span>
+        <button mat-stroked-button type="button" (click)="selecionarParaAjuste(produtosFiltrados()[0])">
+          Usar em ajuste
+        </button>
+        <button mat-stroked-button type="button" (click)="selecionarParaEntrada(produtosFiltrados()[0])">
+          Usar em entrada
+        </button>
+      </div>
+    }
+  </mat-tab>
+
+  <!-- Aba Movimentos -->
+  <mat-tab label="Movimentos">
+    @if (loadingMovs()) {
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    }
+    <div class="table-wrapper">
+      <table mat-table [dataSource]="movimentos()" class="mat-elevation-z0 wide">
+        <ng-container matColumnDef="data">
+          <th mat-header-cell *matHeaderCellDef>Data</th>
+          <td mat-cell *matCellDef="let m">{{ m.createdAt | date: 'dd/MM HH:mm' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="produto">
+          <th mat-header-cell *matHeaderCellDef>Produto</th>
+          <td mat-cell *matCellDef="let m">{{ m.produto?.nome ?? '—' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="tipo">
+          <th mat-header-cell *matHeaderCellDef>Tipo</th>
+          <td mat-cell *matCellDef="let m">
+            <span class="mov-chip mov-chip--{{ m.tipo | lowercase }}">{{ m.tipo | statusLabel }}</span>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="qtd">
+          <th mat-header-cell *matHeaderCellDef>Qtd</th>
+          <td mat-cell *matCellDef="let m">
+            <span [class.qtd-positivo]="m.tipo === 'ENTRADA'" [class.qtd-negativo]="m.tipo !== 'ENTRADA'">
+              {{ m.tipo === 'ENTRADA' ? '+' : '' }}{{ m.quantidade }}
+            </span>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="motivo">
+          <th mat-header-cell *matHeaderCellDef>Motivo</th>
+          <td mat-cell *matCellDef="let m">{{ m.motivo || '—' }}</td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="movCols"></tr>
+        <tr mat-row *matRowDef="let row; columns: movCols"></tr>
+        <tr class="mat-mdc-row" *matNoDataRow>
+          <td class="mat-mdc-cell empty-state" colspan="5">Nenhum movimento registrado.</td>
+        </tr>
+      </table>
+    </div>
+  </mat-tab>
+
+  <!-- Aba Baixo estoque -->
+  <mat-tab label="Alertas">
+    @if (loadingBaixo()) {
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    }
+    <ul class="alert-list">
+      @for (p of baixo(); track p.id) {
+        <li class="alert-item">
+          <span class="alert-nome">{{ p.nome }}</span>
+          <span class="alert-qtd">{{ p.estoqueAtual }} <small>/ mín {{ p.estoqueMinimo }}</small></span>
+        </li>
+      } @empty {
+        <li class="empty-state" style="list-style: none; padding: 2rem 1rem">
+          <mat-icon>check_circle_outline</mat-icon>
+          Todos os produtos estão com estoque adequado.
+        </li>
+      }
+    </ul>
+  </mat-tab>
+
+  <!-- Aba Ajustes -->
+  <mat-tab label="Ajustes">
+    @if (auth.isAdmin()) {
+      <div class="form section">
+        <h3 class="section-title">Ajuste manual de quantidade</h3>
+        <mat-form-field appearance="outline" class="grow">
+          <mat-label>Produto</mat-label>
+          <mat-select [(ngModel)]="ajusteId" name="ajuste-prod">
+            @for (p of todosProdutos(); track p.id) {
+              <mat-option [value]="p.id">{{ p.nome }} (est: {{ p.estoqueAtual }})</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Nova quantidade</mat-label>
+          <input matInput type="number" [(ngModel)]="ajusteQtd" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="grow">
+          <mat-label>Motivo</mat-label>
+          <input matInput [(ngModel)]="ajusteMotivo" />
+        </mat-form-field>
+        <button mat-flat-button color="primary" type="button" (click)="ajustar()">Ajustar</button>
+      </div>
+    } @else {
+      <p class="permissao-msg">Ajustes manuais são restritos ao administrador.</p>
+    }
+
+    <div class="form section">
+      <h3 class="section-title">Registrar entrada (compra)</h3>
+      <mat-form-field appearance="outline" class="grow">
+        <mat-label>Produto</mat-label>
+        <mat-select [(ngModel)]="entradaId" name="entrada-prod">
+          @for (p of todosProdutos(); track p.id) {
+            <mat-option [value]="p.id">{{ p.nome }} (est: {{ p.estoqueAtual }})</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Quantidade</mat-label>
+        <input matInput type="number" [(ngModel)]="entradaQtd" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="grow">
+        <mat-label>Motivo</mat-label>
+        <input matInput [(ngModel)]="entradaMotivo" />
+      </mat-form-field>
+      <button mat-stroked-button type="button" (click)="entrada()">Registrar entrada</button>
+    </div>
+  </mat-tab>
+
+  <!-- Aba Combos -->
+  <mat-tab label="Combos">
+    <div class="combos-toolbar">
+      <mat-form-field appearance="outline" class="combos-search">
+        <mat-label>Buscar combo</mat-label>
+        <mat-icon matPrefix>search</mat-icon>
+        <input matInput [(ngModel)]="filtroCombos" name="filtroCombo" autocomplete="off" />
+      </mat-form-field>
+      <button mat-stroked-button type="button" (click)="reloadCombos()" [disabled]="loadingCombos()">
+        <mat-icon>refresh</mat-icon>
+        Atualizar
+      </button>
+      @if (auth.isAdmin()) {
+        <button mat-flat-button color="primary" type="button" (click)="novoCombo()">
+          <mat-icon>add</mat-icon>
+          Novo combo
+        </button>
+      }
+    </div>
+
+    @if (loadingCombos()) {
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    }
+
+    <div class="table-wrapper">
+      <table mat-table [dataSource]="combosFiltrados()" class="mat-elevation-z0 wide">
+        <ng-container matColumnDef="nome">
+          <th mat-header-cell *matHeaderCellDef>Combo</th>
+          <td mat-cell *matCellDef="let c">
+            <div class="combo-nome-cell">
+              @if (c.imagem) {
+                <img class="combo-thumb" [src]="c.imagem" alt="" />
+              } @else {
+                <span class="combo-thumb combo-thumb--placeholder"><mat-icon>redeem</mat-icon></span>
+              }
+              <span>{{ c.nome }}</span>
+            </div>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="codigo">
+          <th mat-header-cell *matHeaderCellDef>Código</th>
+          <td mat-cell *matCellDef="let c">
+            <code class="barcode-code">{{ c.codigoBarras || c.codigo || '—' }}</code>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="categoria">
+          <th mat-header-cell *matHeaderCellDef>Categoria</th>
+          <td mat-cell *matCellDef="let c">{{ c.categoria | statusLabel }}</td>
+        </ng-container>
+        <ng-container matColumnDef="preco">
+          <th mat-header-cell *matHeaderCellDef>Preço venda</th>
+          <td mat-cell *matCellDef="let c">R$ {{ c.precoVenda | number: '1.2-2' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="custo">
+          <th mat-header-cell *matHeaderCellDef>Custo</th>
+          <td mat-cell *matCellDef="let c">R$ {{ c.custoTotal | number: '1.2-2' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="margem">
+          <th mat-header-cell *matHeaderCellDef>Margem</th>
+          <td mat-cell *matCellDef="let c">
+            <span [class.combo-margem--neg]="c.lucro < 0">{{ c.margem | number: '1.0-1' }}%</span>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="vendidos">
+          <th mat-header-cell *matHeaderCellDef>Vendidos</th>
+          <td mat-cell *matCellDef="let c">{{ c.quantidadeVendida }}</td>
+        </ng-container>
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let c">
+            <span class="status-chip" [class.status-chip--off]="!c.ativo">
+              {{ c.ativo ? 'Ativo' : 'Inativo' }}
+            </span>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="acoes">
+          <th mat-header-cell *matHeaderCellDef>Ações</th>
+          <td mat-cell *matCellDef="let c">
+            @if (auth.isAdmin()) {
+              <button mat-icon-button type="button" (click)="editarCombo(c)" matTooltip="Editar">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button mat-icon-button type="button" color="warn" (click)="excluirCombo(c)" matTooltip="Excluir">
+                <mat-icon>delete</mat-icon>
+              </button>
+            } @else {
+              —
+            }
+          </td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="comboCols"></tr>
+        <tr mat-row *matRowDef="let row; columns: comboCols"></tr>
+        <tr class="mat-mdc-row" *matNoDataRow>
+          <td class="mat-mdc-cell empty-state" colspan="9">Nenhum combo cadastrado.</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Relatório rápido -->
+    @if (comboMaisVendidos().length) {
+      <div class="combo-relatorio">
+        <h3 class="section-title">Combos mais vendidos</h3>
+        <ul class="combo-rank">
+          @for (c of comboMaisVendidos(); track c.id) {
+            <li>
+              <span class="combo-rank__nome">{{ c.nome }}</span>
+              <span class="combo-rank__metric">{{ c.quantidadeVendida }} vendas</span>
+              <span class="combo-rank__metric">R$ {{ c.faturamento | number: '1.2-2' }} faturado</span>
+              <span class="combo-rank__metric" [class.combo-margem--neg]="c.lucro < 0">
+                R$ {{ c.lucro | number: '1.2-2' }} lucro
+              </span>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+
+    <!-- Cadastro / edição -->
+    @if (auth.isAdmin()) {
+      <div class="erp-panel combo-form">
+        <div class="erp-panel__header">
+          <h3 class="erp-panel__title">
+            {{ comboEditId() ? 'Editar combo' : 'Novo combo' }}
+          </h3>
+          @if (comboEditId()) {
+            <button mat-stroked-button type="button" (click)="cancelarCombo()">
+              <mat-icon>close</mat-icon>
+              Cancelar edição
+            </button>
+          }
+        </div>
+
+        <div class="combo-form__grid">
+          <mat-form-field appearance="outline" class="grow">
+            <mat-label>Nome do combo</mat-label>
+            <input matInput [(ngModel)]="comboNome" name="comboNome" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Categoria</mat-label>
+            <mat-select [(ngModel)]="comboCategoria" name="comboCat">
+              @for (cat of categorias; track cat) {
+                <mat-option [value]="cat">{{ cat | statusLabel }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Preço de venda</mat-label>
+            <span matPrefix>R$&nbsp;</span>
+            <input
+              matInput
+              type="number"
+              min="0"
+              step="0.01"
+              [ngModel]="comboPreco()"
+              (ngModelChange)="comboPreco.set(+$event)"
+              name="comboPreco"
+            />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Código de barras (opcional)</mat-label>
+            <input matInput [(ngModel)]="comboCodigoBarras" name="comboCb" autocomplete="off" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>QR Code (opcional)</mat-label>
+            <input matInput [(ngModel)]="comboCodigoQr" name="comboQr" autocomplete="off" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="grow">
+            <mat-label>Descrição</mat-label>
+            <textarea matInput rows="2" [(ngModel)]="comboDescricao" name="comboDesc"></textarea>
+          </mat-form-field>
+        </div>
+
+        <div class="combo-form__imagem">
+          @if (comboImagem()) {
+            <img class="combo-form__preview" [src]="comboImagem()!" alt="Prévia do combo" />
+            <button mat-stroked-button type="button" color="warn" (click)="removerImagemCombo()">
+              <mat-icon>delete</mat-icon>
+              Remover imagem
+            </button>
+          } @else {
+            <label class="combo-upload">
+              <mat-icon>add_photo_alternate</mat-icon>
+              <span>Adicionar imagem</span>
+              <input type="file" accept="image/*" hidden (change)="onImagemCombo($event)" />
+            </label>
+          }
+          <mat-slide-toggle [(ngModel)]="comboAtivo" name="comboAtivo">
+            {{ comboAtivo ? 'Ativo' : 'Inativo' }}
+          </mat-slide-toggle>
+        </div>
+
+        <div class="combo-itens">
+          <h4 class="section-title">Produtos do combo</h4>
+          <div class="combo-itens__add">
+            <mat-form-field appearance="outline" class="grow">
+              <mat-label>Adicionar produto</mat-label>
+              <mat-select [(ngModel)]="produtoParaAdicionar" name="comboAddProd">
+                @for (p of produtosDisponiveisParaCombo(); track p.id) {
+                  <mat-option [value]="p.id">
+                    {{ p.nome }} (est: {{ p.estoqueAtual }})
+                  </mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <button
+              mat-flat-button
+              color="primary"
+              type="button"
+              (click)="adicionarItemCombo()"
+              [disabled]="!produtoParaAdicionar"
+            >
+              <mat-icon>add</mat-icon>
+              Adicionar
+            </button>
+          </div>
+
+          @if (comboItens().length) {
+            <ul class="combo-itens__list">
+              @for (it of comboItens(); track it.produtoId) {
+                <li class="combo-item-row">
+                  <span class="combo-item-row__nome">{{ nomeProduto(it.produtoId) }}</span>
+                  <mat-form-field appearance="outline" class="combo-item-row__qtd">
+                    <mat-label>Qtd</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      min="1"
+                      [ngModel]="it.quantidade"
+                      (ngModelChange)="alterarQtdItem(it.produtoId, +$event)"
+                      [name]="'qtd-' + it.produtoId"
+                    />
+                  </mat-form-field>
+                  <button
+                    mat-icon-button
+                    type="button"
+                    color="warn"
+                    (click)="removerItemCombo(it.produtoId)"
+                    matTooltip="Remover"
+                  >
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="permissao-msg">Nenhum produto adicionado ainda.</p>
+          }
+        </div>
+
+        <div class="combo-calc">
+          <div class="combo-calc__item">
+            <span class="combo-calc__label">Custo total</span>
+            <span class="combo-calc__value">R$ {{ comboCustoTotal() | number: '1.2-2' }}</span>
+          </div>
+          <div class="combo-calc__item">
+            <span class="combo-calc__label">Preço de venda</span>
+            <span class="combo-calc__value">R$ {{ comboPreco() | number: '1.2-2' }}</span>
+          </div>
+          <div class="combo-calc__item">
+            <span class="combo-calc__label">Lucro</span>
+            <span class="combo-calc__value" [class.combo-margem--neg]="comboLucro() < 0">
+              R$ {{ comboLucro() | number: '1.2-2' }}
+            </span>
+          </div>
+          <div class="combo-calc__item">
+            <span class="combo-calc__label">Margem</span>
+            <span class="combo-calc__value" [class.combo-margem--neg]="comboMargem() < 0">
+              {{ comboMargem() | number: '1.0-1' }}%
+            </span>
+          </div>
+        </div>
+
+        <div class="combo-form__actions">
+          <button
+            mat-flat-button
+            color="primary"
+            type="button"
+            (click)="salvarCombo()"
+            [disabled]="comboSalvando()"
+          >
+            <mat-icon>save</mat-icon>
+            {{ comboEditId() ? 'Salvar alterações' : 'Criar combo' }}
+          </button>
+        </div>
+      </div>
+    } @else {
+      <p class="permissao-msg">A criação e edição de combos é restrita ao administrador.</p>
+    }
+  </mat-tab>
+</mat-tab-group>

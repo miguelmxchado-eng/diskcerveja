@@ -1,0 +1,151 @@
+<div id="main-wrapper" class="erp-shell show" [class.menu-toggle]="menuToggle">
+  <div class="nav-header">
+    <a routerLink="/dashboard" class="brand-logo erp-brand">
+      <span class="erp-brand__icon" aria-hidden="true">
+        <mat-icon>storefront</mat-icon>
+      </span>
+      <span class="erp-brand__text">
+        <strong>Disk</strong>
+        <strong>Cerveja</strong>
+      </span>
+    </a>
+  </div>
+
+  <div class="header erp-header">
+    <div class="header-content">
+      <nav class="erp-topbar">
+        <button
+          class="erp-menu-toggle"
+          type="button"
+          (click)="flipMenu()"
+          aria-label="Alternar menu"
+          [attr.aria-expanded]="menuToggle"
+        >
+          <mat-icon>menu</mat-icon>
+        </button>
+
+        <div class="erp-top-title">
+          <div class="dashboard_bar">{{ sectionTitle() }}</div>
+          <small>ERP operacional · vendas, estoque e caixa</small>
+        </div>
+
+        <div class="erp-top-actions">
+          <button class="erp-notification" type="button" aria-label="Notificações">
+            <mat-icon>notifications_none</mat-icon>
+            <span aria-hidden="true"></span>
+          </button>
+
+          <div class="header-profile" [class.header-profile--open]="profileOpen">
+            <button
+              class="erp-profile"
+              type="button"
+              (click)="toggleProfile($event)"
+              [attr.aria-expanded]="profileOpen"
+              aria-haspopup="menu"
+              aria-controls="erp-user-menu"
+            >
+              <span class="erp-avatar">{{ (auth.user()?.nome || 'A').charAt(0) }}</span>
+              <span class="erp-profile__meta">
+                <strong>{{ auth.user()?.nome || 'Administrador' }}</strong>
+                <small>Perfil: {{ auth.user()?.perfil }}</small>
+              </span>
+              <mat-icon class="erp-profile__chevron" aria-hidden="true">expand_more</mat-icon>
+            </button>
+            <div id="erp-user-menu" class="erp-dropdown" role="menu">
+              <button type="button" class="erp-dropdown__item" role="menuitem" (click)="logout(); profileOpen = false">
+                Sair
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </div>
+  </div>
+
+  <div class="dlabnav">
+    <div class="dlabnav-scroll">
+      <ul class="metismenu erp-nav" id="menu" (click)="closeNavIfOverlay()">
+        <li class="menu-section-label">Principal</li>
+        <li>
+          <a routerLink="/dashboard" routerLinkActive="mm-active" [routerLinkActiveOptions]="{ exact: true }">
+            <span class="erp-nav__ico" aria-hidden="true"><mat-icon>dashboard</mat-icon></span>
+            <span class="nav-text">Dashboard</span>
+          </a>
+        </li>
+        @if (auth.user()?.perfil !== 'ENTREGADOR') {
+          <li class="menu-section-label">Operação</li>
+          <li>
+            <a routerLink="/pdv" routerLinkActive="mm-active">
+              <span class="erp-nav__ico" aria-hidden="true"><mat-icon>point_of_sale</mat-icon></span>
+              <span class="nav-text">Pedidos (PDV)</span>
+            </a>
+          </li>
+          <li>
+            <a routerLink="/relatorio-pedidos" routerLinkActive="mm-active">
+              <span class="erp-nav__ico" aria-hidden="true"><mat-icon>receipt_long</mat-icon></span>
+              <span class="nav-text">Pedidos (período)</span>
+            </a>
+          </li>
+          <li>
+            <a routerLink="/produtos" routerLinkActive="mm-active">
+              <span class="erp-nav__ico" aria-hidden="true"><mat-icon>layers</mat-icon></span>
+              <span class="nav-text">Produtos</span>
+            </a>
+          </li>
+          <li>
+            <a routerLink="/estoque" routerLinkActive="mm-active">
+              <span class="erp-nav__ico" aria-hidden="true"><mat-icon>inventory_2</mat-icon></span>
+              <span class="nav-text">Estoque</span>
+            </a>
+          </li>
+          <li>
+            <a routerLink="/caixa" routerLinkActive="mm-active">
+              <span class="erp-nav__ico" aria-hidden="true"><mat-icon>payments</mat-icon></span>
+              <span class="nav-text">Caixa</span>
+            </a>
+          </li>
+        }
+        <li class="menu-section-label">Logística</li>
+        <li>
+          <a routerLink="/entregas" routerLinkActive="mm-active">
+            <span class="erp-nav__ico" aria-hidden="true"><mat-icon>pin_drop</mat-icon></span>
+            <span class="nav-text">Entregas</span>
+          </a>
+        </li>
+        @if (auth.isAdmin()) {
+          <li class="menu-section-label">Administração</li>
+          <li>
+            <a routerLink="/usuarios" routerLinkActive="mm-active">
+              <span class="erp-nav__ico" aria-hidden="true"><mat-icon>groups</mat-icon></span>
+              <span class="nav-text">Usuários</span>
+            </a>
+          </li>
+          <li>
+            <a routerLink="/config" routerLinkActive="mm-active">
+              <span class="erp-nav__ico" aria-hidden="true"><mat-icon>settings</mat-icon></span>
+              <span class="nav-text">Configurações</span>
+            </a>
+          </li>
+        }
+      </ul>
+      <div class="erp-sidebar-card">
+        <span class="erp-sidebar-card__icon">
+          <mat-icon>verified_user</mat-icon>
+        </span>
+        <div>
+          <strong>Disk Cerveja Manager</strong>
+          <small>Versão 2.0.0</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content-body" [style.min-height.px]="contentMinHeight()">
+    <div class="container-fluid dc-page">
+      <router-outlet />
+    </div>
+  </div>
+  <div class="footer"></div>
+
+  <app-barcode-scanner-overlay />
+</div>

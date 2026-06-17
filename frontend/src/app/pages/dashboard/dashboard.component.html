@@ -1,0 +1,184 @@
+<div class="dashboard-wrapper" [class.dashboard-wrapper--dark]="salesPageDark()">
+  <header class="erp-page-heading dashboard-page__heading">
+    <div>
+      <p class="erp-page-heading__eyebrow">Visão do dia</p>
+      <h1 class="erp-page-heading__title">Resumo operacional em tempo real</h1>
+      <p class="erp-page-heading__subtitle">Acompanhe vendas entregues, pedidos em andamento e alertas de estoque.</p>
+    </div>
+    <div class="header-date">
+      <span class="date-badge">{{ today }}</span>
+    </div>
+  </header>
+
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" class="dashboard-progress" aria-label="Carregando painel" />
+    <div class="loading-state loading-state--inline">
+      <div class="spinner-ring"></div>
+      <p>Obtendo dados de <code class="dashboard-code">/api/dashboard</code>…</p>
+    </div>
+  } @else {
+    @if (error()) {
+      <div class="dashboard-error" role="alert">
+        <div class="dashboard-error__icon" aria-hidden="true">
+          <mat-icon>cloud_off</mat-icon>
+        </div>
+        <div class="dashboard-error__body">
+          <h2 class="dashboard-error__title">Não foi possível carregar o painel</h2>
+          <p class="dashboard-error__msg">{{ error() }}</p>
+          <p class="dashboard-error__hint">
+            Endpoint esperado:
+            <code class="dashboard-code">{{ apiBase }}/api/dashboard</code>
+            (GET autenticado com JWT; status 0 costuma indicar API fora do ar ou bloqueio de rede.)
+          </p>
+        </div>
+        <button mat-flat-button type="button" class="dashboard-error__retry" (click)="reload()">
+          <mat-icon>refresh</mat-icon>
+          Tentar novamente
+        </button>
+      </div>
+    } @else {
+      @if (data(); as d) {
+
+      <!-- Stat Cards Row -->
+      <div class="stats-grid">
+
+        <div class="stat-card">
+          <div class="stat-icon icon-green">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="1" x2="12" y2="23"></line>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <p class="stat-label">Vendas (Entregues)</p>
+            <h2 class="stat-value">R$ {{ d.vendasHoje | number: '1.2-2' }}</h2>
+            @if (variacaoVendasHint(d); as vHint) {
+              <p class="stat-hint">{{ vHint }}</p>
+            }
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon icon-blue">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <path d="M16 10a4 4 0 0 1-8 0"></path>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <p class="stat-label">Pedidos em Andamento</p>
+            <h2 class="stat-value">{{ d.pedidosEmAndamento }}</h2>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon icon-red">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <p class="stat-label">Pedidos Atrasados</p>
+            <h2 class="stat-value">{{ d.pedidosAtrasados }}</h2>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon icon-orange">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <p class="stat-label">Produtos Baixo Estoque</p>
+            <h2 class="stat-value">{{ d.produtosBaixoEstoque }}</h2>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Second Row -->
+      <div class="content-grid">
+
+        <!-- Caixa Card -->
+        <div class="card caixa-card">
+          <div class="card-header">
+            <h3 class="card-title">Caixa</h3>
+            <span class="badge" [class.badge-success]="d.caixa.caixaAberto" [class.badge-danger]="!d.caixa.caixaAberto">
+              {{ d.caixa.caixaAberto ? 'Aberto' : 'Fechado' }}
+            </span>
+          </div>
+          <div class="card-body">
+            <div class="caixa-saldo">
+              <span class="saldo-label">Saldo Previsto</span>
+              <span class="saldo-value">R$ {{ d.caixa.saldoPrevisto | number: '1.2-2' }}</span>
+            </div>
+
+            <div class="pagamentos-section">
+              <p class="section-subtitle">Vendas por forma de pagamento (hoje)</p>
+              <div class="pagamentos-list">
+                @for (kv of d.caixa.vendasPorFormaPagamento | keyvalue; track kv.key) {
+                  <div class="pagamento-item">
+                    <div class="pagamento-info">
+                      <span class="pagamento-dot"></span>
+                      <span class="pagamento-nome">{{ kv.key }}</span>
+                    </div>
+                    <span class="pagamento-valor">R$ {{ $any(kv.value) | number: '1.2-2' }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats Summary Card -->
+        <div class="card summary-card">
+          <div class="card-header">
+            <h3 class="card-title">Resumo Operacional</h3>
+          </div>
+          <div class="card-body">
+            <div class="summary-grid">
+              <div class="summary-item">
+                <h3 class="summary-number">{{ d.pedidosEmAndamento }}</h3>
+                <span class="summary-label">Em Andamento</span>
+              </div>
+              <div class="summary-item">
+                <h3 class="summary-number text-danger">{{ d.pedidosAtrasados }}</h3>
+                <span class="summary-label">Atrasados</span>
+              </div>
+              <div class="summary-item">
+                <h3 class="summary-number text-warning">{{ d.produtosBaixoEstoque }}</h3>
+                <span class="summary-label">Baixo Estoque</span>
+              </div>
+              <div class="summary-item">
+                <h3 class="summary-number text-success">R$ {{ d.vendasHoje | number: '1.0-0' }}</h3>
+                <span class="summary-label">Vendas Hoje</span>
+              </div>
+            </div>
+
+            <div class="caixa-status-banner" [class.open]="d.caixa.caixaAberto" [class.closed]="!d.caixa.caixaAberto">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                <line x1="1" y1="10" x2="23" y2="10"></line>
+              </svg>
+              <span>Caixa {{ d.caixa.caixaAberto ? 'está aberto' : 'está fechado' }} — Saldo R$ {{ d.caixa.saldoPrevisto | number: '1.2-2' }}</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      @if (d.cancelamentosHoje > 0) {
+        <div class="dashboard-banner dashboard-banner--warn" role="status">
+          <mat-icon aria-hidden="true">cancel</mat-icon>
+          <span><strong>{{ d.cancelamentosHoje }}</strong> pedido(s) cancelado(s) hoje (operacional).</span>
+        </div>
+      }
+
+      <app-sales-status-panel [d]="d" (pageDarkChange)="salesPageDark.set($event)" />
+      }
+    }
+  }
+</div>

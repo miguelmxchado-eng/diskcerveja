@@ -1,0 +1,63 @@
+@if (scanner.isOpen()) {
+  <div
+    class="scan-float"
+    [class.scan-float--min]="scanner.minimized()"
+    (click)="scanner.minimized() ? scanner.minimized.set(false) : null"
+    [class.scan-float--flash]="scanner.detectFlash()"
+    [class.scan-float--error]="scanner.status() === 'error'"
+    role="region"
+    aria-label="Scanner de código de barras"
+  >
+  <header class="scan-float__head">
+    <span class="scan-float__status">
+      <span class="scan-dot" [class.scan-dot--on]="scanner.status() === 'scanning'"></span>
+      @switch (scanner.status()) {
+        @case ('starting') { Iniciando… }
+        @case ('scanning') { Escaneando… }
+        @case ('paused') { Aguarde… }
+        @case ('success') { OK }
+        @case ('error') { Erro }
+        @default { Scanner }
+      }
+    </span>
+    <div class="scan-float__actions">
+      <button type="button" mat-icon-button (click)="trocarCamera()" aria-label="Trocar câmera">
+        <mat-icon>cameraswitch</mat-icon>
+      </button>
+      <button type="button" mat-icon-button (click)="minimizar()" aria-label="Minimizar">
+        <mat-icon>{{ scanner.minimized() ? 'open_in_full' : 'minimize' }}</mat-icon>
+      </button>
+      <button type="button" mat-icon-button (click)="fechar()" aria-label="Fechar scanner">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  </header>
+
+  @if (!scanner.minimized()) {
+    <div class="scan-float__viewport">
+      <div #readerHost class="scan-float__reader"></div>
+      <div class="scan-float__overlay-ui" aria-hidden="true">
+        <div class="scan-frame">
+          <div class="scan-line"></div>
+        </div>
+      </div>
+      @if (scanner.status() === 'starting' || retrying()) {
+        <div class="scan-float__loading">Abrindo câmera…</div>
+      }
+      @if (scanner.status() === 'success') {
+        <div class="scan-float__ok-pulse"></div>
+      }
+    </div>
+
+    @if (scanner.errorMessage(); as err) {
+      <p class="scan-float__err">{{ err }}</p>
+    }
+
+    @if (scanner.lastCode(); as code) {
+      <p class="scan-float__last"><code>{{ code }}</code></p>
+    }
+  } @else {
+    <p class="scan-float__mini-hint">Scanner ativo — toque para expandir</p>
+  }
+  </div>
+}

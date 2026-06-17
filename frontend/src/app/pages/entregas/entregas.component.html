@@ -1,0 +1,81 @@
+<div class="erp-page-heading">
+  <div>
+    <p class="erp-page-heading__eyebrow">Logística</p>
+    <h2 class="erp-page-heading__title">Painel de entregas</h2>
+    <p class="erp-page-heading__subtitle">Pedidos de entrega em aberto, preparo ou rota.</p>
+  </div>
+  <button mat-stroked-button type="button" (click)="reload()" [disabled]="loading()">
+    <mat-icon>refresh</mat-icon>
+    Atualizar
+  </button>
+</div>
+
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+}
+
+<div class="table-wrapper">
+  <table mat-table [dataSource]="rows()" class="mat-elevation-z1 wide">
+    <ng-container matColumnDef="pedido">
+      <th mat-header-cell *matHeaderCellDef>#</th>
+      <td mat-cell *matCellDef="let r"><strong>#{{ r.pedidoId }}</strong></td>
+    </ng-container>
+    <ng-container matColumnDef="cliente">
+      <th mat-header-cell *matHeaderCellDef>Cliente</th>
+      <td mat-cell *matCellDef="let r">
+        <div>{{ r.clienteNome || '—' }}</div>
+        @if (r.telefone) { <small class="tel">{{ r.telefone }}</small> }
+      </td>
+    </ng-container>
+    <ng-container matColumnDef="endereco">
+      <th mat-header-cell *matHeaderCellDef>Endereço</th>
+      <td mat-cell *matCellDef="let r">{{ r.enderecoEntrega || '—' }}</td>
+    </ng-container>
+    <ng-container matColumnDef="taxa">
+      <th mat-header-cell *matHeaderCellDef>Taxa</th>
+      <td mat-cell *matCellDef="let r">R$ {{ r.taxaEntrega | number: '1.2-2' }}</td>
+    </ng-container>
+    <ng-container matColumnDef="statusPedido">
+      <th mat-header-cell *matHeaderCellDef>Status pedido</th>
+      <td mat-cell *matCellDef="let r">
+        <span class="status-chip status-chip--{{ r.statusPedido | lowercase }}">
+          {{ r.statusPedido | statusLabel }}
+        </span>
+      </td>
+    </ng-container>
+    <ng-container matColumnDef="statusEntrega">
+      <th mat-header-cell *matHeaderCellDef>Entregador</th>
+      <td mat-cell *matCellDef="let r">
+        <div>{{ r.entregadorNome || '—' }}</div>
+        @if (r.statusEntrega) { <small class="text-muted">{{ r.statusEntrega }}</small> }
+      </td>
+    </ng-container>
+    <ng-container matColumnDef="acoes">
+      <th mat-header-cell *matHeaderCellDef>Ação</th>
+      <td mat-cell *matCellDef="let r">
+        @if (auth.user()?.perfil === 'ENTREGADOR' || auth.user()?.perfil === 'ADMIN') {
+          @if (r.statusPedido !== 'ENTREGUE' && r.statusPedido !== 'CANCELADO') {
+            @if (r.statusPedido === 'ABERTO' || r.statusPedido === 'EM_PREPARO') {
+              <button mat-stroked-button type="button" (click)="status(r.pedidoId, 'SAIU_ENTREGA')">
+                <mat-icon>local_shipping</mat-icon> Saiu
+              </button>
+            }
+            @if (r.statusPedido === 'SAIU_ENTREGA') {
+              <button mat-flat-button type="button" color="primary" (click)="status(r.pedidoId, 'ENTREGUE')">
+                <mat-icon>check_circle</mat-icon> Entregue
+              </button>
+            }
+          }
+        }
+      </td>
+    </ng-container>
+    <tr mat-header-row *matHeaderRowDef="cols"></tr>
+    <tr mat-row *matRowDef="let row; columns: cols"></tr>
+    <tr class="mat-mdc-row" *matNoDataRow>
+      <td class="mat-mdc-cell empty-state" [attr.colspan]="cols.length">
+        <mat-icon>local_shipping</mat-icon>
+        <span>Nenhuma entrega em andamento.</span>
+      </td>
+    </tr>
+  </table>
+</div>

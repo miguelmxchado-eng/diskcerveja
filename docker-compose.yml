@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: diskcerveja
+      POSTGRES_USER: diskcerveja
+      POSTGRES_PASSWORD: diskcerveja
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: diskcerveja
+      DB_USER: diskcerveja
+      DB_PASSWORD: diskcerveja
+      JWT_SECRET: disk-cerveja-change-me-in-production-use-long-random-secret-key-256bits
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata: {}

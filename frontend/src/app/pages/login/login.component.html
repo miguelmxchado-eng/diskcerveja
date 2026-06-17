@@ -1,0 +1,79 @@
+<div class="login-page">
+  <div class="login-page__inner">
+    <div class="login-brand">
+      <div class="login-brand__icon">
+        <mat-icon>storefront</mat-icon>
+      </div>
+      <div class="login-brand__text">
+        <span class="login-brand__line login-brand__line--light">Disk</span>
+        <span class="login-brand__line login-brand__line--accent">Cerveja</span>
+      </div>
+    </div>
+
+    <div class="login-card">
+      <h1 class="login-card__title">Acesso ao ERP</h1>
+      <p class="login-card__sub">Painel operacional — vendas, estoque e caixa</p>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" class="login-form">
+        <mat-form-field appearance="outline" class="login-form__field login-form__field--dark">
+          <mat-label>Login</mat-label>
+          <input matInput formControlName="login" autocomplete="username" placeholder="seu.login" />
+          <mat-icon matPrefix class="login-form__prefix">person_outline</mat-icon>
+          @if (form.get('login')?.invalid && form.get('login')?.touched) {
+            <mat-error>Informe o login.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="login-form__field login-form__field--dark">
+          <mat-label>Senha</mat-label>
+          <input
+            matInput
+            formControlName="senha"
+            [type]="senhaVisivel() ? 'text' : 'password'"
+            autocomplete="current-password"
+          />
+          <mat-icon matPrefix class="login-form__prefix">lock_outline</mat-icon>
+          <button
+            mat-icon-button
+            matSuffix
+            type="button"
+            class="login-form__suffix-btn"
+            (click)="senhaVisivel.set(!senhaVisivel())"
+            [attr.aria-label]="senhaVisivel() ? 'Ocultar senha' : 'Mostrar senha'"
+          >
+            <mat-icon>{{ senhaVisivel() ? 'visibility_off' : 'visibility' }}</mat-icon>
+          </button>
+          @if (form.get('senha')?.invalid && form.get('senha')?.touched) {
+            <mat-error>Informe a senha.</mat-error>
+          }
+        </mat-form-field>
+
+        @if (erro()) {
+          <div class="login-form__erro" role="alert">
+            <mat-icon>error_outline</mat-icon>
+            <span>{{ erro() }}</span>
+          </div>
+        }
+
+        <button
+          mat-flat-button
+          type="submit"
+          class="login-form__btn"
+          [disabled]="form.invalid || loading()"
+        >
+          @if (loading()) {
+            <mat-spinner diameter="20" strokeWidth="2.5"></mat-spinner>
+            <span>Entrando…</span>
+          } @else {
+            Entrar
+          }
+        </button>
+      </form>
+    </div>
+
+    <p class="login-page__footnote">
+      <mat-icon class="login-page__footnote-icon" aria-hidden="true">verified_user</mat-icon>
+      Disk Cerveja Manager · conexão segura
+    </p>
+  </div>
+</div>

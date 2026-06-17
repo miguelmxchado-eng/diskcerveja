@@ -1,0 +1,388 @@
+<div class="produtos-toolbar">
+  <nav class="produtos-breadcrumb" aria-label="Navegação secundária">
+    <span class="produtos-breadcrumb__segment">Cadastro</span>
+    <span class="produtos-breadcrumb__sep" aria-hidden="true">/</span>
+    <span class="produtos-breadcrumb__segment">Cadastros</span>
+    <span class="produtos-breadcrumb__sep" aria-hidden="true">/</span>
+    <span class="produtos-breadcrumb__segment produtos-breadcrumb__segment--current">
+      @if (auth.isAdmin()) {
+        Novo Produto
+      } @else {
+        Produtos
+      }
+    </span>
+  </nav>
+  <button mat-stroked-button type="button" (click)="reload()" [disabled]="loading()">
+    <mat-icon>refresh</mat-icon>
+    Atualizar
+  </button>
+</div>
+
+<div class="erp-kpi-grid">
+  <div class="erp-kpi">
+    <span class="erp-kpi__icon"><mat-icon>inventory_2</mat-icon></span>
+    <div>
+      <span class="erp-kpi__label">Produtos</span>
+      <span class="erp-kpi__value">{{ totalProdutos() }}</span>
+    </div>
+  </div>
+  <div class="erp-kpi">
+    <span class="erp-kpi__icon"><mat-icon>check_circle</mat-icon></span>
+    <div>
+      <span class="erp-kpi__label">Ativos no PDV</span>
+      <span class="erp-kpi__value">{{ totalAtivos() }}</span>
+    </div>
+  </div>
+  <div class="erp-kpi">
+    <span class="erp-kpi__icon"><mat-icon>warning_amber</mat-icon></span>
+    <div>
+      <span class="erp-kpi__label">Baixo estoque</span>
+      <span class="erp-kpi__value">{{ totalBaixoEstoque() }}</span>
+    </div>
+  </div>
+</div>
+
+@if (auth.isAdmin()) {
+  <div class="erp-panel produtos-wizard-panel">
+    <mat-horizontal-stepper #cadastroStepper class="produtos-stepper" [linear]="false" animationDuration="200">
+      <mat-step>
+        <ng-template matStepLabel>Dados do Produto</ng-template>
+
+        <div class="produtos-step__body">
+          <div class="erp-panel__header produtos-step__section-head">
+            <h3 class="erp-panel__title">Informações básicas</h3>
+          </div>
+
+          <div class="produtos-basic-grid">
+            <div class="produtos-basic-grid__fields">
+              <mat-form-field appearance="outline" class="produtos-field produtos-field--full">
+                <mat-label>Nome do Produto</mat-label>
+                <input matInput [(ngModel)]="novoNome" name="nomeProd" placeholder="Ex: Comércio Distribuinte de Bebidas Ltda." />
+              </mat-form-field>
+
+              <div class="produtos-field-row">
+                <mat-form-field appearance="outline" class="produtos-field produtos-field--grow">
+                  <mat-label>Categoria</mat-label>
+                  <mat-select [(ngModel)]="novoCat" name="cat">
+                    <mat-option value="CERVEJAS">Cervejas</mat-option>
+                    <mat-option value="DESTILADOS">Destilados</mat-option>
+                    <mat-option value="REFRIGERANTES">Refrigerantes</mat-option>
+                    <mat-option value="ENERGETICOS">Energéticos</mat-option>
+                    <mat-option value="PETISCOS">Petiscos</mat-option>
+                    <mat-option value="COMBOS">Combos</mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+
+              <div class="produtos-codigos-block">
+                <mat-form-field appearance="outline" class="produtos-field produtos-field--grow">
+                  <mat-label>Código de barras</mat-label>
+                  <mat-icon matPrefix>qr_code_scanner</mat-icon>
+                  <input
+                    matInput
+                    [(ngModel)]="novoCodigoBarras"
+                    name="gtin"
+                    maxlength="80"
+                    autocomplete="off"
+                    placeholder="EAN-13, EAN-8, UPC, Code 128"
+                    [readonly]="codigoSomenteLeitura"
+                    (blur)="validarCodigoEmTempoReal()"
+                  />
+                </mat-form-field>
+                <button
+                  mat-stroked-button
+                  type="button"
+                  class="produtos-scan-btn"
+                  (click)="abrirScanner('barras')"
+                >
+                  <mat-icon>photo_camera</mat-icon>
+                  Escanear
+                </button>
+              </div>
+
+              <div class="produtos-codigos-block">
+                <mat-form-field appearance="outline" class="produtos-field produtos-field--grow">
+                  <mat-label>QR Code do produto (opcional)</mat-label>
+                  <mat-icon matPrefix>qr_code_2</mat-icon>
+                  <input
+                    matInput
+                    [(ngModel)]="novoCodigoQr"
+                    name="qrProd"
+                    maxlength="80"
+                    autocomplete="off"
+                    placeholder="QR interno ou etiqueta"
+                    [readonly]="codigoSomenteLeitura"
+                    (blur)="validarCodigoEmTempoReal()"
+                  />
+                </mat-form-field>
+                <button
+                  mat-stroked-button
+                  type="button"
+                  class="produtos-scan-btn"
+                  (click)="abrirScanner('qr')"
+                >
+                  <mat-icon>photo_camera</mat-icon>
+                  Escanear QR
+                </button>
+              </div>
+
+              <div class="produtos-scan-options">
+                <mat-checkbox [(ngModel)]="travarCodigoAposScan" name="travarScan">
+                  Travar campos após leitura (somente leitura)
+                </mat-checkbox>
+              </div>
+
+              @if (ultimaLeituraPreview(); as prev) {
+                <div class="produtos-scan-preview">
+                  <mat-icon>visibility</mat-icon>
+                  <span>Pré-visualização: <code>{{ prev.code }}</code> · {{ prev.format }}</span>
+                </div>
+              }
+              @if (codigoDuplicadoMsg(); as dup) {
+                <p class="produtos-codigo-erro" role="alert">{{ dup }}</p>
+              }
+              <p class="produtos-codigo-hint">
+                Sem código de barras ou QR, o sistema gera automaticamente um código interno (ex.: DC-…).
+              </p>
+
+              <mat-form-field appearance="outline" class="produtos-field produtos-field--full">
+                <mat-label>Marca</mat-label>
+                <input matInput [(ngModel)]="novoMarca" name="marca" placeholder="Ex: Skol." />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="produtos-field produtos-field--full produtos-field--textarea">
+                <mat-label>Descrição</mat-label>
+                <textarea
+                  matInput
+                  [(ngModel)]="novoDescricao"
+                  name="desc"
+                  rows="5"
+                  maxlength="5000"
+                  placeholder="Ex: Detalhes opcionais (opcional)"
+                ></textarea>
+                <span matTextSuffix class="produtos-char-count">{{ novoDescricao.length }}/5000</span>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="produtos-field produtos-field--estoque">
+                <mat-label>Estoque inicial</mat-label>
+                <input matInput type="number" [(ngModel)]="novoEst" name="estInicial" />
+              </mat-form-field>
+            </div>
+
+            <div class="produtos-basic-grid__image">
+              <p class="produtos-image__title">Imagem do Produto</p>
+              <div class="produtos-image__box" [class.produtos-image__box--has-preview]="!!imagemPreview()">
+                @if (imagemPreview(); as src) {
+                  <img [src]="src" alt="Pré-visualização do produto" class="produtos-image__preview" />
+                } @else {
+                  <mat-icon class="produtos-image__placeholder-icon">image</mat-icon>
+                  <span class="produtos-image__placeholder-text">Adicione uma imagem.</span>
+                }
+              </div>
+              <input
+                #fileInput
+                type="file"
+                class="produtos-image__input"
+                accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+                (change)="onImagemSelecionada($event)"
+              />
+              <button mat-flat-button type="button" class="produtos-btn-primary produtos-image__btn" (click)="fileInput.click()">
+                Adicione uma imagem
+              </button>
+              <p class="produtos-image__hint">PNG, JPG ou WEBP até 1MB.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="produtos-wizard__footer">
+          <button mat-stroked-button type="button" (click)="cancelarCadastro()">Cancelar</button>
+          <button mat-flat-button type="button" class="produtos-btn-primary" matStepperNext [disabled]="!podeAvancarDados()">
+            Próximo
+          </button>
+        </div>
+      </mat-step>
+
+      <mat-step>
+        <ng-template matStepLabel>Estoque e Preço</ng-template>
+
+        <div class="produtos-step__body">
+          <div class="erp-panel__header produtos-step__section-head">
+            <h3 class="erp-panel__title">Preço e alertas de estoque</h3>
+          </div>
+          @if (codigoBarrasResumo(); as cod) {
+            <p class="produtos-step2-codigo">
+              <strong>Código de barras:</strong> <code class="barcode-code">{{ cod }}</code>
+            </p>
+          }
+          <div class="produtos-step2-grid">
+            <mat-form-field appearance="outline" class="produtos-field">
+              <mat-label>Preço de venda</mat-label>
+              <span matTextPrefix>R$&nbsp;</span>
+              <input matInput type="number" [(ngModel)]="novoPreco" name="preco" min="0" step="0.01" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="produtos-field">
+              <mat-label>Estoque mínimo</mat-label>
+              <input matInput type="number" [(ngModel)]="novoMin" name="estMin" min="0" />
+            </mat-form-field>
+          </div>
+        </div>
+
+        <div class="produtos-wizard__footer">
+          <button mat-stroked-button type="button" matStepperPrevious>Voltar</button>
+          <button mat-flat-button type="button" class="produtos-btn-primary" matStepperNext>Próximo</button>
+        </div>
+      </mat-step>
+
+      <mat-step>
+        <ng-template matStepLabel>Revisão</ng-template>
+
+        <div class="produtos-step__body">
+          <div class="erp-panel__header produtos-step__section-head">
+            <h3 class="erp-panel__title">Confira antes de salvar</h3>
+          </div>
+          <dl class="produtos-resumo">
+            <div class="produtos-resumo__row">
+              <dt>Nome</dt>
+              <dd>{{ novoNome || '—' }}</dd>
+            </div>
+            <div class="produtos-resumo__row">
+              <dt>Categoria</dt>
+              <dd>{{ novoCat | statusLabel }}</dd>
+            </div>
+            <div class="produtos-resumo__row">
+              <dt>Código de barras</dt>
+              <dd>{{ codigoBarrasResumo() ?? '—' }}</dd>
+            </div>
+            <div class="produtos-resumo__row">
+              <dt>QR Code</dt>
+              <dd>{{ codigoQrResumo() ?? '—' }}</dd>
+            </div>
+            <div class="produtos-resumo__row">
+              <dt>Marca</dt>
+              <dd>{{ novoMarca || '—' }}</dd>
+            </div>
+            <div class="produtos-resumo__row produtos-resumo__row--block">
+              <dt>Descrição</dt>
+              <dd>{{ novoDescricao || '—' }}</dd>
+            </div>
+            <div class="produtos-resumo__row">
+              <dt>Estoque inicial</dt>
+              <dd>{{ novoEst }}</dd>
+            </div>
+            <div class="produtos-resumo__row">
+              <dt>Preço</dt>
+              <dd>R$ {{ novoPreco | number: '1.2-2' }}</dd>
+            </div>
+            <div class="produtos-resumo__row">
+              <dt>Estoque mínimo</dt>
+              <dd>{{ novoMin }}</dd>
+            </div>
+            <div class="produtos-resumo__row produtos-resumo__row--muted">
+              <dt>Imagem</dt>
+              <dd>{{ imagemPreview() ? 'Anexada (prévia local)' : 'Nenhuma' }}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="produtos-wizard__footer">
+          <button mat-stroked-button type="button" matStepperPrevious>Voltar</button>
+          <button mat-flat-button type="button" class="produtos-btn-primary" (click)="salvarNovo()">Finalizar cadastro</button>
+        </div>
+      </mat-step>
+    </mat-horizontal-stepper>
+  </div>
+}
+
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+}
+
+<div class="table-wrapper erp-panel produtos-tabela">
+  <div class="erp-panel__header produtos-tabela__head">
+    <h3 class="erp-panel__title">Produtos cadastrados</h3>
+    <div class="produtos-tabela__filters">
+      <mat-form-field appearance="outline" class="produtos-tabela__search">
+        <mat-label>Buscar nome ou código</mat-label>
+        <mat-icon matPrefix>search</mat-icon>
+        <input matInput [(ngModel)]="filtroTabela" name="filtroTab" autocomplete="off" />
+      </mat-form-field>
+      <mat-checkbox [(ngModel)]="filtroSomenteComCodigo" name="filtroCod">
+        Somente com código
+      </mat-checkbox>
+    </div>
+  </div>
+  <table mat-table [dataSource]="produtosFiltrados()" class="mat-elevation-z1 produtos-table-inner">
+    <ng-container matColumnDef="nome">
+      <th mat-header-cell *matHeaderCellDef>Nome</th>
+      <td mat-cell *matCellDef="let p">{{ p.nome }}</td>
+    </ng-container>
+    <ng-container matColumnDef="codigo">
+      <th mat-header-cell *matHeaderCellDef>Código</th>
+      <td mat-cell *matCellDef="let p">
+        @if (codigoExibicao(p); as cod) {
+          <div class="codigo-cell">
+            <code class="barcode-code">{{ cod }}</code>
+            <span class="codigo-cell__tipo">{{ tipoCodigoExibicao(p) }}</span>
+            <button
+              mat-icon-button
+              type="button"
+              (click)="copiarCodigo(p, $event)"
+              matTooltip="Copiar código"
+              aria-label="Copiar código"
+            >
+              <mat-icon>content_copy</mat-icon>
+            </button>
+          </div>
+        } @else {
+          <span class="text-muted">—</span>
+        }
+      </td>
+    </ng-container>
+    <ng-container matColumnDef="categoria">
+      <th mat-header-cell *matHeaderCellDef>Categoria</th>
+      <td mat-cell *matCellDef="let p">
+        <span class="categoria-chip">{{ p.categoria | statusLabel }}</span>
+      </td>
+    </ng-container>
+    <ng-container matColumnDef="preco">
+      <th mat-header-cell *matHeaderCellDef>Preço</th>
+      <td mat-cell *matCellDef="let p">R$ {{ p.preco | number: '1.2-2' }}</td>
+    </ng-container>
+    <ng-container matColumnDef="estoque">
+      <th mat-header-cell *matHeaderCellDef>Estoque</th>
+      <td mat-cell *matCellDef="let p">
+        <span [class.estoque-baixo]="p.estoqueAtual <= p.estoqueMinimo">
+          {{ p.estoqueAtual }}
+        </span>
+        <span class="estoque-min"> / mín {{ p.estoqueMinimo }}</span>
+      </td>
+    </ng-container>
+    <ng-container matColumnDef="ativo">
+      <th mat-header-cell *matHeaderCellDef>Ativo</th>
+      <td mat-cell *matCellDef="let p">
+        <span class="status-chip" [class.status-chip--ativo]="p.ativo" [class.status-chip--inativo]="!p.ativo">
+          {{ p.ativo ? 'Ativo' : 'Inativo' }}
+        </span>
+      </td>
+    </ng-container>
+    <ng-container matColumnDef="acoes">
+      <th mat-header-cell *matHeaderCellDef>Ações</th>
+      <td mat-cell *matCellDef="let p">
+        @if (auth.isAdmin() && p.ativo) {
+          <button mat-button type="button" color="warn" (click)="desativar(p)">
+            <mat-icon>block</mat-icon>
+            Desativar
+          </button>
+        }
+      </td>
+    </ng-container>
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+    <tr class="mat-mdc-row" *matNoDataRow>
+      <td class="mat-mdc-cell empty-state" [attr.colspan]="displayedColumns.length">
+        <mat-icon>inventory_2</mat-icon>
+        <span>Nenhum produto encontrado.</span>
+      </td>
+    </tr>
+  </table>
+</div>

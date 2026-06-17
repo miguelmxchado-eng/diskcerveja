@@ -1,0 +1,83 @@
+<section class="ssp" [class.ssp--dark]="dark()" aria-label="Status de vendas">
+  <div class="ssp__top">
+    <h2 class="ssp__title">Status de Vendas</h2>
+    <div class="ssp__tabs" role="tablist">
+      <button type="button" class="ssp__tab" [class.ssp__tab--active]="tab() === 'daily'" (click)="setTab('daily')" role="tab" [attr.aria-selected]="tab() === 'daily'">
+        Diário
+        @if (tab() === 'daily') {
+          <span class="ssp__tab-line" aria-hidden="true"></span>
+        }
+      </button>
+      <button type="button" class="ssp__tab" [class.ssp__tab--active]="tab() === 'weekly'" (click)="setTab('weekly')" role="tab" [attr.aria-selected]="tab() === 'weekly'">
+        Semanal
+        @if (tab() === 'weekly') {
+          <span class="ssp__tab-line" aria-hidden="true"></span>
+        }
+      </button>
+      <button type="button" class="ssp__tab" [class.ssp__tab--active]="tab() === 'monthly'" (click)="setTab('monthly')" role="tab" [attr.aria-selected]="tab() === 'monthly'">
+        Mensal
+        @if (tab() === 'monthly') {
+          <span class="ssp__tab-line" aria-hidden="true"></span>
+        }
+      </button>
+    </div>
+    <button type="button" class="ssp__theme" (click)="toggleDark()" [attr.aria-label]="dark() ? 'Modo claro' : 'Modo escuro'">
+      @if (dark()) {
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2"/></svg>
+      } @else {
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      }
+    </button>
+  </div>
+
+  <div class="ssp__metrics">
+    <div class="ssp__metric">
+      <div class="ssp__sq ssp__sq--green" aria-hidden="true"></div>
+      <div>
+        <p class="ssp__metric-label">Vendas</p>
+        <p class="ssp__metric-value">
+          R$ {{ d().vendasHoje | number: '1.2-2' }}
+          @if (variacaoVendas(); as v) {
+            <span class="ssp__badge">{{ v }}</span>
+          }
+        </p>
+      </div>
+    </div>
+    <div class="ssp__metric">
+      <div class="ssp__sq ssp__sq--red" aria-hidden="true"></div>
+      <div>
+        <p class="ssp__metric-label">Cancelamentos</p>
+        <p class="ssp__metric-value">{{ d().cancelamentosHoje | number: '1.0-0' }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="ssp__chart" role="img" [attr.aria-label]="'Gráfico de vendas e cancelamentos, aba ' + tab()">
+    @for (p of series(); track i; let i = $index) {
+      <div class="ssp__group" (mouseenter)="hoverIdx.set(i)" (mouseleave)="hoverIdx.set(null)">
+        
+        @if (hoverIdx() === i) {
+          <div class="ssp__tooltip">
+            <div class="ssp__tooltip-title">{{ p.rotuloCompleto }}</div>
+            <div class="ssp__tooltip-muted">Lucro líquido (aprox.): R$ {{ lucroMil(p) }} mil</div>
+            <div class="ssp__tooltip-muted">Vendas: R$ {{ p.vendas | number: '1.2-2' }}</div>
+            <div class="ssp__tooltip-muted">Cancel.: {{ p.cancelamentos | number: '1.0-0' }}</div>
+          </div>
+        }
+
+        <div class="ssp__pair">
+          <div class="ssp__bar ssp__bar--v" [style.height.%]="pctV(p.vendas)"></div>
+          <div class="ssp__bar ssp__bar--c" [style.height.%]="pctC(p.cancelamentos)"></div>
+        </div>
+        
+        <span class="ssp__xlab">{{ p.rotulo }}</span>
+      </div>
+    }
+  </div>
+
+  <div class="ssp__legend">
+    <span><i class="ssp__legend-dot ssp__legend-dot--v"></i>Vendas (R$)</span>
+    <span><i class="ssp__legend-dot ssp__legend-dot--c"></i>Cancelamentos (qtd)</span>
+  </div>
+  <p class="ssp__hint">Altura de cada série é proporcional ao maior valor daquela série no período.</p>
+</section>
