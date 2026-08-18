@@ -42,6 +42,10 @@ public class PedidoItem {
     @Column(name = "preco_unitario", nullable = false, precision = 12, scale = 2)
     private BigDecimal precoUnitario;
 
+    /** Snapshot do custo de compra no momento da venda (lucro real histórico). */
+    @Column(name = "custo_unitario", nullable = false, precision = 12, scale = 2)
+    private BigDecimal custoUnitario = BigDecimal.ZERO;
+
     public Long getId() {
         return id;
     }
@@ -96,5 +100,13 @@ public class PedidoItem {
 
     public void setPrecoUnitario(BigDecimal precoUnitario) {
         this.precoUnitario = precoUnitario;
+    }
+
+    public BigDecimal getCustoUnitario() {
+        return custoUnitario;
+    }
+
+    public void setCustoUnitario(BigDecimal custoUnitario) {
+        this.custoUnitario = custoUnitario;
     }
 }

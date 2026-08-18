@@ -1,6 +1,7 @@
 package com.diskcerveja.manager.dto;
 
 import com.diskcerveja.manager.domain.enums.CategoriaProduto;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -13,7 +14,11 @@ public record ProdutoDto(
         @Size(max = 80) String codigoQr,
         @Size(max = 80) String codigoInterno,
         @NotNull CategoriaProduto categoria,
-        @NotNull BigDecimal preco,
+        @NotNull(message = "Preço de venda é obrigatório")
+        @DecimalMin(value = "0.01", message = "Preço de venda deve ser maior que zero")
+        BigDecimal preco,
+        @NotNull(message = "Preço de compra é obrigatório")
+        @DecimalMin(value = "0.00", message = "Preço de compra não pode ser negativo")
         BigDecimal custo,
         @NotNull Integer estoqueAtual,
         @NotNull Integer estoqueMinimo,

@@ -23,8 +23,14 @@
   &__value { font-size: 1.25rem; font-weight: 700; }
   &__sub   { font-size: .78rem; color: #9e9e9e; }
 
-  &--destaque &__value { color: #008060; }
+  &--destaque &__value { color: #c9a227; }
+
+  &--lucro &__value { color: #15803d; }
+  &--prejuizo &__value { color: #b91c1c; }
 }
+
+.lucro-positivo { color: #15803d; }
+.lucro-negativo { color: #b91c1c; }
 
 .alerta {
   color: #b45309;

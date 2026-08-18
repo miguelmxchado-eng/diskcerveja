@@ -30,9 +30,19 @@ public final class PedidoMapper {
         if (i.isCombo()) {
             String nome = i.getDescricao() != null ? i.getDescricao() : i.getCombo().getNome();
             return new PedidoItemResponse(
-                    null, i.getCombo().getId(), nome, i.getQuantidade(), i.getPrecoUnitario());
+                    null,
+                    i.getCombo().getId(),
+                    nome,
+                    i.getQuantidade(),
+                    i.getPrecoUnitario(),
+                    i.getCustoUnitario());
         }
         return new PedidoItemResponse(
-                i.getProduto().getId(), null, i.getProduto().getNome(), i.getQuantidade(), i.getPrecoUnitario());
+                i.getProduto().getId(),
+                null,
+                i.getProduto().getNome(),
+                i.getQuantidade(),
+                i.getPrecoUnitario(),
+                i.getCustoUnitario());
     }
 }

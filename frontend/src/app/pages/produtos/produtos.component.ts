@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ViewChild, computed, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
@@ -8,7 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatStepper, MatStepperModule } from '@angular/material/stepper';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -55,7 +55,7 @@ const MAX_IMAGEM_BYTES = 1024 * 1024;
 export class ProdutosComponent implements OnInit, OnDestroy {
   @ViewChild('cadastroStepper') private cadastroStepper?: MatStepper;
 
-  displayedColumns = ['nome', 'codigo', 'categoria', 'preco', 'estoque', 'ativo', 'acoes'];
+  displayedColumns = ['nome', 'codigo', 'categoria', 'compra', 'venda', 'lucro', 'estoque', 'ativo', 'acoes'];
   produtos = signal<Produto[]>([]);
   loading = signal(false);
   imagemPreview = signal<string | null>(null);
@@ -88,7 +88,8 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   novoCodigoBarras = '';
   novoCodigoQr = '';
   novoCat = 'CERVEJAS';
-  novoPreco = 0;
+  novoPreco: number | null = null;
+  novoCusto: number | null = null;
   novoMin = 0;
   novoEst = 0;
   novoMarca = '';
@@ -117,6 +118,37 @@ export class ProdutosComponent implements OnInit, OnDestroy {
 
   podeAvancarDados(): boolean {
     return this.novoNome.trim().length > 0;
+  }
+
+  podeAvancarPreco(): boolean {
+    const venda = Number(this.novoPreco);
+    const compra = Number(this.novoCusto);
+    return this.novoPreco != null
+      && this.novoCusto != null
+      && Number.isFinite(venda)
+      && Number.isFinite(compra)
+      && venda > 0
+      && compra >= 0;
+  }
+
+  lucroCadastro(): number | null {
+    if (!this.podeAvancarPreco()) {
+      return null;
+    }
+    return this.toMoney(this.novoPreco) - this.toMoney(this.novoCusto);
+  }
+
+  margemCadastro(): number | null {
+    const lucro = this.lucroCadastro();
+    const venda = this.toMoney(this.novoPreco);
+    if (lucro === null || venda <= 0) {
+      return null;
+    }
+    return (lucro / venda) * 100;
+  }
+
+  lucroUnitario(p: Produto): number {
+    return this.toMoney(p.preco) - this.toMoney(p.custo ?? 0);
   }
 
   codigoBarrasResumo(): string | null {
@@ -234,7 +266,8 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.novoCodigoBarras = '';
     this.novoCodigoQr = '';
     this.novoCat = 'CERVEJAS';
-    this.novoPreco = 0;
+    this.novoPreco = null;
+    this.novoCusto = null;
     this.novoMin = 0;
     this.novoEst = 0;
     this.novoMarca = '';
@@ -272,6 +305,10 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       this.snack.open(this.codigoDuplicadoMsg()!, 'OK', { duration: 3500 });
       return;
     }
+    if (!this.podeAvancarPreco()) {
+      this.snack.open('Informe preço de compra e preço de venda.', 'OK', { duration: 3000 });
+      return;
+    }
     const body = {
       id: null,
       nome: this.novoNome.trim(),
@@ -280,7 +317,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       codigoInterno: null,
       categoria: this.novoCat,
       preco: this.toMoney(this.novoPreco),
-      custo: null,
+      custo: this.toMoney(this.novoCusto),
       estoqueAtual: this.toInt(this.novoEst, 0),
       estoqueMinimo: this.toInt(this.novoMin, 0),
       ativo: true,
@@ -323,5 +360,83 @@ export class ProdutosComponent implements OnInit, OnDestroy {
           error: (e) => this.snack.open(e?.error?.erro ?? 'Erro', 'OK', { duration: 3500 }),
         });
       });
+  }
+
+  editarPrecos(p: Produto): void {
+    if (!this.auth.isAdmin()) {
+      return;
+    }
+    this.dialog
+      .open(EditarPrecosDialogComponent, {
+        data: p,
+        width: '400px',
+      })
+      .afterClosed()
+      .subscribe((result: { custo: number; preco: number } | undefined) => {
+        if (!result) {
+          return;
+        }
+        this.http
+          .put<Produto>(`${environment.apiUrl}/api/produtos/${p.id}`, {
+            ...p,
+            preco: this.toMoney(result.preco),
+            custo: this.toMoney(result.custo),
+          })
+          .subscribe({
+            next: () => {
+              this.snack.open('Preços atualizados', 'OK', { duration: 2000 });
+              this.reload();
+            },
+            error: (e) => this.snack.open(e?.error?.erro ?? 'Erro ao salvar preços', 'OK', { duration: 3500 }),
+          });
+      });
+  }
+}
+
+@Component({
+  selector: 'app-editar-precos-dialog',
+  standalone: true,
+  imports: [FormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule],
+  template: `
+    <h2 mat-dialog-title>Preços — {{ data.nome }}</h2>
+    <mat-dialog-content>
+      <mat-form-field appearance="outline" class="wide">
+        <mat-label>Preço de compra</mat-label>
+        <span matTextPrefix>R$&nbsp;</span>
+        <input matInput type="number" [(ngModel)]="custo" name="custo" min="0" step="0.01" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="wide">
+        <mat-label>Preço de venda</mat-label>
+        <span matTextPrefix>R$&nbsp;</span>
+        <input matInput type="number" [(ngModel)]="preco" name="preco" min="0.01" step="0.01" />
+      </mat-form-field>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button mat-stroked-button type="button" [mat-dialog-close]="undefined">Cancelar</button>
+      <button mat-flat-button type="button" color="primary" [disabled]="!valido()" (click)="salvar()">
+        Salvar
+      </button>
+    </mat-dialog-actions>
+  `,
+  styles: `
+    .wide { width: 100%; display: block; }
+    mat-dialog-content { padding-top: 8px; }
+  `,
+})
+export class EditarPrecosDialogComponent {
+  readonly data = inject<Produto>(MAT_DIALOG_DATA);
+  private readonly dialogRef = inject(MatDialogRef<EditarPrecosDialogComponent>);
+  custo = this.data.custo ?? 0;
+  preco = this.data.preco;
+
+  valido(): boolean {
+    return Number(this.preco) > 0 && Number(this.custo) >= 0;
+  }
+
+  salvar(): void {
+    if (!this.valido()) {
+      return;
+    }
+    this.dialogRef.close({ custo: Number(this.custo), preco: Number(this.preco) });
   }
 }

@@ -246,6 +246,7 @@ public class PedidoService {
         pi.setProduto(prod);
         pi.setQuantidade(r.quantidade());
         pi.setPrecoUnitario(prod.getPreco());
+        pi.setCustoUnitario(custoOuZero(prod.getCusto()));
         return pi;
     }
 
@@ -265,7 +266,19 @@ public class PedidoService {
         pi.setDescricao(combo.getNome());
         pi.setQuantidade(r.quantidade());
         pi.setPrecoUnitario(combo.getPrecoVenda());
+        pi.setCustoUnitario(custoTotalCombo(combo));
         return pi;
+    }
+
+    private static BigDecimal custoTotalCombo(Combo combo) {
+        return combo.getItens().stream()
+                .map(ci -> custoOuZero(ci.getProduto() != null ? ci.getProduto().getCusto() : null)
+                        .multiply(BigDecimal.valueOf(ci.getQuantidade())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static BigDecimal custoOuZero(BigDecimal custo) {
+        return custo != null ? custo : BigDecimal.ZERO;
     }
 
     private BigDecimal calcularTotalItens(Pedido p) {

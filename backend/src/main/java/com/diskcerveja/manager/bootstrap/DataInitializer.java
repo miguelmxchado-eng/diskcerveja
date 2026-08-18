@@ -47,10 +47,10 @@ public class DataInitializer implements ApplicationRunner {
             configSistemaRepository.save(c);
         }
         if (produtoRepository.count() == 0) {
-            produtoRepository.save(produto("Heineken 600ml", CategoriaProduto.CERVEJAS, "8.50", 120, 24));
-            produtoRepository.save(produto("Skol 1L", CategoriaProduto.CERVEJAS, "6.00", 200, 30));
-            produtoRepository.save(produto("Coca 2L", CategoriaProduto.REFRIGERANTES, "12.00", 40, 10));
-            produtoRepository.save(produto("Batata frita", CategoriaProduto.PETISCOS, "18.00", 25, 5));
+            produtoRepository.save(produto("Heineken 600ml", CategoriaProduto.CERVEJAS, "8.50", "5.50", 120, 24));
+            produtoRepository.save(produto("Skol 1L", CategoriaProduto.CERVEJAS, "6.00", "3.80", 200, 30));
+            produtoRepository.save(produto("Coca 2L", CategoriaProduto.REFRIGERANTES, "12.00", "7.50", 40, 10));
+            produtoRepository.save(produto("Batata frita", CategoriaProduto.PETISCOS, "18.00", "9.00", 25, 5));
         }
     }
 
@@ -64,12 +64,12 @@ public class DataInitializer implements ApplicationRunner {
         return u;
     }
 
-    private Produto produto(String nome, CategoriaProduto cat, String preco, int est, int min) {
+    private Produto produto(String nome, CategoriaProduto cat, String preco, String custo, int est, int min) {
         Produto p = new Produto();
         p.setNome(nome);
         p.setCategoria(cat);
         p.setPreco(new BigDecimal(preco));
-        p.setCusto(null);
+        p.setCusto(new BigDecimal(custo));
         p.setEstoqueAtual(est);
         p.setEstoqueMinimo(min);
         p.setAtivo(true);

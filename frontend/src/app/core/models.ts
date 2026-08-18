@@ -16,7 +16,7 @@ export interface Produto {
   codigoInterno?: string | null;
   categoria: string;
   preco: number;
-  custo?: number;
+  custo: number;
   estoqueAtual: number;
   estoqueMinimo: number;
   ativo: boolean;
@@ -28,6 +28,7 @@ export interface PedidoItemResponse {
   produtoNome: string;
   quantidade: number;
   precoUnitario: number;
+  custoUnitario?: number;
 }
 
 export interface ComboItemDto {
@@ -137,6 +138,8 @@ export interface PedidoResumoDto {
   tipo: string;
   status: string;
   total: number;
+  custo?: number | null;
+  lucro?: number | null;
   formaPagamento: string;
   registradoNoCaixa: boolean;
 }
@@ -150,6 +153,9 @@ export interface PedidoPeriodoResponse {
   pedidos: PedidoResumoDto[];
   somaTotalPedidos: number;
   somaVendasEntregues: number;
+  somaCustoEntregues: number;
+  somaLucroEntregues: number;
+  margemPercentual: number;
   quantidadeEntreguesSemCaixa: number;
 }
 

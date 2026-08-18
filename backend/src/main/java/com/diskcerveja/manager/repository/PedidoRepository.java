@@ -39,6 +39,10 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
             "select p from Pedido p where p.dataHora >= :ini and p.dataHora < :fim order by p.dataHora desc")
     List<Pedido> findByDataHoraBetween(@Param("ini") Instant ini, @Param("fim") Instant fim);
 
+    @Query(
+            "select distinct p from Pedido p left join fetch p.itens where p.dataHora >= :ini and p.dataHora < :fim")
+    List<Pedido> findByDataHoraBetweenWithItens(@Param("ini") Instant ini, @Param("fim") Instant fim);
+
     /**
      * Painel de entregas: pedidos do tipo ENTREGA ainda em rota (status do pedido), com ou sem linha na tabela
      * {@code entrega}.

@@ -4,6 +4,7 @@ import com.diskcerveja.manager.domain.entity.Produto;
 import com.diskcerveja.manager.dto.ProdutoDto;
 import com.diskcerveja.manager.dto.ValidacaoCodigoResponse;
 import com.diskcerveja.manager.repository.ProdutoRepository;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -73,6 +74,12 @@ public class ProdutoService {
             p.setCodigoInterno(normalizeCodigo(dto.codigoInterno()));
         }
         p.setCategoria(dto.categoria());
+        if (dto.preco() == null || dto.preco().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Preço de venda deve ser maior que zero.");
+        }
+        if (dto.custo() == null || dto.custo().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Preço de compra é obrigatório e não pode ser negativo.");
+        }
         p.setPreco(dto.preco());
         p.setCusto(dto.custo());
         if (dto.id() == null) {

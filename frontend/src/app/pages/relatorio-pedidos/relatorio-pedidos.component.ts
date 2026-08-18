@@ -27,7 +27,7 @@ export class RelatorioPedidosComponent implements OnInit {
   /** Inicia em true para o primeiro paint não mostrar tabela vazia antes do GET. */
   readonly carregando = signal(true);
 
-  cols = ['id', 'data', 'cliente', 'tipo', 'status', 'total', 'pagamento', 'caixa'];
+  cols = ['id', 'data', 'cliente', 'tipo', 'status', 'total', 'lucro', 'pagamento', 'caixa'];
 
   constructor(
     private readonly http: HttpClient,

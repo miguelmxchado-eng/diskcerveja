@@ -1,13 +1,8 @@
 <div id="main-wrapper" class="erp-shell show" [class.menu-toggle]="menuToggle">
   <div class="nav-header">
     <a routerLink="/dashboard" class="brand-logo erp-brand">
-      <span class="erp-brand__icon" aria-hidden="true">
-        <mat-icon>storefront</mat-icon>
-      </span>
-      <span class="erp-brand__text">
-        <strong>Disk</strong>
-        <strong>Cerveja</strong>
-      </span>
+      <span class="erp-brand__eyebrow">Empório</span>
+      <span class="erp-brand__name">Machado</span>
     </a>
   </div>
 
@@ -18,7 +13,7 @@
           class="erp-menu-toggle"
           type="button"
           (click)="flipMenu()"
-          aria-label="Alternar menu"
+          aria-label="Abrir ou fechar o menu"
           [attr.aria-expanded]="menuToggle"
         >
           <mat-icon>menu</mat-icon>
@@ -26,15 +21,10 @@
 
         <div class="erp-top-title">
           <div class="dashboard_bar">{{ sectionTitle() }}</div>
-          <small>ERP operacional · vendas, estoque e caixa</small>
+          <small>{{ sectionHint() }}</small>
         </div>
 
         <div class="erp-top-actions">
-          <button class="erp-notification" type="button" aria-label="Notificações">
-            <mat-icon>notifications_none</mat-icon>
-            <span aria-hidden="true"></span>
-          </button>
-
           <div class="header-profile" [class.header-profile--open]="profileOpen">
             <button
               class="erp-profile"
@@ -47,7 +37,7 @@
               <span class="erp-avatar">{{ (auth.user()?.nome || 'A').charAt(0) }}</span>
               <span class="erp-profile__meta">
                 <strong>{{ auth.user()?.nome || 'Administrador' }}</strong>
-                <small>Perfil: {{ auth.user()?.perfil }}</small>
+                <small>{{ perfilLabel() }}</small>
               </span>
               <mat-icon class="erp-profile__chevron" aria-hidden="true">expand_more</mat-icon>
             </button>
@@ -65,27 +55,27 @@
   <div class="dlabnav">
     <div class="dlabnav-scroll">
       <ul class="metismenu erp-nav" id="menu" (click)="closeNavIfOverlay()">
-        <li class="menu-section-label">Principal</li>
         <li>
           <a routerLink="/dashboard" routerLinkActive="mm-active" [routerLinkActiveOptions]="{ exact: true }">
             <span class="erp-nav__ico" aria-hidden="true"><mat-icon>dashboard</mat-icon></span>
-            <span class="nav-text">Dashboard</span>
+            <span class="nav-text">Início</span>
           </a>
         </li>
         @if (auth.user()?.perfil !== 'ENTREGADOR') {
-          <li class="menu-section-label">Operação</li>
+          <li class="menu-section-label">Vender</li>
           <li>
             <a routerLink="/pdv" routerLinkActive="mm-active">
               <span class="erp-nav__ico" aria-hidden="true"><mat-icon>point_of_sale</mat-icon></span>
-              <span class="nav-text">Pedidos (PDV)</span>
+              <span class="nav-text">PDV</span>
             </a>
           </li>
           <li>
             <a routerLink="/relatorio-pedidos" routerLinkActive="mm-active">
               <span class="erp-nav__ico" aria-hidden="true"><mat-icon>receipt_long</mat-icon></span>
-              <span class="nav-text">Pedidos (período)</span>
+              <span class="nav-text">Histórico</span>
             </a>
           </li>
+          <li class="menu-section-label">Estoque</li>
           <li>
             <a routerLink="/produtos" routerLinkActive="mm-active">
               <span class="erp-nav__ico" aria-hidden="true"><mat-icon>layers</mat-icon></span>
@@ -95,7 +85,7 @@
           <li>
             <a routerLink="/estoque" routerLinkActive="mm-active">
               <span class="erp-nav__ico" aria-hidden="true"><mat-icon>inventory_2</mat-icon></span>
-              <span class="nav-text">Estoque</span>
+              <span class="nav-text">Movimentar</span>
             </a>
           </li>
           <li>
@@ -105,38 +95,29 @@
             </a>
           </li>
         }
-        <li class="menu-section-label">Logística</li>
+        <li class="menu-section-label">Entrega</li>
         <li>
           <a routerLink="/entregas" routerLinkActive="mm-active">
             <span class="erp-nav__ico" aria-hidden="true"><mat-icon>pin_drop</mat-icon></span>
-            <span class="nav-text">Entregas</span>
+            <span class="nav-text">Rotas</span>
           </a>
         </li>
         @if (auth.isAdmin()) {
-          <li class="menu-section-label">Administração</li>
+          <li class="menu-section-label">Admin</li>
           <li>
             <a routerLink="/usuarios" routerLinkActive="mm-active">
               <span class="erp-nav__ico" aria-hidden="true"><mat-icon>groups</mat-icon></span>
-              <span class="nav-text">Usuários</span>
+              <span class="nav-text">Equipe</span>
             </a>
           </li>
           <li>
             <a routerLink="/config" routerLinkActive="mm-active">
               <span class="erp-nav__ico" aria-hidden="true"><mat-icon>settings</mat-icon></span>
-              <span class="nav-text">Configurações</span>
+              <span class="nav-text">Ajustes</span>
             </a>
           </li>
         }
       </ul>
-      <div class="erp-sidebar-card">
-        <span class="erp-sidebar-card__icon">
-          <mat-icon>verified_user</mat-icon>
-        </span>
-        <div>
-          <strong>Disk Cerveja Manager</strong>
-          <small>Versão 2.0.0</small>
-        </div>
-      </div>
     </div>
   </div>
 

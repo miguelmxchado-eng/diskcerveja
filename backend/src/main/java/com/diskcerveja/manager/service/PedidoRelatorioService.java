@@ -1,25 +1,29 @@
 package com.diskcerveja.manager.service;
 
 import com.diskcerveja.manager.domain.entity.Pedido;
+import com.diskcerveja.manager.domain.entity.PedidoItem;
 import com.diskcerveja.manager.domain.enums.PeriodoPedido;
 import com.diskcerveja.manager.domain.enums.StatusPedido;
-import com.diskcerveja.manager.domain.enums.TipoMovimentoCaixa;
 import com.diskcerveja.manager.dto.PedidoPeriodoResponse;
 import com.diskcerveja.manager.dto.PedidoResumoDto;
 import com.diskcerveja.manager.repository.MovimentoCaixaRepository;
 import com.diskcerveja.manager.repository.PedidoRepository;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,10 +43,10 @@ public class PedidoRelatorioService {
 
     @Transactional(readOnly = true)
     public PedidoPeriodoResponse listarPorPeriodo(PeriodoPedido periodo) {
-        ZoneId z = CaixaSessaoService.ZONA_OPERACAO;
+        var z = CaixaSessaoService.ZONA_OPERACAO;
         LocalDate hoje = LocalDate.now(z);
-        LocalDate inicioD;
-        LocalDate fimD;
+        LocalDate inicioD = hoje;
+        LocalDate fimD = hoje;
         switch (periodo) {
             case DIA -> {
                 inicioD = hoje;
@@ -61,43 +65,95 @@ public class PedidoRelatorioService {
                 fimD = LocalDate.of(hoje.getYear(), 12, 31);
             }
         }
-        z = ZoneId.systemDefault();
-        inicioD = LocalDate.now().minusDays(30);
-        fimD = LocalDate.now(); 
 
         long quantidadeDias = ChronoUnit.DAYS.between(inicioD, fimD) + 1;
         Instant ini = inicioD.atStartOfDay(z).toInstant();
         Instant fim = fimD.plusDays(1).atStartOfDay(z).toInstant();
-        
-        List<Pedido> pedidos = pedidoRepository.findByDataHoraBetween(ini, fim);
+
+        List<Pedido> pedidos = pedidoRepository.findByDataHoraBetweenWithItens(ini, fim).stream()
+                .collect(Collectors.toMap(Pedido::getId, p -> p, (a, b) -> a, LinkedHashMap::new))
+                .values()
+                .stream()
+                .sorted(Comparator.comparing(Pedido::getDataHora).reversed())
+                .collect(Collectors.toCollection(ArrayList::new));
         Set<Long> comCaixa = new HashSet<>();
 
         List<PedidoResumoDto> dtos = pedidos.stream()
-                .map(p -> new PedidoResumoDto(
-                        p.getId(),
-                        p.getDataHora(),
-                        p.getClienteNome(),
-                        p.getTelefone(),
-                        p.getTipo(),
-                        p.getStatus(),
-                        p.getTotal(),
-                        p.getFormaPagamento(),
-                        p.getStatus() == StatusPedido.ENTREGUE && comCaixa.contains(p.getId())))
+                .map(p -> {
+                    BigDecimal custo = custoDosItens(p);
+                    BigDecimal lucro = p.getStatus() == StatusPedido.ENTREGUE
+                            ? nvl(p.getTotal()).subtract(custo)
+                            : null;
+                    return new PedidoResumoDto(
+                            p.getId(),
+                            p.getDataHora(),
+                            p.getClienteNome(),
+                            p.getTelefone(),
+                            p.getTipo(),
+                            p.getStatus(),
+                            p.getTotal(),
+                            custo,
+                            lucro,
+                            p.getFormaPagamento(),
+                            p.getStatus() == StatusPedido.ENTREGUE && comCaixa.contains(p.getId()));
+                })
                 .toList();
 
         BigDecimal somaTodos = pedidos.stream().map(Pedido::getTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal somaEntregues = pedidos.stream()
+        List<Pedido> entregues = pedidos.stream()
                 .filter(p -> p.getStatus() == StatusPedido.ENTREGUE)
+                .toList();
+        BigDecimal somaEntregues = entregues.stream()
                 .map(Pedido::getTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        int semCaixa = (int) pedidos.stream()
-                .filter(p -> p.getStatus() == StatusPedido.ENTREGUE && !comCaixa.contains(p.getId()))
+        BigDecimal somaCustoEntregues = entregues.stream()
+                .map(PedidoRelatorioService::custoDosItens)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal somaLucroEntregues = somaEntregues.subtract(somaCustoEntregues);
+        BigDecimal margem = margemPercentual(somaLucroEntregues, somaEntregues);
+        int semCaixa = (int) entregues.stream()
+                .filter(p -> !comCaixa.contains(p.getId()))
                 .count();
 
         String desc = inicioD.equals(fimD)
                 ? FMT.format(inicioD) + " (1 dia)"
                 : FMT.format(inicioD) + " – " + FMT.format(fimD) + " (" + quantidadeDias + " dias)";
         return new PedidoPeriodoResponse(
-                periodo, desc, inicioD, fimD, quantidadeDias, dtos, somaTodos, somaEntregues, semCaixa);
+                periodo,
+                desc,
+                inicioD,
+                fimD,
+                quantidadeDias,
+                dtos,
+                somaTodos,
+                somaEntregues,
+                somaCustoEntregues,
+                somaLucroEntregues,
+                margem,
+                semCaixa);
+    }
+
+    private static BigDecimal custoDosItens(Pedido p) {
+        if (p.getItens() == null || p.getItens().isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        return p.getItens().stream()
+                .map(PedidoRelatorioService::custoLinha)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static BigDecimal custoLinha(PedidoItem i) {
+        return nvl(i.getCustoUnitario()).multiply(BigDecimal.valueOf(i.getQuantidade()));
+    }
+
+    private static BigDecimal margemPercentual(BigDecimal lucro, BigDecimal vendas) {
+        if (vendas.compareTo(BigDecimal.ZERO) == 0) {
+            return BigDecimal.ZERO;
+        }
+        return lucro.multiply(BigDecimal.valueOf(100)).divide(vendas, 1, RoundingMode.HALF_UP);
+    }
+
+    private static BigDecimal nvl(BigDecimal v) {
+        return v != null ? v : BigDecimal.ZERO;
     }
 }

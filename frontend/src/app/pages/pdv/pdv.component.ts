@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -60,6 +60,8 @@ type AtalhoPdv = 'todos' | 'maisVendidos' | 'combos' | 'favoritos';
   styleUrl: './pdv.component.scss',
 })
 export class PdvComponent implements OnInit, OnDestroy {
+  @ViewChild('itensLista') private itensLista?: ElementRef<HTMLElement>;
+
   q = '';
   codigoBarras = '';
   produtos = signal<Produto[]>([]);
@@ -305,6 +307,7 @@ export class PdvComponent implements OnInit, OnDestroy {
       });
     }
     this.carrinho.set(atual);
+    this.rolarListaItens();
   }
 
   addCombo(c: ComboResponse, codigoLido?: string) {
@@ -336,6 +339,7 @@ export class PdvComponent implements OnInit, OnDestroy {
       });
     }
     this.carrinho.set(atual);
+    this.rolarListaItens();
   }
 
   selecionarAtalho(atalho: AtalhoPdv) {
@@ -375,6 +379,7 @@ export class PdvComponent implements OnInit, OnDestroy {
     const atual = [...this.carrinho()];
     atual[i] = { ...atual[i], qtd: atual[i].qtd + 1 };
     this.carrinho.set(atual);
+    this.rolarListaItens();
   }
 
   dec(i: number) {
@@ -385,6 +390,13 @@ export class PdvComponent implements OnInit, OnDestroy {
       atual[i] = { ...atual[i], qtd: atual[i].qtd - 1 };
     }
     this.carrinho.set(atual);
+  }
+
+  private rolarListaItens(): void {
+    queueMicrotask(() => {
+      const el = this.itensLista?.nativeElement;
+      if (el) el.scrollTop = el.scrollHeight;
+    });
   }
 
   limpar() {

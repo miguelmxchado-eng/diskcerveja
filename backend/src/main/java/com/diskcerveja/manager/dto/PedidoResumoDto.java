@@ -14,5 +14,7 @@ public record PedidoResumoDto(
         TipoPedido tipo,
         StatusPedido status,
         BigDecimal total,
+        BigDecimal custo,
+        BigDecimal lucro,
         FormaPagamento formaPagamento,
         boolean registradoNoCaixa) {}

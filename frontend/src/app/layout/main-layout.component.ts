@@ -22,18 +22,19 @@ export class MainLayoutComponent {
   menuToggle = false;
   profileOpen = false;
   readonly contentMinHeight = signal(600);
-  readonly sectionTitle = signal('Dashboard');
+  readonly sectionTitle = signal('Início');
+  readonly sectionHint = signal('Resumo do dia');
 
-  private readonly titles: Record<string, string> = {
-    dashboard: 'Dashboard',
-    pdv: 'Pedidos (PDV)',
-    'relatorio-pedidos': 'Pedidos (dia/semana/mês/ano)',
-    produtos: 'Novo Produto',
-    estoque: 'Estoque',
-    caixa: 'Caixa',
-    entregas: 'Entregas',
-    usuarios: 'Usuários',
-    config: 'Configurações',
+  private readonly titles: Record<string, { title: string; hint: string }> = {
+    dashboard: { title: 'Início', hint: 'Vendas, caixa e alertas de agora' },
+    pdv: { title: 'PDV', hint: 'Lançar pedido no balcão ou delivery' },
+    'relatorio-pedidos': { title: 'Histórico', hint: 'Pedidos por dia, semana, mês ou ano' },
+    produtos: { title: 'Produtos', hint: 'Cadastro, preço e código de barras' },
+    estoque: { title: 'Estoque', hint: 'Entrada, ajuste e itens em falta' },
+    caixa: { title: 'Caixa', hint: 'Abertura, sangria e fechamento' },
+    entregas: { title: 'Rotas', hint: 'Pedidos em rota e confirmação de entrega' },
+    usuarios: { title: 'Equipe', hint: 'Acesso de operadores e entregadores' },
+    config: { title: 'Ajustes', hint: 'Regras do caixa e operação' },
   };
 
   constructor(
@@ -79,14 +80,20 @@ export class MainLayoutComponent {
     this.profileOpen = !this.profileOpen;
   }
 
+  perfilLabel(): string {
+    const perfil = this.auth.user()?.perfil;
+    if (perfil === 'ADMIN') return 'Administrador';
+    if (perfil === 'OPERADOR') return 'Operador';
+    if (perfil === 'ENTREGADOR') return 'Entregador';
+    return perfil ?? '';
+  }
+
   private refreshTitle(): void {
     const parts = this.router.url.split('?')[0].split('/').filter(Boolean);
     const key = parts[parts.length - 1] ?? 'dashboard';
-    let title = this.titles[key] ?? 'Dashboard';
-    if (key === 'produtos' && !this.auth.isAdmin()) {
-      title = 'Produtos';
-    }
-    this.sectionTitle.set(title);
+    const meta = this.titles[key] ?? { title: 'Início', hint: 'Vendas, caixa e alertas de agora' };
+    this.sectionTitle.set(meta.title);
+    this.sectionHint.set(meta.hint);
   }
 
   private closeOverlayMenuAfterNav(): void {

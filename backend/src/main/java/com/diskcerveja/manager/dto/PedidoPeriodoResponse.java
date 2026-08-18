@@ -15,4 +15,7 @@ public record PedidoPeriodoResponse(
         List<PedidoResumoDto> pedidos,
         BigDecimal somaTotalPedidos,
         BigDecimal somaVendasEntregues,
+        BigDecimal somaCustoEntregues,
+        BigDecimal somaLucroEntregues,
+        BigDecimal margemPercentual,
         int quantidadeEntreguesSemCaixa) {}

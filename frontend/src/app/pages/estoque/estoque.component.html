@@ -103,14 +103,22 @@
             <small> / mín {{ p.estoqueMinimo }}</small>
           </td>
         </ng-container>
-        <ng-container matColumnDef="preco">
-          <th mat-header-cell *matHeaderCellDef>Preço</th>
+        <ng-container matColumnDef="compra">
+          <th mat-header-cell *matHeaderCellDef>Compra</th>
+          <td mat-cell *matCellDef="let p">R$ {{ (p.custo ?? 0) | number: '1.2-2' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="venda">
+          <th mat-header-cell *matHeaderCellDef>Venda</th>
           <td mat-cell *matCellDef="let p">R$ {{ p.preco | number: '1.2-2' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="lucro">
+          <th mat-header-cell *matHeaderCellDef>Lucro</th>
+          <td mat-cell *matCellDef="let p">R$ {{ (p.preco - (p.custo ?? 0)) | number: '1.2-2' }}</td>
         </ng-container>
         <tr mat-header-row *matHeaderRowDef="prodCols"></tr>
         <tr mat-row *matRowDef="let row; columns: prodCols"></tr>
         <tr class="mat-mdc-row" *matNoDataRow>
-          <td class="mat-mdc-cell empty-state" colspan="5">Nenhum produto encontrado.</td>
+          <td class="mat-mdc-cell empty-state" colspan="8">Nenhum produto encontrado.</td>
         </tr>
       </table>
     </div>

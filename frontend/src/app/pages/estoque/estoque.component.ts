@@ -66,7 +66,7 @@ interface ComboItemForm {
 })
 export class EstoqueComponent implements OnInit, OnDestroy {
   movCols = ['data', 'produto', 'tipo', 'qtd', 'motivo'];
-  prodCols = ['nome', 'codigo', 'categoria', 'estoque', 'preco'];
+  prodCols = ['nome', 'codigo', 'categoria', 'estoque', 'compra', 'venda', 'lucro'];
   movimentos = signal<any[]>([]);
   baixo = signal<Produto[]>([]);
   todosProdutos = signal<Produto[]>([]);

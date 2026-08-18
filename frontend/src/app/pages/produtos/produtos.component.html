@@ -207,7 +207,7 @@
 
         <div class="produtos-step__body">
           <div class="erp-panel__header produtos-step__section-head">
-            <h3 class="erp-panel__title">Preço e alertas de estoque</h3>
+            <h3 class="erp-panel__title">Preços e alertas de estoque</h3>
           </div>
           @if (codigoBarrasResumo(); as cod) {
             <p class="produtos-step2-codigo">
@@ -216,20 +216,35 @@
           }
           <div class="produtos-step2-grid">
             <mat-form-field appearance="outline" class="produtos-field">
+              <mat-label>Preço de compra</mat-label>
+              <span matTextPrefix>R$&nbsp;</span>
+              <input matInput type="number" [(ngModel)]="novoCusto" name="custo" min="0" step="0.01" required />
+              <mat-hint>Quanto você paga no fornecedor</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="produtos-field">
               <mat-label>Preço de venda</mat-label>
               <span matTextPrefix>R$&nbsp;</span>
-              <input matInput type="number" [(ngModel)]="novoPreco" name="preco" min="0" step="0.01" />
+              <input matInput type="number" [(ngModel)]="novoPreco" name="preco" min="0.01" step="0.01" required />
+              <mat-hint>Quanto o cliente paga</mat-hint>
             </mat-form-field>
             <mat-form-field appearance="outline" class="produtos-field">
               <mat-label>Estoque mínimo</mat-label>
               <input matInput type="number" [(ngModel)]="novoMin" name="estMin" min="0" />
             </mat-form-field>
           </div>
+          @if (lucroCadastro() !== null) {
+            <p class="produtos-lucro-preview" [class.produtos-lucro-preview--negativo]="lucroCadastro()! < 0">
+              Lucro unitário: R$ {{ lucroCadastro() | number: '1.2-2' }}
+              @if (margemCadastro() !== null) {
+                <span>(margem {{ margemCadastro() | number: '1.0-0' }}%)</span>
+              }
+            </p>
+          }
         </div>
 
         <div class="produtos-wizard__footer">
           <button mat-stroked-button type="button" matStepperPrevious>Voltar</button>
-          <button mat-flat-button type="button" class="produtos-btn-primary" matStepperNext>Próximo</button>
+          <button mat-flat-button type="button" class="produtos-btn-primary" matStepperNext [disabled]="!podeAvancarPreco()">Próximo</button>
         </div>
       </mat-step>
 
@@ -270,8 +285,16 @@
               <dd>{{ novoEst }}</dd>
             </div>
             <div class="produtos-resumo__row">
-              <dt>Preço</dt>
+              <dt>Preço de compra</dt>
+              <dd>R$ {{ novoCusto | number: '1.2-2' }}</dd>
+            </div>
+            <div class="produtos-resumo__row">
+              <dt>Preço de venda</dt>
               <dd>R$ {{ novoPreco | number: '1.2-2' }}</dd>
+            </div>
+            <div class="produtos-resumo__row">
+              <dt>Lucro unitário</dt>
+              <dd>R$ {{ lucroCadastro() | number: '1.2-2' }}</dd>
             </div>
             <div class="produtos-resumo__row">
               <dt>Estoque mínimo</dt>
@@ -344,9 +367,21 @@
         <span class="categoria-chip">{{ p.categoria | statusLabel }}</span>
       </td>
     </ng-container>
-    <ng-container matColumnDef="preco">
-      <th mat-header-cell *matHeaderCellDef>Preço</th>
+    <ng-container matColumnDef="compra">
+      <th mat-header-cell *matHeaderCellDef>Compra</th>
+      <td mat-cell *matCellDef="let p">R$ {{ (p.custo ?? 0) | number: '1.2-2' }}</td>
+    </ng-container>
+    <ng-container matColumnDef="venda">
+      <th mat-header-cell *matHeaderCellDef>Venda</th>
       <td mat-cell *matCellDef="let p">R$ {{ p.preco | number: '1.2-2' }}</td>
+    </ng-container>
+    <ng-container matColumnDef="lucro">
+      <th mat-header-cell *matHeaderCellDef>Lucro</th>
+      <td mat-cell *matCellDef="let p">
+        <span [class.lucro-positivo]="lucroUnitario(p) > 0" [class.lucro-negativo]="lucroUnitario(p) < 0">
+          R$ {{ lucroUnitario(p) | number: '1.2-2' }}
+        </span>
+      </td>
     </ng-container>
     <ng-container matColumnDef="estoque">
       <th mat-header-cell *matHeaderCellDef>Estoque</th>
@@ -368,6 +403,12 @@
     <ng-container matColumnDef="acoes">
       <th mat-header-cell *matHeaderCellDef>Ações</th>
       <td mat-cell *matCellDef="let p">
+        @if (auth.isAdmin()) {
+          <button mat-button type="button" (click)="editarPrecos(p)">
+            <mat-icon>sell</mat-icon>
+            Preços
+          </button>
+        }
         @if (auth.isAdmin() && p.ativo) {
           <button mat-button type="button" color="warn" (click)="desativar(p)">
             <mat-icon>block</mat-icon>

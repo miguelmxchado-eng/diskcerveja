@@ -2,7 +2,7 @@
   <div>
     <p class="erp-page-heading__eyebrow">Relatórios</p>
     <h2 class="erp-page-heading__title">Pedidos por período</h2>
-    <p class="erp-page-heading__subtitle">Vendas entregues entram no caixa na sessão do dia do pedido.</p>
+    <p class="erp-page-heading__subtitle">Lucro real das vendas entregues: receita menos o custo de compra gravado na venda.</p>
   </div>
   <button mat-stroked-button type="button" (click)="carregar()" [disabled]="carregando()">
     Atualizar
@@ -36,8 +36,17 @@
             <strong class="resumo-stat__value">R$ {{ d.somaTotalPedidos | number: '1.2-2' }}</strong>
           </div>
           <div class="resumo-stat resumo-stat--destaque">
-            <span class="resumo-stat__label">Total entregue</span>
+            <span class="resumo-stat__label">Vendas entregues</span>
             <strong class="resumo-stat__value">R$ {{ d.somaVendasEntregues | number: '1.2-2' }}</strong>
+          </div>
+          <div class="resumo-stat">
+            <span class="resumo-stat__label">Custo de compra</span>
+            <strong class="resumo-stat__value">R$ {{ d.somaCustoEntregues | number: '1.2-2' }}</strong>
+          </div>
+          <div class="resumo-stat resumo-stat--lucro" [class.resumo-stat--prejuizo]="d.somaLucroEntregues < 0">
+            <span class="resumo-stat__label">Lucro real</span>
+            <strong class="resumo-stat__value">R$ {{ d.somaLucroEntregues | number: '1.2-2' }}</strong>
+            <span class="resumo-stat__sub">Margem {{ d.margemPercentual | number: '1.1-1' }}%</span>
           </div>
         </div>
 
@@ -85,6 +94,18 @@
         <ng-container matColumnDef="total">
           <th mat-header-cell *matHeaderCellDef>Total</th>
           <td mat-cell *matCellDef="let r"><strong>R$ {{ r.total | number: '1.2-2' }}</strong></td>
+        </ng-container>
+        <ng-container matColumnDef="lucro">
+          <th mat-header-cell *matHeaderCellDef>Lucro</th>
+          <td mat-cell *matCellDef="let r">
+            @if (r.status === 'ENTREGUE' && r.lucro != null) {
+              <strong [class.lucro-positivo]="r.lucro > 0" [class.lucro-negativo]="r.lucro < 0">
+                R$ {{ r.lucro | number: '1.2-2' }}
+              </strong>
+            } @else {
+              —
+            }
+          </td>
         </ng-container>
         <ng-container matColumnDef="pagamento">
           <th mat-header-cell *matHeaderCellDef>Pagamento</th>

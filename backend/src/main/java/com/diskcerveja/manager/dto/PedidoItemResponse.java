@@ -7,4 +7,5 @@ public record PedidoItemResponse(
         Long comboId,
         String produtoNome,
         int quantidade,
-        BigDecimal precoUnitario) {}
+        BigDecimal precoUnitario,
+        BigDecimal custoUnitario) {}

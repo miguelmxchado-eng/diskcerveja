@@ -53,7 +53,7 @@
 
   ::ng-deep .mat-step-header .mat-step-icon-selected,
   ::ng-deep .mat-step-header .mat-step-icon-state-done {
-    background-color: #008060;
+    background-color: #c9a227;
     color: #fff;
   }
 
@@ -63,7 +63,7 @@
   }
 
   ::ng-deep .mat-step-header .mat-step-label-active .mat-step-text-label {
-    color: #008060;
+    color: #c9a227;
     font-weight: 700;
   }
 
@@ -211,8 +211,8 @@
 }
 
 .produtos-btn-primary {
-  background: #008060 !important;
-  color: #fff !important;
+  background: #c9a227 !important;
+  color: #070707 !important;
 }
 
 .produtos-wizard__footer {
@@ -239,12 +239,32 @@
 .produtos-step2-grid {
   display: grid;
   gap: 0.75rem;
-  max-width: 520px;
+  max-width: 560px;
 
   @media (min-width: 600px) {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+.produtos-lucro-preview {
+  margin: 0.25rem 0 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #15803d;
+
+  &--negativo {
+    color: #b91c1c;
+  }
+
+  span {
+    font-weight: 500;
+    color: inherit;
+    opacity: 0.8;
+  }
+}
+
+.lucro-positivo { color: #15803d; font-weight: 600; }
+.lucro-negativo { color: #b91c1c; font-weight: 600; }
 
 .produtos-resumo {
   margin: 0;
@@ -326,7 +346,7 @@ table {
   padding: 2px 9px;
   border-radius: 10px;
   background: #eef7f4;
-  color: #008060;
+  color: #c9a227;
   font-size: 0.75rem;
   font-weight: 600;
 }
@@ -371,8 +391,8 @@ table {
 .produtos-scan-btn {
   height: 52px;
   white-space: nowrap;
-  border-color: #008060 !important;
-  color: #008060 !important;
+  border-color: #c9a227 !important;
+  color: #c9a227 !important;
 }
 
 .produtos-scan-options {

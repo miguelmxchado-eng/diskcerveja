@@ -1,35 +1,4 @@
-<div class="erp-page-heading">
-  <div>
-    <p class="erp-page-heading__eyebrow">Vendas</p>
-    <h2 class="erp-page-heading__title">Pedidos (PDV)</h2>
-    <p class="erp-page-heading__subtitle">ERP operacional · vendas, estoque e caixa</p>
-  </div>
-</div>
-
-<div class="erp-kpi-grid pdv-kpis">
-  <div class="erp-kpi">
-    <span class="erp-kpi__icon"><mat-icon>shopping_cart</mat-icon></span>
-    <div>
-      <span class="erp-kpi__label">Itens no carrinho</span>
-      <span class="erp-kpi__value">{{ totalQuantidade() }}</span>
-    </div>
-  </div>
-  <div class="erp-kpi">
-    <span class="erp-kpi__icon"><mat-icon>payments</mat-icon></span>
-    <div>
-      <span class="erp-kpi__label">Total do pedido</span>
-      <span class="erp-kpi__value">R$ {{ totalPedido() | number: '1.2-2' }}</span>
-    </div>
-  </div>
-  <div class="erp-kpi">
-    <span class="erp-kpi__icon"><mat-icon>inventory_2</mat-icon></span>
-    <div>
-      <span class="erp-kpi__label">Produtos carregados</span>
-      <span class="erp-kpi__value">{{ produtos().length }}</span>
-    </div>
-  </div>
-</div>
-
+<div class="pdv-page">
 <div class="pdv-grid">
   <!-- Coluna: Catálogo -->
   <div class="catalogo">
@@ -97,8 +66,8 @@
           <mat-icon matPrefix>search</mat-icon>
         </mat-form-field>
         <button mat-stroked-button type="button" (click)="buscarProdutos()" [disabled]="loadingProdutos()">
-          <mat-icon>tune</mat-icon>
-          Filtros
+          <mat-icon>search</mat-icon>
+          Buscar
         </button>
       </div>
     </div>
@@ -223,18 +192,22 @@
   </div>
 
   <!-- Coluna: Carrinho -->
-  <div class="cart-column">
+  <aside class="cart-column">
     <mat-card class="cart-card">
       <mat-card-title>
-        <span>Carrinho</span>
+        <span>
+          Carrinho
+          @if (totalQuantidade() > 0) {
+            <span class="cart-count">{{ totalQuantidade() }}</span>
+          }
+        </span>
         <button mat-icon-button type="button" (click)="limpar()" aria-label="Limpar carrinho">
           <mat-icon>delete_outline</mat-icon>
         </button>
       </mat-card-title>
-      <mat-card-content>
+      <mat-card-content class="cart-card__body">
 
-        <!-- Itens -->
-        <div class="itens-lista">
+        <div class="itens-lista" #itensLista>
           @for (l of carrinho(); track linhaKey(l); let i = $index) {
             <div class="line">
               <div class="grow">
@@ -254,18 +227,23 @@
                   <div class="line-combo-itens">{{ l.componentes }}</div>
                 }
               </div>
-              <button mat-icon-button type="button" (click)="dec(i)"><mat-icon>remove</mat-icon></button>
+              <button class="qty-btn" type="button" (click)="dec(i)" aria-label="Diminuir quantidade">
+                <mat-icon>remove</mat-icon>
+              </button>
               <span class="qtd">{{ l.qtd }}</span>
-              <button mat-icon-button type="button" (click)="inc(i)"><mat-icon>add</mat-icon></button>
+              <button class="qty-btn" type="button" (click)="inc(i)" aria-label="Aumentar quantidade">
+                <mat-icon>add</mat-icon>
+              </button>
             </div>
           } @empty {
             <div class="empty">
               <mat-icon>shopping_cart_outlined</mat-icon>
-              <span>Nenhum item no carrinho.</span>
+              <span>Toque num produto ou leia o código para começar.</span>
             </div>
           }
         </div>
 
+        <div class="cart-checkout">
         <!-- Totais -->
         <div class="totais">
           <div class="totais__linha">
@@ -368,8 +346,10 @@
             }
           </button>
         </div>
+        </div>
 
       </mat-card-content>
     </mat-card>
-  </div>
+  </aside>
+</div>
 </div>

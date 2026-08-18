@@ -1,4 +1,4 @@
-$green: #008060;
+$green: #c9a227;
 $green-light: #19a77c;
 $red: #e23428;
 $red-soft: #f87171;
@@ -65,11 +65,11 @@ $red-soft: #f87171;
   transition: color 0.3s ease;
 
   &:hover {
-    color: #008060;
+    color: #c9a227;
   }
 
   &--active {
-    color: #008060;
+    color: #c9a227;
     font-weight: 600;
   }
 
@@ -91,7 +91,7 @@ $red-soft: #f87171;
   bottom: 0;
   height: 2px;
   border-radius: 2px;
-  background: #008060;
+  background: #c9a227;
 
   .ssp--dark & {
     background: #4ade80;
@@ -198,7 +198,7 @@ $red-soft: #f87171;
   font-size: 0.7rem;
   font-weight: 700;
   background: rgba(19, 88, 70, 0.12);
-  color: #008060;
+  color: #c9a227;
 
   .ssp--dark & {
     background: rgba(74, 222, 128, 0.15);
