@@ -5,6 +5,13 @@
   gap: 1rem;
   margin-bottom: 0.75rem;
   flex-wrap: wrap;
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
 }
 
 .produtos-breadcrumb {
@@ -29,6 +36,7 @@
 }
 
 .produtos-wizard-panel {
+  margin-top: 1rem;
   margin-bottom: 1rem;
   overflow: hidden;
 
@@ -62,6 +70,11 @@
     color: #6b7280;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 0.8rem;
+  }
+
+  &--new {
+    background: #f7f4ea;
+    border-bottom-color: #e4ddd0;
   }
 }
 

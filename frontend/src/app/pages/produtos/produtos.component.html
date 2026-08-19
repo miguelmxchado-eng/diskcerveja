@@ -4,18 +4,20 @@
     <span class="produtos-breadcrumb__sep" aria-hidden="true">/</span>
     <span class="produtos-breadcrumb__segment">Cadastros</span>
     <span class="produtos-breadcrumb__sep" aria-hidden="true">/</span>
-    <span class="produtos-breadcrumb__segment produtos-breadcrumb__segment--current">
-      @if (auth.isAdmin()) {
-        {{ editando() ? 'Editar Produto' : 'Novo Produto' }}
-      } @else {
-        Produtos
-      }
-    </span>
+    <span class="produtos-breadcrumb__segment produtos-breadcrumb__segment--current">Produtos</span>
   </nav>
-  <button mat-stroked-button type="button" (click)="reload()" [disabled]="loading()">
-    <mat-icon>refresh</mat-icon>
-    Atualizar
-  </button>
+  <div class="produtos-toolbar__actions">
+    <button mat-stroked-button type="button" (click)="reload()" [disabled]="loading()">
+      <mat-icon>refresh</mat-icon>
+      Atualizar
+    </button>
+    @if (auth.isAdmin()) {
+      <button mat-flat-button type="button" class="produtos-btn-primary" (click)="abrirNovoCadastro()">
+        <mat-icon>add</mat-icon>
+        Novo produto
+      </button>
+    }
+  </div>
 </div>
 
 <div class="erp-kpi-grid">
@@ -42,7 +44,11 @@
   </div>
 </div>
 
-@if (auth.isAdmin()) {
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+}
+
+@if (auth.isAdmin() && formularioAberto()) {
   <div #wizardPanel class="erp-panel produtos-wizard-panel" [class.produtos-wizard-panel--editing]="editando()">
     @if (produtoEmEdicao(); as ed) {
       <div class="produtos-edit-banner" role="status">
@@ -53,7 +59,16 @@
             <span class="produtos-edit-banner__code">· {{ codigoInternoEdicao }}</span>
           }
         </div>
-        <button mat-stroked-button type="button" (click)="cancelarCadastro()">Novo cadastro</button>
+        <button mat-stroked-button type="button" (click)="cancelarCadastro()">Cancelar edição</button>
+      </div>
+    } @else {
+      <div class="produtos-edit-banner produtos-edit-banner--new" role="status">
+        <mat-icon>add_box</mat-icon>
+        <div class="produtos-edit-banner__text">
+          <strong>Novo produto</strong>
+          <span class="produtos-edit-banner__code">Preencha os dados e avance até a revisão</span>
+        </div>
+        <button mat-stroked-button type="button" (click)="cancelarCadastro()">Fechar</button>
       </div>
     }
     <mat-horizontal-stepper #cadastroStepper class="produtos-stepper" [linear]="false" animationDuration="200">
@@ -340,11 +355,6 @@
     </mat-horizontal-stepper>
   </div>
 }
-
-@if (loading()) {
-  <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-}
-
 <div class="table-wrapper erp-panel produtos-tabela">
   <div class="erp-panel__header produtos-tabela__head">
     <h3 class="erp-panel__title">Produtos cadastrados</h3>
@@ -363,6 +373,12 @@
       <mat-checkbox [ngModel]="filtroSomenteComCodigo()" (ngModelChange)="filtroSomenteComCodigo.set($event)" name="filtroCod">
         Somente com código
       </mat-checkbox>
+      @if (auth.isAdmin()) {
+        <button mat-flat-button type="button" class="produtos-btn-primary" (click)="abrirNovoCadastro()">
+          <mat-icon>add</mat-icon>
+          Novo produto
+        </button>
+      }
     </div>
   </div>
   <table mat-table [dataSource]="produtosFiltrados()" class="mat-elevation-z1 produtos-table-inner">
@@ -468,3 +484,4 @@
     </tr>
   </table>
 </div>
+

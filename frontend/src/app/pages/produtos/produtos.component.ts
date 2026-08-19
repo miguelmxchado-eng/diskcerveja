@@ -62,6 +62,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   salvando = signal(false);
   imagemPreview = signal<string | null>(null);
   readonly produtoEmEdicao = signal<Produto | null>(null);
+  readonly formularioAberto = signal(false);
   readonly editando = computed(() => this.produtoEmEdicao() != null);
 
   readonly filtroTabela = signal('');
@@ -268,6 +269,21 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   }
 
   cancelarCadastro(): void {
+    this.limparFormulario();
+    this.formularioAberto.set(false);
+    this.fecharScanner();
+  }
+
+  abrirNovoCadastro(): void {
+    if (!this.auth.isAdmin()) {
+      return;
+    }
+    this.limparFormulario();
+    this.formularioAberto.set(true);
+    this.scrollFormulario();
+  }
+
+  private limparFormulario(): void {
     this.produtoEmEdicao.set(null);
     this.codigoInternoEdicao = null;
     this.novoNome = '';
@@ -285,6 +301,12 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.codigoDuplicadoMsg.set(null);
     this.codigoSomenteLeitura = false;
     this.cadastroStepper?.reset();
+  }
+
+  private scrollFormulario(): void {
+    setTimeout(() => {
+      this.wizardPanel?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
   }
 
   editarProduto(p: Produto): void {
@@ -307,12 +329,13 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.ultimaLeituraPreview.set(null);
     this.codigoDuplicadoMsg.set(null);
     this.codigoSomenteLeitura = false;
+    this.formularioAberto.set(true);
     this.cadastroStepper?.reset();
     queueMicrotask(() => {
       if (this.cadastroStepper) {
         this.cadastroStepper.selectedIndex = 0;
       }
-      this.wizardPanel?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      this.scrollFormulario();
     });
     this.validarCodigoEmTempoReal();
   }
