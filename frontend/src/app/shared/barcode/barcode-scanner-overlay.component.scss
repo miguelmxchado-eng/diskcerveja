@@ -82,20 +82,11 @@
   }
 
   &__reader {
+    display: block;
     width: 100%;
     height: 100%;
-
-    video {
-      width: 100% !important;
-      height: 100% !important;
-      object-fit: cover !important;
-    }
-
-    /* esconde UI padrão pesada do html5-qrcode */
-    img[alt='Info icon'],
-    button {
-      display: none !important;
-    }
+    object-fit: cover;
+    background: #000;
   }
 
   &__overlay-ui {

@@ -242,6 +242,8 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     }
     void this.validarCodigoEmTempoReal(code);
     this.feedback.success();
+    // No cadastro, após preencher o campo, fecha a câmera (leitura única).
+    this.fecharScanner();
   }
 
   validarCodigoEmTempoReal(codigo?: string): void {

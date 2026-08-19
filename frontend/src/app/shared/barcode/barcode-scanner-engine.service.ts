@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { Html5Qrcode, Html5QrcodeCameraScanConfig } from 'html5-qrcode';
+import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
+import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 import {
   detectBarcodeFormat,
   isPixQrPayload,
@@ -8,29 +9,43 @@ import {
 } from './barcode-format.util';
 import { ScanDebounce } from './scan-debounce';
 
-const CAMERA_KEY = 'dcm_last_camera_id';
 const MAX_RETRIES = 2;
+
+/** Formatos aceitos: EAN-13, EAN-8, UPC-A, UPC-E, Code 128, Code 39 (+ QR). */
+const POSSIBLE_FORMATS: BarcodeFormat[] = [
+  BarcodeFormat.EAN_13,
+  BarcodeFormat.EAN_8,
+  BarcodeFormat.UPC_A,
+  BarcodeFormat.UPC_E,
+  BarcodeFormat.CODE_128,
+  BarcodeFormat.CODE_39,
+  BarcodeFormat.QR_CODE,
+];
 
 export type ScanCallback = (code: string, format: string, isPix: boolean) => void;
 
+/**
+ * Motor de leitura reutilizável baseado em `@zxing/browser`.
+ * Uma única instância ativa por vez (garantido por `startGen` + `releaseScanner`).
+ * Recebe o elemento <video> e emite o texto detectado via callback.
+ */
 @Injectable({ providedIn: 'root' })
 export class BarcodeScannerEngineService {
-  private scanner: Html5Qrcode | null = null;
-  private readerId: string | null = null;
+  private reader: BrowserMultiFormatReader | null = null;
+  private controls: IScannerControls | undefined;
+  private videoEl: HTMLVideoElement | null = null;
   private running = false;
   private destroyed = false;
   private startGen = 0;
-  private cameraId: string | null = null;
   private useEnvironment = true;
   private readonly debounce = new ScanDebounce(1100, 500);
   private onScan: ScanCallback | null = null;
 
-  async start(readerElementId: string, onScan: ScanCallback): Promise<void> {
+  async start(video: HTMLVideoElement, onScan: ScanCallback): Promise<void> {
     if (typeof window !== 'undefined' && !window.isSecureContext) {
       throw new Error('SECURE_CONTEXT');
     }
-    const host = document.getElementById(readerElementId);
-    if (!host) {
+    if (!video) {
       throw new Error('READER_NOT_READY');
     }
 
@@ -39,9 +54,11 @@ export class BarcodeScannerEngineService {
     if (gen !== this.startGen) return;
 
     this.destroyed = false;
-    this.readerId = readerElementId;
+    this.videoEl = video;
     this.onScan = onScan;
     this.debounce.reset();
+    console.log('Iniciando ZXing');
+    console.log('Elemento de vídeo:', video);
     await this.startWithRetry(0, gen);
   }
 
@@ -53,25 +70,11 @@ export class BarcodeScannerEngineService {
   }
 
   async flipCamera(): Promise<void> {
-    const id = this.readerId;
+    const video = this.videoEl;
     const cb = this.onScan;
-    if (!id || !cb) return;
-
-    try {
-      const cameras = await Html5Qrcode.getCameras();
-      if (cameras.length > 1) {
-        const idx = this.cameraId ? cameras.findIndex((c) => c.id === this.cameraId) : -1;
-        this.cameraId = cameras[(idx + 1) % cameras.length].id;
-      } else {
-        this.useEnvironment = !this.useEnvironment;
-        this.cameraId = null;
-      }
-    } catch {
-      this.useEnvironment = !this.useEnvironment;
-      this.cameraId = null;
-    }
-
-    await this.start(id, cb);
+    if (!video || !cb) return;
+    this.useEnvironment = !this.useEnvironment;
+    await this.start(video, cb);
   }
 
   isActive(): boolean {
@@ -79,27 +82,46 @@ export class BarcodeScannerEngineService {
   }
 
   private async startWithRetry(attempt: number, gen: number): Promise<void> {
-    if (this.destroyed || gen !== this.startGen || !this.readerId || !this.onScan) return;
+    if (this.destroyed || gen !== this.startGen || !this.videoEl || !this.onScan) return;
     try {
-      const camera = await this.resolveCamera();
-      this.scanner = new Html5Qrcode(this.readerId, {
-        verbose: false,
-        useBarCodeDetectorIfSupported: true,
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+      const hints = new Map<DecodeHintType, unknown>();
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, POSSIBLE_FORMATS);
+      // TRY_HARDER melhora a detecção de 1D em quadros ruidosos.
+      hints.set(DecodeHintType.TRY_HARDER, true);
+
+      this.reader = new BrowserMultiFormatReader(hints, {
+        // Leitura contínua rápida, sem sobrecarregar a CPU.
+        delayBetweenScanAttempts: 100,
+        delayBetweenScanSuccess: 300,
       });
-      await this.scanner.start(camera, this.buildConfig(), (text) => this.handleFrame(text), () => {});
+
+      // Câmera traseira preferencial + HD (resolve as barras finas de EAN/UPC).
+      const constraints: MediaStreamConstraints = {
+        video: {
+          facingMode: { ideal: this.useEnvironment ? 'environment' : 'user' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      };
+
+      this.controls = await this.reader.decodeFromConstraints(
+        constraints,
+        this.videoEl,
+        (result, error) => this.handleResult(result, error),
+      );
+
       if (this.destroyed || gen !== this.startGen) {
         await this.releaseScanner();
         return;
       }
       this.running = true;
-      if (typeof camera === 'string') {
-        localStorage.setItem(CAMERA_KEY, camera);
-      }
+      console.log('Câmera iniciada');
     } catch (e) {
       await this.releaseScanner();
       if (attempt < MAX_RETRIES && !this.destroyed && gen === this.startGen) {
-        this.cameraId = null;
+        // Segunda tentativa: relaxa para a câmera padrão do aparelho.
+        this.useEnvironment = attempt === 0 ? this.useEnvironment : true;
         await this.delay(350 * (attempt + 1));
         return this.startWithRetry(attempt + 1, gen);
       }
@@ -107,42 +129,16 @@ export class BarcodeScannerEngineService {
     }
   }
 
-  private buildConfig(): Html5QrcodeCameraScanConfig {
-    // Sem videoConstraints + deviceId (OverconstrainedError no Chrome).
-    // Sem qrbox: lê o frame inteiro — melhor para EAN em viewport pequeno.
-    return {
-      fps: 12,
-      disableFlip: false,
-    };
-  }
-
-  private async resolveCamera(): Promise<string | MediaTrackConstraints> {
-    if (this.cameraId) return this.cameraId;
-
-    const facing: MediaTrackConstraints = {
-      facingMode: { ideal: this.useEnvironment ? 'environment' : 'user' },
-    };
-
-    const saved = localStorage.getItem(CAMERA_KEY);
-    try {
-      const cameras = await Html5Qrcode.getCameras();
-      if (!cameras.length) return facing;
-      if (saved && cameras.some((c) => c.id === saved)) {
-        this.cameraId = saved;
-        return saved;
-      }
-      const back = cameras.find((c) => /back|rear|traseir|environment/i.test(c.label));
-      const chosen = this.useEnvironment ? back ?? cameras[cameras.length - 1] : cameras[0];
-      this.cameraId = chosen.id;
-      return chosen.id;
-    } catch {
-      return facing;
-    }
-  }
-
-  private handleFrame(raw: string): void {
+  /**
+   * Callback de leitura contínua. `error` (NotFoundException) chega em cada
+   * frame sem código — é normal e não deve virar log/erro na tela.
+   */
+  private handleResult(result: unknown, _error: unknown): void {
     if (this.destroyed || !this.onScan) return;
-    const code = normalizeScannedCode(raw);
+    const res = result as { getText?: () => string } | undefined;
+    if (!res || typeof res.getText !== 'function') return;
+
+    const code = normalizeScannedCode(res.getText() ?? '');
     if (!code) return;
     if (!this.debounce.accept(code)) return;
 
@@ -150,27 +146,35 @@ export class BarcodeScannerEngineService {
     if (!isPix && !isValidProductCode(code)) return;
 
     this.debounce.pauseAfterRead();
+    console.log('Código detectado:', code);
     const format = detectBarcodeFormat(code);
     this.onScan(code, format, isPix);
   }
 
+  /** Parada segura: encerra o loop, libera as tracks e limpa o vídeo. */
   private async releaseScanner(): Promise<void> {
     this.running = false;
-    if (!this.scanner) return;
-    const s = this.scanner;
-    this.scanner = null;
     try {
-      if (s.isScanning) {
-        await s.stop();
+      this.controls?.stop();
+    } catch (e) {
+      console.error('Erro ao parar ZXing:', e);
+    }
+    this.controls = undefined;
+
+    const video = this.videoEl;
+    const stream = (video?.srcObject as MediaStream | null) ?? null;
+    stream?.getTracks().forEach((track) => {
+      try {
+        track.stop();
+      } catch {
+        /* ignore */
       }
-    } catch {
-      /* ignore */
+    });
+    if (video) {
+      video.srcObject = null;
     }
-    try {
-      s.clear();
-    } catch {
-      /* ignore */
-    }
+    this.reader = null;
+    console.log('Encerrando câmera');
   }
 
   private delay(ms: number): Promise<void> {

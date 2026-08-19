@@ -19,17 +19,16 @@ export class BarcodeScannerOverlayComponent implements OnDestroy {
   private readonly engine = inject(BarcodeScannerEngineService);
   private readonly feedback = inject(BarcodeFeedbackService);
 
-  readonly readerId = `dcm-scanner-${Math.random().toString(36).slice(2, 9)}`;
   readonly retrying = signal(false);
   private bootSeq = 0;
-  private hostEl?: HTMLElement;
+  private videoEl?: HTMLVideoElement;
   private bootInFlight = false;
 
-  @ViewChild('readerHost')
-  set readerHost(ref: ElementRef<HTMLElement> | undefined) {
-    this.hostEl = ref?.nativeElement;
+  @ViewChild('videoScanner')
+  set videoScannerRef(ref: ElementRef<HTMLVideoElement> | undefined) {
+    this.videoEl = ref?.nativeElement;
     if (
-      this.hostEl &&
+      this.videoEl &&
       this.scanner.isOpen() &&
       !this.scanner.minimized() &&
       !this.bootInFlight &&
@@ -91,7 +90,7 @@ export class BarcodeScannerOverlayComponent implements OnDestroy {
       if (seq === this.bootSeq) this.bootInFlight = false;
       return;
     }
-    if (!ready) {
+    if (!ready || !this.videoEl) {
       this.bootInFlight = false;
       this.retrying.set(false);
       this.scanner.setError('Área da câmera ainda não ficou pronta. Toque em Tentar novamente.');
@@ -102,7 +101,7 @@ export class BarcodeScannerOverlayComponent implements OnDestroy {
     this.retrying.set(true);
 
     try {
-      await this.engine.start(this.readerId, (code, format, isPix) => {
+      await this.engine.start(this.videoEl, (code, format, isPix) => {
         const result: BarcodeScanResult = { code, format, isPix };
         this.scanner.flashSuccess();
         this.scanner.setStatus('success');
@@ -134,7 +133,7 @@ export class BarcodeScannerOverlayComponent implements OnDestroy {
           resolve(false);
           return;
         }
-        const el = document.getElementById(this.readerId);
+        const el = this.videoEl;
         if (el && el.offsetWidth > 8 && el.offsetHeight > 8) {
           resolve(true);
           return;

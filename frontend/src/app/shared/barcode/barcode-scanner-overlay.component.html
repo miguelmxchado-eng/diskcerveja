@@ -35,7 +35,7 @@
 
   @if (!scanner.minimized()) {
     <div class="scan-float__viewport">
-      <div #readerHost [id]="readerId" class="scan-float__reader"></div>
+      <video #videoScanner class="scan-float__reader" autoplay muted playsinline></video>
       <div class="scan-float__overlay-ui" aria-hidden="true">
         <div class="scan-frame">
           <div class="scan-line"></div>

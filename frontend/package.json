@@ -22,7 +22,8 @@
     "@angular/platform-browser": "^17.3.12",
     "@angular/platform-browser-dynamic": "^17.3.12",
     "@angular/router": "^17.3.12",
-    "html5-qrcode": "^2.3.8",
+    "@zxing/browser": "^0.2.1",
+    "@zxing/library": "^0.23.0",
     "rxjs": "~7.8.1",
     "tslib": "^2.6.2",
     "zone.js": "~0.14.4"
