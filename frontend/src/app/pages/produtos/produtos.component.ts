@@ -64,8 +64,8 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   readonly produtoEmEdicao = signal<Produto | null>(null);
   readonly editando = computed(() => this.produtoEmEdicao() != null);
 
-  filtroTabela = '';
-  filtroSomenteComCodigo = false;
+  readonly filtroTabela = signal('');
+  readonly filtroSomenteComCodigo = signal(false);
   ultimaLeituraPreview = signal<{ code: string; format: string } | null>(null);
   codigoDuplicadoMsg = signal<string | null>(null);
   travarCodigoAposScan = false;
@@ -79,11 +79,12 @@ export class ProdutosComponent implements OnInit, OnDestroy {
 
   produtosFiltrados = computed(() => {
     let list = this.produtos();
-    if (this.filtroSomenteComCodigo) {
+    if (this.filtroSomenteComCodigo()) {
       list = list.filter((p) => !!codigoPrincipal(p));
     }
-    if (this.filtroTabela.trim()) {
-      list = list.filter((p) => produtoCombinaBusca(p, this.filtroTabela));
+    const termo = this.filtroTabela();
+    if (termo.trim()) {
+      list = list.filter((p) => produtoCombinaBusca(p, termo));
     }
     return list;
   });

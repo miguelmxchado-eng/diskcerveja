@@ -41,9 +41,15 @@
       <mat-form-field appearance="outline" class="estoque-prod-search">
         <mat-label>Buscar nome ou código</mat-label>
         <mat-icon matPrefix>search</mat-icon>
-        <input matInput [(ngModel)]="filtroProdutos" name="filtroEst" autocomplete="off" />
+        <input
+          matInput
+          [ngModel]="filtroProdutos()"
+          (ngModelChange)="filtroProdutos.set($event)"
+          name="filtroEst"
+          autocomplete="off"
+        />
       </mat-form-field>
-      <mat-checkbox [(ngModel)]="filtroSomenteComCodigo" name="filtroCodEst">
+      <mat-checkbox [ngModel]="filtroSomenteComCodigo()" (ngModelChange)="filtroSomenteComCodigo.set($event)" name="filtroCodEst">
         Somente com código
       </mat-checkbox>
       <button

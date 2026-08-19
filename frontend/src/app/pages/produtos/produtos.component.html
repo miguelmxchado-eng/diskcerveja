@@ -352,9 +352,15 @@
       <mat-form-field appearance="outline" class="produtos-tabela__search">
         <mat-label>Buscar nome ou código</mat-label>
         <mat-icon matPrefix>search</mat-icon>
-        <input matInput [(ngModel)]="filtroTabela" name="filtroTab" autocomplete="off" />
+        <input
+          matInput
+          [ngModel]="filtroTabela()"
+          (ngModelChange)="filtroTabela.set($event)"
+          name="filtroTab"
+          autocomplete="off"
+        />
       </mat-form-field>
-      <mat-checkbox [(ngModel)]="filtroSomenteComCodigo" name="filtroCod">
+      <mat-checkbox [ngModel]="filtroSomenteComCodigo()" (ngModelChange)="filtroSomenteComCodigo.set($event)" name="filtroCod">
         Somente com código
       </mat-checkbox>
     </div>

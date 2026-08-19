@@ -74,8 +74,8 @@ export class EstoqueComponent implements OnInit, OnDestroy {
   loadingBaixo = signal(false);
   loadingProdutos = signal(false);
 
-  filtroProdutos = '';
-  filtroSomenteComCodigo = false;
+  readonly filtroProdutos = signal('');
+  readonly filtroSomenteComCodigo = signal(false);
   produtoDestacadoId = signal<number | null>(null);
 
   totalProdutos = computed(() => this.todosProdutos().length);
@@ -84,11 +84,12 @@ export class EstoqueComponent implements OnInit, OnDestroy {
 
   produtosFiltrados = computed(() => {
     let list = this.todosProdutos();
-    if (this.filtroSomenteComCodigo) {
+    if (this.filtroSomenteComCodigo()) {
       list = list.filter((p) => !!codigoPrincipal(p));
     }
-    if (this.filtroProdutos.trim()) {
-      list = list.filter((p) => produtoCombinaBusca(p, this.filtroProdutos));
+    const termo = this.filtroProdutos();
+    if (termo.trim()) {
+      list = list.filter((p) => produtoCombinaBusca(p, termo));
     }
     return list;
   });
@@ -255,7 +256,7 @@ export class EstoqueComponent implements OnInit, OnDestroy {
       return;
     }
     const code = normalizeScannedCode(r.code);
-    this.filtroProdutos = code;
+    this.filtroProdutos.set(code);
     const found = this.todosProdutos().find(
       (p) =>
         p.codigoBarras === code ||
