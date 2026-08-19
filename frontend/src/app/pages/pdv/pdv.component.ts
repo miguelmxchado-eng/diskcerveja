@@ -87,6 +87,7 @@ export class PdvComponent implements OnInit, OnDestroy {
   private readonly scanHistory = new ScanHistory();
   private hidSub?: Subscription;
   private cameraSub?: Subscription;
+  private barcodeIdle?: ReturnType<typeof setTimeout>;
 
   readonly indicePorCodigo = computed(() => {
     const map = new Map<string, Produto>();
@@ -169,6 +170,7 @@ export class PdvComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.hidSub?.unsubscribe();
     this.cameraSub?.unsubscribe();
+    if (this.barcodeIdle) clearTimeout(this.barcodeIdle);
     this.hid.stopListening();
     this.scanner.close();
   }
@@ -189,9 +191,20 @@ export class PdvComponent implements OnInit, OnDestroy {
   }
 
   lerCodigoBarras() {
+    if (this.barcodeIdle) {
+      clearTimeout(this.barcodeIdle);
+      this.barcodeIdle = undefined;
+    }
     const codigo = normalizeScannedCode(this.codigoBarras);
     if (!codigo) return;
     this.processarCodigo(codigo, 'manual');
+  }
+
+  onCodigoBarrasChange(): void {
+    if (this.barcodeIdle) clearTimeout(this.barcodeIdle);
+    const codigo = normalizeScannedCode(this.codigoBarras);
+    if (codigo.length < 8) return;
+    this.barcodeIdle = setTimeout(() => this.lerCodigoBarras(), 200);
   }
 
   toggleScanner(): void {
@@ -254,9 +267,9 @@ export class PdvComponent implements OnInit, OnDestroy {
         this.feedback.error();
         this.scanHistory.push(codigo, false);
         this.historicoScans.set(this.scanHistory.list());
-        if (origem === 'manual') {
-          this.snack.open('Produto não encontrado.', 'OK', { duration: 2200 });
-        }
+        this.snack.open('Produto não encontrado para este código. Cadastre o código de barras no produto.', 'OK', {
+          duration: 3200,
+        });
       },
     });
   }

@@ -66,9 +66,19 @@
 
   &__viewport {
     position: relative;
-    height: 168px;
+    height: 220px;
     background: #000;
     overflow: hidden;
+  }
+
+  &__retry {
+    padding: 0 10px 8px;
+
+    button {
+      width: 100%;
+      color: #e2e8f0;
+      border-color: rgba(148, 163, 184, 0.5);
+    }
   }
 
   &__reader {
@@ -201,7 +211,7 @@
     width: min(280px, calc(100vw - 16px));
 
     &__viewport {
-      height: 150px;
+      height: 200px;
     }
   }
 }

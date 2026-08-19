@@ -1,13 +1,4 @@
-import {
-  Component,
-  DestroyRef,
-  ElementRef,
-  OnDestroy,
-  ViewChild,
-  effect,
-  inject,
-  signal,
-} from '@angular/core';
+import { Component, ElementRef, OnDestroy, ViewChild, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -27,29 +18,48 @@ export class BarcodeScannerOverlayComponent implements OnDestroy {
   readonly scanner = inject(BarcodeScannerService);
   private readonly engine = inject(BarcodeScannerEngineService);
   private readonly feedback = inject(BarcodeFeedbackService);
-  private readonly destroyRef = inject(DestroyRef);
-
-  @ViewChild('readerHost') readerHost?: ElementRef<HTMLElement>;
 
   readonly readerId = `dcm-scanner-${Math.random().toString(36).slice(2, 9)}`;
   readonly retrying = signal(false);
+  private bootSeq = 0;
+  private hostEl?: HTMLElement;
+  private bootInFlight = false;
+
+  @ViewChild('readerHost')
+  set readerHost(ref: ElementRef<HTMLElement> | undefined) {
+    this.hostEl = ref?.nativeElement;
+    if (
+      this.hostEl &&
+      this.scanner.isOpen() &&
+      !this.scanner.minimized() &&
+      !this.bootInFlight &&
+      !this.engine.isActive()
+    ) {
+      void this.bootCamera();
+    }
+  }
 
   constructor() {
     effect(() => {
       const open = this.scanner.isOpen();
-      if (open) {
-        queueMicrotask(() => void this.bootCamera());
-      } else {
+      const minimized = this.scanner.minimized();
+      if (!open || minimized) {
+        this.bootSeq++;
+        this.bootInFlight = false;
         void this.engine.stop();
       }
     });
   }
 
   ngOnDestroy(): void {
+    this.bootSeq++;
+    this.bootInFlight = false;
     void this.engine.stop();
   }
 
   fechar(): void {
+    this.bootSeq++;
+    this.bootInFlight = false;
     void this.engine.stop();
     this.scanner.close();
   }
@@ -63,22 +73,33 @@ export class BarcodeScannerOverlayComponent implements OnDestroy {
     try {
       await this.engine.flipCamera();
       this.scanner.setStatus('scanning');
-    } catch {
-      this.scanner.setError('Não foi possível trocar a câmera.');
+    } catch (e: unknown) {
+      this.scanner.setError(this.cameraErrorMessage(e));
       this.feedback.error();
     }
   }
 
+  retryCamera(): void {
+    void this.bootCamera();
+  }
+
   private async bootCamera(): Promise<void> {
-    const host = this.readerHost?.nativeElement;
-    if (!host) {
-      requestAnimationFrame(() => void this.bootCamera());
+    const seq = ++this.bootSeq;
+    this.bootInFlight = true;
+    const ready = await this.waitForReader(seq);
+    if (seq !== this.bootSeq || !this.scanner.isOpen() || this.scanner.minimized()) {
+      if (seq === this.bootSeq) this.bootInFlight = false;
+      return;
+    }
+    if (!ready) {
+      this.bootInFlight = false;
+      this.retrying.set(false);
+      this.scanner.setError('Área da câmera ainda não ficou pronta. Toque em Tentar novamente.');
       return;
     }
 
-    host.id = this.readerId;
     this.scanner.setStatus('starting');
-    this.retrying.set(false);
+    this.retrying.set(true);
 
     try {
       await this.engine.start(this.readerId, (code, format, isPix) => {
@@ -92,32 +113,62 @@ export class BarcodeScannerOverlayComponent implements OnDestroy {
           }
         }, 500);
       });
+      if (seq !== this.bootSeq) return;
+      this.retrying.set(false);
+      this.bootInFlight = false;
       this.scanner.setStatus('scanning');
     } catch (e: unknown) {
-      const msg = this.cameraErrorMessage(e);
-      this.scanner.setError(msg);
+      if (seq !== this.bootSeq) return;
+      this.retrying.set(false);
+      this.bootInFlight = false;
+      this.scanner.setError(this.cameraErrorMessage(e));
       this.feedback.error();
-      this.retrying.set(true);
-      setTimeout(() => {
-        if (this.scanner.isOpen()) {
-          this.retrying.set(false);
-          void this.bootCamera();
-        }
-      }, 2000);
     }
+  }
+
+  private waitForReader(seq: number): Promise<boolean> {
+    const deadline = Date.now() + 4000;
+    return new Promise((resolve) => {
+      const tick = () => {
+        if (seq !== this.bootSeq) {
+          resolve(false);
+          return;
+        }
+        const el = document.getElementById(this.readerId);
+        if (el && el.offsetWidth > 8 && el.offsetHeight > 8) {
+          resolve(true);
+          return;
+        }
+        if (Date.now() > deadline) {
+          resolve(false);
+          return;
+        }
+        requestAnimationFrame(tick);
+      };
+      tick();
+    });
   }
 
   private cameraErrorMessage(e: unknown): string {
     const text = e instanceof Error ? e.message : String(e);
-    if (/NotAllowed|Permission/i.test(text)) {
-      return 'Permissão da câmera negada.';
+    if (/SECURE_CONTEXT/i.test(text)) {
+      return 'A câmera só funciona em HTTPS. Abra o sistema pelo endereço seguro (cadeado no navegador).';
     }
-    if (/NotFound|Devices/i.test(text)) {
-      return 'Nenhuma câmera encontrada.';
+    if (/READER_NOT_READY/i.test(text)) {
+      return 'Área da câmera ainda não ficou pronta. Toque em Tentar novamente.';
     }
-    if (/NotReadable|in use|busy/i.test(text)) {
-      return 'Câmera em uso por outro app.';
+    if (/NotAllowed|Permission|denied/i.test(text)) {
+      return 'Permissão da câmera negada. Autorize a câmera neste site e tente de novo.';
     }
-    return 'Falha ao iniciar câmera. Tentando novamente…';
+    if (/NotFound|DevicesNotFound|Requested device not found/i.test(text)) {
+      return 'Nenhuma câmera encontrada neste aparelho.';
+    }
+    if (/NotReadable|in use|AbortError|busy/i.test(text)) {
+      return 'Câmera em uso por outro app. Feche-o e tente de novo.';
+    }
+    if (/Overconstrained|constraint/i.test(text)) {
+      return 'Esta câmera não aceitou as configurações. Toque em Tentar novamente.';
+    }
+    return 'Falha ao iniciar a câmera. Verifique a permissão e tente novamente.';
   }
 }

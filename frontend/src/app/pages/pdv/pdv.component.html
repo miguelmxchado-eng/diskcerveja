@@ -10,6 +10,7 @@
           <input
             matInput
             [(ngModel)]="codigoBarras"
+            (ngModelChange)="onCodigoBarrasChange()"
             (keyup.enter)="lerCodigoBarras()"
             autocomplete="off"
             placeholder="Escaneie, digite ou use leitor USB"

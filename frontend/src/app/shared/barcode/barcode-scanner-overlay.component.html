@@ -21,13 +21,13 @@
       }
     </span>
     <div class="scan-float__actions">
-      <button type="button" mat-icon-button (click)="trocarCamera()" aria-label="Trocar câmera">
+      <button type="button" mat-icon-button (click)="trocarCamera(); $event.stopPropagation()" aria-label="Trocar câmera">
         <mat-icon>cameraswitch</mat-icon>
       </button>
-      <button type="button" mat-icon-button (click)="minimizar()" aria-label="Minimizar">
+      <button type="button" mat-icon-button (click)="minimizar(); $event.stopPropagation()" aria-label="Minimizar">
         <mat-icon>{{ scanner.minimized() ? 'open_in_full' : 'minimize' }}</mat-icon>
       </button>
-      <button type="button" mat-icon-button (click)="fechar()" aria-label="Fechar scanner">
+      <button type="button" mat-icon-button (click)="fechar(); $event.stopPropagation()" aria-label="Fechar scanner">
         <mat-icon>close</mat-icon>
       </button>
     </div>
@@ -35,7 +35,7 @@
 
   @if (!scanner.minimized()) {
     <div class="scan-float__viewport">
-      <div #readerHost class="scan-float__reader"></div>
+      <div #readerHost [id]="readerId" class="scan-float__reader"></div>
       <div class="scan-float__overlay-ui" aria-hidden="true">
         <div class="scan-frame">
           <div class="scan-line"></div>
@@ -51,6 +51,9 @@
 
     @if (scanner.errorMessage(); as err) {
       <p class="scan-float__err">{{ err }}</p>
+      <div class="scan-float__retry">
+        <button type="button" mat-stroked-button (click)="retryCamera()">Tentar novamente</button>
+      </div>
     }
 
     @if (scanner.lastCode(); as code) {

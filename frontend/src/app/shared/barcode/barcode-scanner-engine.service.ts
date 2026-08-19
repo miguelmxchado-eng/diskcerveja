@@ -9,7 +9,7 @@ import {
 import { ScanDebounce } from './scan-debounce';
 
 const CAMERA_KEY = 'dcm_last_camera_id';
-const MAX_RETRIES = 3;
+const MAX_RETRIES = 2;
 
 export type ScanCallback = (code: string, format: string, isPix: boolean) => void;
 
@@ -18,111 +18,115 @@ export class BarcodeScannerEngineService {
   private scanner: Html5Qrcode | null = null;
   private readerId: string | null = null;
   private running = false;
-  private starting = false;
   private destroyed = false;
+  private startGen = 0;
   private cameraId: string | null = null;
   private useEnvironment = true;
   private readonly debounce = new ScanDebounce(1100, 500);
   private onScan: ScanCallback | null = null;
 
   async start(readerElementId: string, onScan: ScanCallback): Promise<void> {
-    await this.stop();
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      throw new Error('SECURE_CONTEXT');
+    }
+    const host = document.getElementById(readerElementId);
+    if (!host) {
+      throw new Error('READER_NOT_READY');
+    }
+
+    const gen = ++this.startGen;
+    await this.releaseScanner();
+    if (gen !== this.startGen) return;
+
     this.destroyed = false;
     this.readerId = readerElementId;
     this.onScan = onScan;
     this.debounce.reset();
-    await this.startWithRetry(0);
+    await this.startWithRetry(0, gen);
   }
 
   async stop(): Promise<void> {
+    this.startGen++;
     this.destroyed = true;
     this.running = false;
-    this.starting = false;
-    if (!this.scanner) return;
-    const s = this.scanner;
-    this.scanner = null;
-    try {
-      if (s.isScanning) {
-        await s.stop();
-      }
-      await s.clear();
-    } catch {
-      /* ignore cleanup errors */
-    }
+    await this.releaseScanner();
   }
 
   async flipCamera(): Promise<void> {
-    this.useEnvironment = !this.useEnvironment;
-    this.cameraId = null;
     const id = this.readerId;
     const cb = this.onScan;
     if (!id || !cb) return;
-    await this.stop();
-    this.destroyed = false;
-    this.readerId = id;
-    this.onScan = cb;
-    await this.startWithRetry(0);
+
+    try {
+      const cameras = await Html5Qrcode.getCameras();
+      if (cameras.length > 1) {
+        const idx = this.cameraId ? cameras.findIndex((c) => c.id === this.cameraId) : -1;
+        this.cameraId = cameras[(idx + 1) % cameras.length].id;
+      } else {
+        this.useEnvironment = !this.useEnvironment;
+        this.cameraId = null;
+      }
+    } catch {
+      this.useEnvironment = !this.useEnvironment;
+      this.cameraId = null;
+    }
+
+    await this.start(id, cb);
   }
 
   isActive(): boolean {
     return this.running;
   }
 
-  private async startWithRetry(attempt: number): Promise<void> {
-    if (this.destroyed || !this.readerId || !this.onScan) return;
-    this.starting = true;
+  private async startWithRetry(attempt: number, gen: number): Promise<void> {
+    if (this.destroyed || gen !== this.startGen || !this.readerId || !this.onScan) return;
     try {
-      const cameraId = await this.resolveCameraId();
-      const config = this.buildConfig();
-      this.scanner = new Html5Qrcode(this.readerId, { verbose: false });
-      await this.scanner.start(cameraId, config, (text) => this.handleFrame(text), () => {});
-      if (!this.destroyed) {
-        this.running = true;
-        if (typeof cameraId === 'string') {
-          localStorage.setItem(CAMERA_KEY, cameraId);
-        }
+      const camera = await this.resolveCamera();
+      this.scanner = new Html5Qrcode(this.readerId, {
+        verbose: false,
+        useBarCodeDetectorIfSupported: true,
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+      });
+      await this.scanner.start(camera, this.buildConfig(), (text) => this.handleFrame(text), () => {});
+      if (this.destroyed || gen !== this.startGen) {
+        await this.releaseScanner();
+        return;
+      }
+      this.running = true;
+      if (typeof camera === 'string') {
+        localStorage.setItem(CAMERA_KEY, camera);
       }
     } catch (e) {
-      if (attempt < MAX_RETRIES - 1 && !this.destroyed) {
-        await this.delay(400 * (attempt + 1));
-        await this.stop();
-        this.destroyed = false;
-        this.readerId = this.readerId;
-        return this.startWithRetry(attempt + 1);
+      await this.releaseScanner();
+      if (attempt < MAX_RETRIES && !this.destroyed && gen === this.startGen) {
+        this.cameraId = null;
+        await this.delay(350 * (attempt + 1));
+        return this.startWithRetry(attempt + 1, gen);
       }
       throw e;
-    } finally {
-      this.starting = false;
     }
   }
 
   private buildConfig(): Html5QrcodeCameraScanConfig {
+    // Sem videoConstraints + deviceId (OverconstrainedError no Chrome).
+    // Sem qrbox: lê o frame inteiro — melhor para EAN em viewport pequeno.
     return {
-      fps: 24,
+      fps: 12,
       disableFlip: false,
-      qrbox: (w, h) => {
-        const mw = Math.min(w, h);
-        const size = Math.floor(mw * 0.88);
-        return { width: size, height: Math.floor(size * 0.42) };
-      },
-      aspectRatio: 1.777,
-      videoConstraints: {
-        facingMode: this.useEnvironment ? 'environment' : 'user',
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-      },
     };
   }
 
-  private async resolveCameraId(): Promise<string | { facingMode: string }> {
+  private async resolveCamera(): Promise<string | MediaTrackConstraints> {
     if (this.cameraId) return this.cameraId;
+
+    const facing: MediaTrackConstraints = {
+      facingMode: { ideal: this.useEnvironment ? 'environment' : 'user' },
+    };
 
     const saved = localStorage.getItem(CAMERA_KEY);
     try {
       const cameras = await Html5Qrcode.getCameras();
-      if (!cameras.length) {
-        return { facingMode: 'environment' };
-      }
+      if (!cameras.length) return facing;
       if (saved && cameras.some((c) => c.id === saved)) {
         this.cameraId = saved;
         return saved;
@@ -132,12 +136,12 @@ export class BarcodeScannerEngineService {
       this.cameraId = chosen.id;
       return chosen.id;
     } catch {
-      return { facingMode: this.useEnvironment ? 'environment' : 'user' };
+      return facing;
     }
   }
 
   private handleFrame(raw: string): void {
-    if (this.destroyed || !this.onScan || this.starting) return;
+    if (this.destroyed || !this.onScan) return;
     const code = normalizeScannedCode(raw);
     if (!code) return;
     if (!this.debounce.accept(code)) return;
@@ -148,6 +152,25 @@ export class BarcodeScannerEngineService {
     this.debounce.pauseAfterRead();
     const format = detectBarcodeFormat(code);
     this.onScan(code, format, isPix);
+  }
+
+  private async releaseScanner(): Promise<void> {
+    this.running = false;
+    if (!this.scanner) return;
+    const s = this.scanner;
+    this.scanner = null;
+    try {
+      if (s.isScanning) {
+        await s.stop();
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
+      s.clear();
+    } catch {
+      /* ignore */
+    }
   }
 
   private delay(ms: number): Promise<void> {

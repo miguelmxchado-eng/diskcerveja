@@ -12,9 +12,12 @@ export class HidScannerService implements OnDestroy {
 
   private buffer = '';
   private lastKeyAt = 0;
+  private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private listening = false;
-  private readonly maxGapMs = 80;
-  private readonly minLength = 3;
+  /** Leitores baratos passam de 80ms entre teclas em CPU ocupada. */
+  private readonly maxGapMs = 160;
+  private readonly idleFlushMs = 180;
+  private readonly minLength = 4;
 
   constructor(private readonly zone: NgZone) {}
 
@@ -28,6 +31,7 @@ export class HidScannerService implements OnDestroy {
     if (!this.listening) return;
     this.listening = false;
     document.removeEventListener('keydown', this.onKeyDown, true);
+    this.clearIdle();
     this.buffer = '';
   }
 
@@ -49,17 +53,35 @@ export class HidScannerService implements OnDestroy {
     this.lastKeyAt = now;
 
     if (ev.key === 'Enter') {
-      const code = normalizeScannedCode(this.buffer);
-      this.buffer = '';
-      if (code.length >= this.minLength) {
-        this.zone.run(() => this.scan$.next(code));
-      }
-      ev.preventDefault();
+      const emitted = this.flush();
+      if (emitted) ev.preventDefault();
       return;
     }
 
     if (ev.key.length === 1 && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
       this.buffer += ev.key;
+      this.scheduleIdleFlush();
     }
   };
+
+  private scheduleIdleFlush(): void {
+    this.clearIdle();
+    this.idleTimer = setTimeout(() => this.flush(), this.idleFlushMs);
+  }
+
+  private clearIdle(): void {
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
+  }
+
+  private flush(): boolean {
+    this.clearIdle();
+    const code = normalizeScannedCode(this.buffer);
+    this.buffer = '';
+    if (code.length < this.minLength) return false;
+    this.zone.run(() => this.scan$.next(code));
+    return true;
+  }
 }
