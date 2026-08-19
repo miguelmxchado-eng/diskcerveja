@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
@@ -54,11 +54,15 @@ const MAX_IMAGEM_BYTES = 1024 * 1024;
 })
 export class ProdutosComponent implements OnInit, OnDestroy {
   @ViewChild('cadastroStepper') private cadastroStepper?: MatStepper;
+  @ViewChild('wizardPanel') private wizardPanel?: ElementRef<HTMLElement>;
 
   displayedColumns = ['nome', 'codigo', 'categoria', 'compra', 'venda', 'lucro', 'estoque', 'ativo', 'acoes'];
   produtos = signal<Produto[]>([]);
   loading = signal(false);
+  salvando = signal(false);
   imagemPreview = signal<string | null>(null);
+  readonly produtoEmEdicao = signal<Produto | null>(null);
+  readonly editando = computed(() => this.produtoEmEdicao() != null);
 
   filtroTabela = '';
   filtroSomenteComCodigo = false;
@@ -94,6 +98,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   novoEst = 0;
   novoMarca = '';
   novoDescricao = '';
+  codigoInternoEdicao: string | null = null;
 
   private scanSub?: Subscription;
 
@@ -243,7 +248,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       this.codigoDuplicadoMsg.set(null);
       return;
     }
-    this.codigoService.validarCodigo(c).subscribe({
+    this.codigoService.validarCodigo(c, this.produtoEmEdicao()?.id).subscribe({
       next: (v) => {
         this.codigoDuplicadoMsg.set(
           v.disponivel ? null : `Código já usado em "${v.produtoNome ?? 'outro produto'}".`,
@@ -262,6 +267,8 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   }
 
   cancelarCadastro(): void {
+    this.produtoEmEdicao.set(null);
+    this.codigoInternoEdicao = null;
     this.novoNome = '';
     this.novoCodigoBarras = '';
     this.novoCodigoQr = '';
@@ -279,6 +286,36 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.cadastroStepper?.reset();
   }
 
+  editarProduto(p: Produto): void {
+    if (!this.auth.isAdmin()) {
+      return;
+    }
+    this.produtoEmEdicao.set(p);
+    this.codigoInternoEdicao = p.codigoInterno ?? null;
+    this.novoNome = p.nome;
+    this.novoCodigoBarras = p.codigoBarras ?? '';
+    this.novoCodigoQr = p.codigoQr ?? '';
+    this.novoCat = p.categoria;
+    this.novoPreco = Number(p.preco);
+    this.novoCusto = Number(p.custo ?? 0);
+    this.novoMin = p.estoqueMinimo;
+    this.novoEst = p.estoqueAtual;
+    this.novoMarca = '';
+    this.novoDescricao = '';
+    this.imagemPreview.set(null);
+    this.ultimaLeituraPreview.set(null);
+    this.codigoDuplicadoMsg.set(null);
+    this.codigoSomenteLeitura = false;
+    this.cadastroStepper?.reset();
+    queueMicrotask(() => {
+      if (this.cadastroStepper) {
+        this.cadastroStepper.selectedIndex = 0;
+      }
+      this.wizardPanel?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    this.validarCodigoEmTempoReal();
+  }
+
   reload() {
     this.loading.set(true);
     this.http.get<Produto[]>(`${environment.apiUrl}/api/produtos`).subscribe({
@@ -290,9 +327,9 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     });
   }
 
-  salvarNovo() {
+  salvarProduto() {
     if (!this.auth.isAdmin()) {
-      this.snack.open('Somente administrador pode cadastrar.', 'OK', { duration: 2500 });
+      this.snack.open('Somente administrador pode cadastrar ou editar.', 'OK', { duration: 2500 });
       return;
     }
     const codigoBarras = this.codigoBarrasResumo();
@@ -309,31 +346,41 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       this.snack.open('Informe preço de compra e preço de venda.', 'OK', { duration: 3000 });
       return;
     }
+    const editando = this.produtoEmEdicao();
     const body = {
-      id: null,
+      id: editando?.id ?? null,
       nome: this.novoNome.trim(),
       codigoBarras: codigoBarras ?? null,
       codigoQr: codigoQr ?? null,
-      codigoInterno: null,
+      codigoInterno: this.codigoInternoEdicao,
       categoria: this.novoCat,
       preco: this.toMoney(this.novoPreco),
       custo: this.toMoney(this.novoCusto),
       estoqueAtual: this.toInt(this.novoEst, 0),
       estoqueMinimo: this.toInt(this.novoMin, 0),
-      ativo: true,
+      ativo: editando?.ativo ?? true,
     };
-    this.http.post<Produto>(`${environment.apiUrl}/api/produtos`, body).subscribe({
+    this.salvando.set(true);
+    const req = editando
+      ? this.http.put<Produto>(`${environment.apiUrl}/api/produtos/${editando.id}`, body)
+      : this.http.post<Produto>(`${environment.apiUrl}/api/produtos`, body);
+    req.subscribe({
       next: (p) => {
+        this.salvando.set(false);
         const interno = p.codigoInterno;
-        const msg = interno && !codigoBarras && !codigoQr
-          ? `Produto criado. Código interno: ${interno}`
-          : 'Produto criado';
+        const msg = editando
+          ? 'Produto atualizado'
+          : interno && !codigoBarras && !codigoQr
+            ? `Produto criado. Código interno: ${interno}`
+            : 'Produto criado';
         this.snack.open(msg, 'OK', { duration: 3500 });
         this.cancelarCadastro();
         this.reload();
       },
-      error: (e) =>
-        this.snack.open(e?.error?.erro ?? e?.message ?? 'Erro ao criar', 'OK', { duration: 3500 }),
+      error: (e) => {
+        this.salvando.set(false);
+        this.snack.open(e?.error?.erro ?? e?.message ?? 'Erro ao salvar produto', 'OK', { duration: 3500 });
+      },
     });
   }
 
