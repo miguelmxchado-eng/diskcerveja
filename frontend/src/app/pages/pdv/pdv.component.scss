@@ -451,6 +451,7 @@
   justify-content: space-between;
   padding: 18px 18px 12px;
   border-bottom: 1px solid #e7e1d7;
+  flex-shrink: 0;
 }
 
 .pdv-cart__title {
@@ -502,11 +503,19 @@
   }
 }
 
-.pdv-cart__list {
-  flex: 1;
+.pdv-cart__scroll {
+  flex: 1 1 auto;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+.pdv-cart__list {
   padding: 4px 0;
+  border-bottom: 1px solid #e7e1d7;
 }
 
 .pdv-cart__empty {
@@ -603,8 +612,13 @@
   }
 }
 
-.pdv-cart__footer {
-  padding: 12px 16px 16px;
+.pdv-cart__checkout {
+  padding: 12px 16px 8px;
+}
+
+.pdv-cart__actions {
+  flex-shrink: 0;
+  padding: 10px 16px 16px;
   border-top: 1px solid #e7e1d7;
   background: #fff;
 }
@@ -746,6 +760,64 @@
       font-weight: 600;
     }
   }
+}
+
+.pdv-cliente-busca {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  input {
+    flex: 1;
+  }
+}
+
+.pdv-cliente-sugestoes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #e7e1d7;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+
+  li + li {
+    border-top: 1px solid #f0ebe3;
+  }
+
+  button {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 0;
+    background: #fff;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+
+    strong {
+      font-size: 0.88rem;
+      color: #171717;
+    }
+
+    span {
+      font-size: 0.75rem;
+      color: #667085;
+    }
+
+    &:hover {
+      background: #faf8f4;
+    }
+  }
+}
+
+.pdv-cliente-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #667085;
 }
 
 .pdv-pay {
@@ -911,6 +983,39 @@
     margin: 0 0 14px;
     font-size: 1.05rem;
     font-weight: 800;
+  }
+
+  &__hint {
+    margin: -6px 0 12px;
+    font-size: 0.82rem;
+    color: #667085;
+    line-height: 1.35;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+
+    span {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #667085;
+    }
+
+    input {
+      height: 42px;
+      padding: 0 12px;
+      border: 1.5px solid #e7e1d7;
+      border-radius: 6px;
+      font: 500 0.9rem/1 'Inter', sans-serif;
+
+      &:focus {
+        outline: none;
+        border-color: #d2a410;
+      }
+    }
   }
 
   input[type='number'] {

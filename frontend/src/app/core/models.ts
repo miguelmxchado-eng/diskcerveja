@@ -168,6 +168,15 @@ export interface UsuarioDto {
   ativo: boolean;
 }
 
+export interface ClienteDto {
+  id?: number;
+  nome: string;
+  telefone?: string | null;
+  endereco?: string | null;
+  observacao?: string | null;
+  ativo?: boolean;
+}
+
 export interface ConfigCaixaResponse {
   caixaObrigatorio: boolean;
 }

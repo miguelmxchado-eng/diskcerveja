@@ -17,8 +17,9 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { DecimalPipe } from '@angular/common';
 import { StatusLabelPipe } from '../../shared/pipes/status-label.pipe';
 import { environment } from '../../../environments/environment';
-import { ComboResponse, PedidoResponse, Produto } from '../../core/models';
+import { ComboResponse, ClienteDto, PedidoResponse, Produto } from '../../core/models';
 import { ComboService } from '../../core/combo.service';
+import { ClienteService } from '../../core/cliente.service';
 import { BarcodeScanResult } from '../../shared/barcode/barcode-scan.types';
 import { BarcodeScannerService } from '../../shared/barcode/barcode-scanner.service';
 import { ProdutoCodigoService } from '../../shared/barcode/produto-codigo.service';
@@ -135,6 +136,13 @@ export class PdvComponent implements OnInit, OnDestroy {
   scanFlash = signal(false);
   buscaFocada = signal(false);
   clienteAberto = signal(false);
+  clienteId = signal<number | null>(null);
+  clienteSugestoes = signal<ClienteDto[]>([]);
+  clienteBuscando = signal(false);
+  novoClienteAberto = signal(false);
+  novoClienteNome = '';
+  novoClienteTelefone = '';
+  private clienteBuscaIdle?: ReturnType<typeof setTimeout>;
   obsAberta = signal(false);
   descontoAberto = signal(false);
   descontoModo = signal<'valor' | 'percent'>('valor');
@@ -264,6 +272,7 @@ export class PdvComponent implements OnInit, OnDestroy {
     private readonly feedback: BarcodeFeedbackService,
     private readonly hid: HidScannerService,
     private readonly comboService: ComboService,
+    private readonly clienteService: ClienteService,
   ) {}
 
   ngOnInit(): void {
@@ -279,6 +288,7 @@ export class PdvComponent implements OnInit, OnDestroy {
     this.cameraSub?.unsubscribe();
     if (this.barcodeIdle) clearTimeout(this.barcodeIdle);
     if (this.buscaIdle) clearTimeout(this.buscaIdle);
+    if (this.clienteBuscaIdle) clearTimeout(this.clienteBuscaIdle);
     this.hid.stopListening();
     this.scanner.close();
   }
@@ -374,6 +384,84 @@ export class PdvComponent implements OnInit, OnDestroy {
   focarCliente(): void {
     this.clienteAberto.set(true);
     setTimeout(() => this.clienteInput?.nativeElement.focus(), 50);
+  }
+
+  onClienteNomeChange(): void {
+    this.clienteId.set(null);
+    if (this.clienteBuscaIdle) clearTimeout(this.clienteBuscaIdle);
+    const q = this.clienteNome.trim();
+    if (q.length < 2) {
+      this.clienteSugestoes.set([]);
+      return;
+    }
+    this.clienteBuscaIdle = setTimeout(() => {
+      this.clienteBuscando.set(true);
+      this.clienteService.listar(q).subscribe({
+        next: (list) => {
+          this.clienteSugestoes.set(list.slice(0, 8));
+          this.clienteBuscando.set(false);
+        },
+        error: () => {
+          this.clienteSugestoes.set([]);
+          this.clienteBuscando.set(false);
+        },
+      });
+    }, 280);
+  }
+
+  selecionarCliente(c: ClienteDto): void {
+    this.clienteId.set(c.id ?? null);
+    this.clienteNome = c.nome;
+    this.telefone = c.telefone ?? '';
+    if (c.endereco) {
+      this.enderecoEntrega = c.endereco;
+    }
+    this.clienteSugestoes.set([]);
+    this.clienteAberto.set(true);
+  }
+
+  limparCliente(): void {
+    this.clienteId.set(null);
+    this.clienteNome = '';
+    this.telefone = '';
+    this.clienteSugestoes.set([]);
+  }
+
+  abrirNovoCliente(): void {
+    this.novoClienteNome = this.clienteNome.trim();
+    this.novoClienteTelefone = this.telefone.trim();
+    this.novoClienteAberto.set(true);
+  }
+
+  fecharNovoCliente(): void {
+    this.novoClienteAberto.set(false);
+  }
+
+  salvarNovoCliente(): void {
+    const nome = this.novoClienteNome.trim();
+    if (!nome) {
+      this.snack.open('Informe o nome do cliente.', 'OK', { duration: 2500 });
+      return;
+    }
+    this.clienteService
+      .criar({
+        nome,
+        telefone: this.novoClienteTelefone.trim() || null,
+        endereco: this.enderecoEntrega.trim() || null,
+        ativo: true,
+      })
+      .subscribe({
+        next: (c) => {
+          this.selecionarCliente(c);
+          this.novoClienteAberto.set(false);
+          this.snack.open('Cliente cadastrado.', 'OK', { duration: 2000 });
+        },
+        error: (e) => {
+          this.snack.open(e?.error?.detail ?? e?.error?.erro ?? 'Não foi possível cadastrar.', 'OK', {
+            duration: 3500,
+          });
+        },
+      });
   }
 
   formaPagamentoLabel(): string {
@@ -648,7 +736,10 @@ export class PdvComponent implements OnInit, OnDestroy {
   private rolarListaItens(): void {
     queueMicrotask(() => {
       const el = this.itensLista?.nativeElement;
-      if (el) el.scrollTop = el.scrollHeight;
+      if (!el) return;
+      /* Mantém o topo dos itens visível; não força o fim do scroll (quebrava o uso do formulário). */
+      const firstLine = el.querySelector('.pdv-line:last-child') as HTMLElement | null;
+      firstLine?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     });
   }
 
@@ -657,6 +748,11 @@ export class PdvComponent implements OnInit, OnDestroy {
     this.ultimoScan.set(null);
     this.descontoValor.set(0);
     this.observacao = '';
+    this.limparCliente();
+    this.enderecoEntrega = '';
+    this.entregadorNome = '';
+    this.taxaEntrega.set(0);
+    this.clienteAberto.set(false);
   }
 
   abrirDesconto(): void {
@@ -693,8 +789,9 @@ export class PdvComponent implements OnInit, OnDestroy {
       return;
     }
     const body = {
+      clienteId: this.clienteId(),
       clienteNome: this.clienteNome || null,
-      telefone: this.tipo() === 'ENTREGA' ? this.telefone || null : null,
+      telefone: this.tipo() === 'ENTREGA' ? this.telefone || null : this.telefone || null,
       tipo: this.tipo(),
       formaPagamento: this.formaPagamento,
       enderecoEntrega: this.tipo() === 'ENTREGA' ? this.enderecoEntrega : null,

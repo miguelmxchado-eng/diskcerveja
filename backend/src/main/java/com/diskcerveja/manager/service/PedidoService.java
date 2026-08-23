@@ -1,5 +1,6 @@
 package com.diskcerveja.manager.service;
 
+import com.diskcerveja.manager.domain.entity.Cliente;
 import com.diskcerveja.manager.domain.entity.Combo;
 import com.diskcerveja.manager.domain.entity.Entrega;
 import com.diskcerveja.manager.domain.entity.Pedido;
@@ -12,6 +13,7 @@ import com.diskcerveja.manager.domain.enums.TipoPedido;
 import com.diskcerveja.manager.dto.PedidoItemRequest;
 import com.diskcerveja.manager.dto.PedidoRequest;
 import com.diskcerveja.manager.dto.PedidoUpdateRequest;
+import com.diskcerveja.manager.repository.ClienteRepository;
 import com.diskcerveja.manager.repository.ComboRepository;
 import com.diskcerveja.manager.repository.EntregaRepository;
 import com.diskcerveja.manager.repository.PedidoRepository;
@@ -29,6 +31,7 @@ public class PedidoService {
     private final ProdutoRepository produtoRepository;
     private final ComboRepository comboRepository;
     private final EntregaRepository entregaRepository;
+    private final ClienteRepository clienteRepository;
     private final ConfigSistemaService configSistemaService;
     private final CaixaSessaoService caixaSessaoService;
     private final EstoqueService estoqueService;
@@ -38,6 +41,7 @@ public class PedidoService {
             ProdutoRepository produtoRepository,
             ComboRepository comboRepository,
             EntregaRepository entregaRepository,
+            ClienteRepository clienteRepository,
             ConfigSistemaService configSistemaService,
             CaixaSessaoService caixaSessaoService,
             EstoqueService estoqueService) {
@@ -45,6 +49,7 @@ public class PedidoService {
         this.produtoRepository = produtoRepository;
         this.comboRepository = comboRepository;
         this.entregaRepository = entregaRepository;
+        this.clienteRepository = clienteRepository;
         this.configSistemaService = configSistemaService;
         this.caixaSessaoService = caixaSessaoService;
         this.estoqueService = estoqueService;
@@ -72,11 +77,14 @@ public class PedidoService {
         }
         validarItens(dto.itens());
         Pedido p = new Pedido();
-        p.setClienteNome(dto.clienteNome());
-        p.setTelefone(dto.telefone());
+        aplicarClienteNoPedido(p, dto);
         p.setTipo(dto.tipo());
         p.setFormaPagamento(dto.formaPagamento());
-        p.setEnderecoEntrega(dto.enderecoEntrega());
+        if (dto.enderecoEntrega() != null && !dto.enderecoEntrega().isBlank()) {
+            p.setEnderecoEntrega(dto.enderecoEntrega().trim());
+        } else if (p.getEnderecoEntrega() == null && p.getCliente() != null) {
+            p.setEnderecoEntrega(p.getCliente().getEndereco());
+        }
         p.setStatus(StatusPedido.ABERTO);
         p.setUsuario(usuario);
         aplicarItens(p, dto.itens());
@@ -279,6 +287,28 @@ public class PedidoService {
 
     private static BigDecimal custoOuZero(BigDecimal custo) {
         return custo != null ? custo : BigDecimal.ZERO;
+    }
+
+    private void aplicarClienteNoPedido(Pedido p, PedidoRequest dto) {
+        String nome = dto.clienteNome() != null ? dto.clienteNome().trim() : null;
+        String telefone = dto.telefone() != null ? dto.telefone().trim() : null;
+        if (dto.clienteId() != null) {
+            Cliente c = clienteRepository
+                    .findById(dto.clienteId())
+                    .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado."));
+            if (!c.isAtivo()) {
+                throw new IllegalArgumentException("Cliente inativo.");
+            }
+            p.setCliente(c);
+            if (nome == null || nome.isBlank()) {
+                nome = c.getNome();
+            }
+            if (telefone == null || telefone.isBlank()) {
+                telefone = c.getTelefone();
+            }
+        }
+        p.setClienteNome(nome != null && !nome.isBlank() ? nome : null);
+        p.setTelefone(telefone != null && !telefone.isBlank() ? telefone : null);
     }
 
     private BigDecimal calcularTotalItens(Pedido p) {

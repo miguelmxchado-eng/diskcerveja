@@ -1,0 +1,102 @@
+<div class="em-page cli">
+  <header class="em-page__head">
+    <div>
+      <p class="em-page__eyebrow">Cadastro</p>
+      <h1 class="em-page__title">Clientes</h1>
+      <p class="em-page__subtitle">Cadastro simples para usar no PDV e nas entregas.</p>
+    </div>
+    <div class="em-page__actions">
+      <button type="button" class="em-btn em-btn--gold" (click)="abrirNovo()">
+        <mat-icon>person_add</mat-icon>
+        Novo cliente
+      </button>
+    </div>
+  </header>
+
+  <div class="em-toolbar">
+    <label class="em-search">
+      <mat-icon>search</mat-icon>
+      <input
+        type="search"
+        [(ngModel)]="busca"
+        (keyup.enter)="carregar()"
+        placeholder="Buscar por nome ou telefone..."
+        autocomplete="off"
+      />
+    </label>
+    <button type="button" class="em-btn em-btn--ghost" (click)="carregar()" [disabled]="loading()">
+      <mat-icon>refresh</mat-icon>
+      Atualizar
+    </button>
+  </div>
+
+  @if (formAberto()) {
+    <div class="em-card cli-form">
+      <div class="em-card__head">
+        <h2 class="em-card__title">{{ editandoId() ? 'Editar cliente' : 'Novo cliente' }}</h2>
+        <button type="button" class="em-link" (click)="fecharForm()">Fechar</button>
+      </div>
+      <div class="em-card__body cli-form__grid">
+        <label class="cli-field">
+          <span>Nome *</span>
+          <input type="text" [(ngModel)]="nome" name="nomeCli" placeholder="Ex.: Maria Silva" />
+        </label>
+        <label class="cli-field">
+          <span>Telefone</span>
+          <input type="tel" [(ngModel)]="telefone" name="telCli" placeholder="Ex.: (11) 99999-9999" />
+        </label>
+        <label class="cli-field cli-field--full">
+          <span>Endereço</span>
+          <input type="text" [(ngModel)]="endereco" name="endCli" placeholder="Rua, número, bairro" />
+        </label>
+        <label class="cli-field cli-field--full">
+          <span>Observação</span>
+          <input type="text" [(ngModel)]="observacao" name="obsCli" placeholder="Opcional" />
+        </label>
+      </div>
+      <div class="em-card__foot cli-form__actions">
+        <button type="button" class="em-btn em-btn--ghost" (click)="fecharForm()">Cancelar</button>
+        <button type="button" class="em-btn em-btn--gold" (click)="salvar()" [disabled]="salvando()">
+          {{ salvando() ? 'Salvando…' : 'Salvar' }}
+        </button>
+      </div>
+    </div>
+  }
+
+  <div class="em-table-wrap">
+    <table class="em-table">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Telefone</th>
+          <th>Endereço</th>
+          <th>Ação</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (c of clientes(); track c.id) {
+          <tr>
+            <td><strong>{{ c.nome }}</strong></td>
+            <td>{{ c.telefone || '—' }}</td>
+            <td>{{ c.endereco || '—' }}</td>
+            <td>
+              <button type="button" class="em-btn em-btn--ghost est-btn-sm" (click)="abrirEditar(c)">
+                Editar
+              </button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="4" class="cli-empty">
+              @if (loading()) {
+                Carregando…
+              } @else {
+                Nenhum cliente ainda. Clique em <strong>Novo cliente</strong> para começar.
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

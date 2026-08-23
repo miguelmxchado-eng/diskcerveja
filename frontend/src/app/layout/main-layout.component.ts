@@ -33,6 +33,7 @@ export class MainLayoutComponent {
       title: 'Histórico de vendas',
       hint: 'Consulte pedidos, pagamentos e resultados',
     },
+    clientes: { title: 'Clientes', hint: 'Cadastro simples para o PDV e entregas' },
     produtos: { title: 'Produtos', hint: 'Cadastre, organize e acompanhe seu catálogo' },
     estoque: { title: 'Estoque', hint: 'Entrada, ajuste e itens em falta' },
     caixa: { title: 'Caixa', hint: 'Abertura, sangria e fechamento' },

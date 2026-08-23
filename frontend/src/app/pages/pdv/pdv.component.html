@@ -207,157 +207,185 @@
       </button>
     </header>
 
-    <div class="pdv-cart__list" #itensLista>
-      @for (l of carrinho(); track linhaKey(l); let i = $index) {
-        <div class="pdv-line">
-          <div class="pdv-line__thumb">
-            <img [src]="linhaImagemUrl(l)" [alt]="l.nome" />
+    <div class="pdv-cart__scroll" #itensLista>
+      <div class="pdv-cart__list">
+        @for (l of carrinho(); track linhaKey(l); let i = $index) {
+          <div class="pdv-line">
+            <div class="pdv-line__thumb">
+              <img [src]="linhaImagemUrl(l)" [alt]="l.nome" />
+            </div>
+            <div class="pdv-line__info">
+              <div class="pdv-line__name">{{ l.nome }}</div>
+              <div class="pdv-line__price">R$ {{ l.preco | number: '1.2-2' }}</div>
+            </div>
+            <div class="pdv-qty" aria-label="Quantidade">
+              <button type="button" (click)="dec(i)" aria-label="Diminuir">−</button>
+              <span>{{ l.qtd }}</span>
+              <button type="button" (click)="inc(i)" aria-label="Aumentar">+</button>
+            </div>
+            <button type="button" class="pdv-icon-btn pdv-line__remove" (click)="removerLinha(i)" aria-label="Remover item">
+              <mat-icon>close</mat-icon>
+            </button>
           </div>
-          <div class="pdv-line__info">
-            <div class="pdv-line__name">{{ l.nome }}</div>
-            <div class="pdv-line__price">R$ {{ l.preco | number: '1.2-2' }}</div>
+        } @empty {
+          <div class="pdv-cart__empty">
+            <mat-icon>shopping_cart_outlined</mat-icon>
+            <span>Toque num produto ou leia o código para começar.</span>
           </div>
-          <div class="pdv-qty" aria-label="Quantidade">
-            <button type="button" (click)="dec(i)" aria-label="Diminuir">−</button>
-            <span>{{ l.qtd }}</span>
-            <button type="button" (click)="inc(i)" aria-label="Aumentar">+</button>
+        }
+      </div>
+
+      <div class="pdv-cart__checkout">
+        <div class="pdv-summary">
+          <div class="pdv-summary__row">
+            <span>Subtotal</span>
+            <strong>R$ {{ totalItens() | number: '1.2-2' }}</strong>
           </div>
-          <button type="button" class="pdv-icon-btn pdv-line__remove" (click)="removerLinha(i)" aria-label="Remover item">
-            <mat-icon>close</mat-icon>
+          <div class="pdv-summary__row">
+            <span>Desconto</span>
+            <button type="button" class="pdv-link" (click)="abrirDesconto()">Aplicar desconto</button>
+            <strong>R$ {{ desconto() | number: '1.2-2' }}</strong>
+          </div>
+          <div class="pdv-summary__row">
+            <span>Entrega</span>
+            <strong>R$ {{ taxaEntregaExibida() | number: '1.2-2' }}</strong>
+          </div>
+          <div class="pdv-summary__total">
+            <span>Total</span>
+            <strong>R$ {{ totalPedido() | number: '1.2-2' }}</strong>
+          </div>
+        </div>
+
+        <div class="pdv-tipo" role="group" aria-label="Tipo do pedido">
+          <button
+            type="button"
+            [class.pdv-tipo--on]="tipo() === 'BALCAO'"
+            (click)="setTipo('BALCAO')"
+          >
+            Balcão
+          </button>
+          <button
+            type="button"
+            [class.pdv-tipo--on]="tipo() === 'ENTREGA'"
+            (click)="setTipo('ENTREGA')"
+          >
+            Delivery
           </button>
         </div>
-      } @empty {
-        <div class="pdv-cart__empty">
-          <mat-icon>shopping_cart_outlined</mat-icon>
-          <span>Toque num produto ou leia o código para começar.</span>
+
+        <div class="pdv-cliente">
+          <mat-icon>person_outline</mat-icon>
+          <span>Cliente (opcional)</span>
+          <button type="button" class="pdv-link" (click)="focarCliente()">Buscar</button>
+          <button type="button" class="pdv-link" (click)="abrirNovoCliente()">+ Novo</button>
         </div>
-      }
+
+        @if (clienteAberto() || tipo() === 'ENTREGA' || clienteNome) {
+          <div class="pdv-cliente-form">
+            <div class="pdv-cliente-busca">
+              <input
+                #clienteInput
+                type="text"
+                [(ngModel)]="clienteNome"
+                (ngModelChange)="onClienteNomeChange()"
+                name="clienteNome"
+                placeholder="Digite o nome ou telefone"
+                autocomplete="off"
+              />
+              @if (clienteId() || clienteNome) {
+                <button type="button" class="pdv-icon-btn" (click)="limparCliente()" aria-label="Limpar cliente">
+                  <mat-icon>close</mat-icon>
+                </button>
+              }
+            </div>
+            @if (clienteSugestoes().length) {
+              <ul class="pdv-cliente-sugestoes">
+                @for (c of clienteSugestoes(); track c.id) {
+                  <li>
+                    <button type="button" (click)="selecionarCliente(c)">
+                      <strong>{{ c.nome }}</strong>
+                      <span>{{ c.telefone || 'Sem telefone' }}</span>
+                    </button>
+                  </li>
+                }
+              </ul>
+            } @else if (clienteBuscando()) {
+              <p class="pdv-cliente-hint">Buscando…</p>
+            }
+            @if (tipo() === 'ENTREGA') {
+              <input type="tel" [(ngModel)]="telefone" name="telefone" placeholder="Telefone" />
+              <textarea
+                [(ngModel)]="enderecoEntrega"
+                name="endereco"
+                rows="2"
+                placeholder="Endereço de entrega"
+              ></textarea>
+              <div class="pdv-cliente-form__row">
+                <label>
+                  Taxa (R$)
+                  <input
+                    type="number"
+                    [ngModel]="taxaEntrega()"
+                    (ngModelChange)="taxaEntrega.set(+$event || 0)"
+                    name="taxa"
+                    min="0"
+                    step="0.01"
+                  />
+                </label>
+                <label>
+                  Entregador
+                  <input type="text" [(ngModel)]="entregadorNome" name="entregador" />
+                </label>
+              </div>
+            }
+          </div>
+        }
+
+        <div class="pdv-pay">
+          <span class="pdv-pay__pix" aria-hidden="true"></span>
+          <select [(ngModel)]="formaPagamento" name="fp">
+            <option value="PIX">PIX</option>
+            <option value="DINHEIRO">Dinheiro</option>
+            <option value="CARTAO">Cartão</option>
+          </select>
+          <mat-icon>expand_more</mat-icon>
+        </div>
+
+        <button type="button" class="pdv-obs" (click)="obsAberta.set(!obsAberta())">
+          <mat-icon>notes</mat-icon>
+          {{ observacao ? 'Editar observação' : 'Adicionar observação' }}
+        </button>
+        @if (obsAberta()) {
+          <textarea
+            class="pdv-obs-field"
+            [(ngModel)]="observacao"
+            name="obs"
+            rows="2"
+            placeholder="Observação do pedido"
+          ></textarea>
+        }
+
+        @if (pedidoPendenteConfirmacao(); as pid) {
+          <div class="pdv-pendente">
+            <mat-icon>info_outline</mat-icon>
+            <span><strong>Pedido #{{ pid }}</strong> salvo — confirme para baixar estoque.</span>
+          </div>
+        }
+
+        <div class="pdv-secondary">
+          <button type="button" class="pdv-btn pdv-btn--ghost" (click)="limpar()">
+            <mat-icon>delete_outline</mat-icon>
+            Limpar
+          </button>
+          <button type="button" class="pdv-btn pdv-btn--ghost" (click)="salvarPedido()">
+            <mat-icon>save</mat-icon>
+            Salvar pedido
+          </button>
+        </div>
+      </div>
     </div>
 
-    <div class="pdv-cart__footer">
-      <div class="pdv-summary">
-        <div class="pdv-summary__row">
-          <span>Subtotal</span>
-          <strong>R$ {{ totalItens() | number: '1.2-2' }}</strong>
-        </div>
-        <div class="pdv-summary__row">
-          <span>Desconto</span>
-          <button type="button" class="pdv-link" (click)="abrirDesconto()">Aplicar desconto</button>
-          <strong>R$ {{ desconto() | number: '1.2-2' }}</strong>
-        </div>
-        <div class="pdv-summary__row">
-          <span>Entrega</span>
-          <strong>R$ {{ taxaEntregaExibida() | number: '1.2-2' }}</strong>
-        </div>
-        <div class="pdv-summary__total">
-          <span>Total</span>
-          <strong>R$ {{ totalPedido() | number: '1.2-2' }}</strong>
-        </div>
-      </div>
-
-      <div class="pdv-tipo" role="group" aria-label="Tipo do pedido">
-        <button
-          type="button"
-          [class.pdv-tipo--on]="tipo() === 'BALCAO'"
-          (click)="setTipo('BALCAO')"
-        >
-          Balcão
-        </button>
-        <button
-          type="button"
-          [class.pdv-tipo--on]="tipo() === 'ENTREGA'"
-          (click)="setTipo('ENTREGA')"
-        >
-          Delivery
-        </button>
-      </div>
-
-      <div class="pdv-cliente">
-        <mat-icon>person_outline</mat-icon>
-        <span>Cliente (opcional)</span>
-        <button type="button" class="pdv-link" (click)="focarCliente()">Selecionar</button>
-      </div>
-
-      @if (clienteAberto() || tipo() === 'ENTREGA') {
-        <div class="pdv-cliente-form">
-          <input
-            #clienteInput
-            type="text"
-            [(ngModel)]="clienteNome"
-            name="clienteNome"
-            placeholder="Nome do cliente"
-          />
-          @if (tipo() === 'ENTREGA') {
-            <input type="tel" [(ngModel)]="telefone" name="telefone" placeholder="Telefone" />
-            <textarea
-              [(ngModel)]="enderecoEntrega"
-              name="endereco"
-              rows="2"
-              placeholder="Endereço de entrega"
-            ></textarea>
-            <div class="pdv-cliente-form__row">
-              <label>
-                Taxa (R$)
-                <input
-                  type="number"
-                  [ngModel]="taxaEntrega()"
-                  (ngModelChange)="taxaEntrega.set(+$event || 0)"
-                  name="taxa"
-                  min="0"
-                  step="0.01"
-                />
-              </label>
-              <label>
-                Entregador
-                <input type="text" [(ngModel)]="entregadorNome" name="entregador" />
-              </label>
-            </div>
-          }
-        </div>
-      }
-
-      <div class="pdv-pay">
-        <span class="pdv-pay__pix" aria-hidden="true"></span>
-        <select [(ngModel)]="formaPagamento" name="fp">
-          <option value="PIX">PIX</option>
-          <option value="DINHEIRO">Dinheiro</option>
-          <option value="CARTAO">Cartão</option>
-        </select>
-        <mat-icon>expand_more</mat-icon>
-      </div>
-
-      <button type="button" class="pdv-obs" (click)="obsAberta.set(!obsAberta())">
-        <mat-icon>notes</mat-icon>
-        {{ observacao ? 'Editar observação' : 'Adicionar observação' }}
-      </button>
-      @if (obsAberta()) {
-        <textarea
-          class="pdv-obs-field"
-          [(ngModel)]="observacao"
-          name="obs"
-          rows="2"
-          placeholder="Observação do pedido"
-        ></textarea>
-      }
-
-      @if (pedidoPendenteConfirmacao(); as pid) {
-        <div class="pdv-pendente">
-          <mat-icon>info_outline</mat-icon>
-          <span><strong>Pedido #{{ pid }}</strong> salvo — confirme para baixar estoque.</span>
-        </div>
-      }
-
-      <div class="pdv-secondary">
-        <button type="button" class="pdv-btn pdv-btn--ghost" (click)="limpar()">
-          <mat-icon>delete_outline</mat-icon>
-          Limpar
-        </button>
-        <button type="button" class="pdv-btn pdv-btn--ghost" (click)="salvarPedido()">
-          <mat-icon>save</mat-icon>
-          Salvar pedido
-        </button>
-      </div>
-
+    <div class="pdv-cart__actions">
       <button
         type="button"
         class="pdv-confirm"
@@ -400,6 +428,26 @@
     <div class="pdv-modal__actions">
       <button type="button" class="pdv-btn pdv-btn--ghost" (click)="fecharDesconto()">Cancelar</button>
       <button type="button" class="pdv-btn pdv-btn--gold" (click)="aplicarDesconto()">Aplicar</button>
+    </div>
+  </div>
+}
+
+@if (novoClienteAberto()) {
+  <div class="pdv-modal-backdrop" (click)="fecharNovoCliente()"></div>
+  <div class="pdv-modal" role="dialog" aria-modal="true" aria-labelledby="novo-cliente-titulo">
+    <h3 id="novo-cliente-titulo">Novo cliente</h3>
+    <p class="pdv-modal__hint">Só o nome é obrigatório.</p>
+    <label class="pdv-modal__field">
+      <span>Nome *</span>
+      <input type="text" [(ngModel)]="novoClienteNome" name="novoCliNome" placeholder="Ex.: Maria Silva" />
+    </label>
+    <label class="pdv-modal__field">
+      <span>Telefone</span>
+      <input type="tel" [(ngModel)]="novoClienteTelefone" name="novoCliTel" placeholder="(11) 99999-9999" />
+    </label>
+    <div class="pdv-modal__actions">
+      <button type="button" class="pdv-btn pdv-btn--ghost" (click)="fecharNovoCliente()">Cancelar</button>
+      <button type="button" class="pdv-btn pdv-btn--gold" (click)="salvarNovoCliente()">Salvar e usar</button>
     </div>
   </div>
 }

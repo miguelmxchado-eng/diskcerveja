@@ -39,6 +39,10 @@ public class Pedido {
 
     private String telefone;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cliente_id")
+    private Cliente cliente;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private TipoPedido tipo;
@@ -103,6 +107,14 @@ public class Pedido {
 
     public void setTelefone(String telefone) {
         this.telefone = telefone;
+    }
+
+    public Cliente getCliente() {
+        return cliente;
+    }
+
+    public void setCliente(Cliente cliente) {
+        this.cliente = cliente;
     }
 
     public TipoPedido getTipo() {

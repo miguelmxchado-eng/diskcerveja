@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public record PedidoRequest(
+        Long clienteId,
         String clienteNome,
         String telefone,
         @NotNull TipoPedido tipo,
