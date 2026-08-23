@@ -1,27 +1,32 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { MatCardModule } from '@angular/material/card';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatButtonModule } from '@angular/material/button';
+import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
-import { DecimalPipe, KeyValuePipe, DatePipe } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { environment } from '../../../environments/environment';
 import { DashboardResponse } from '../../core/models';
-import { SalesStatusPanelComponent } from './sales-status-panel.component';
+import { produtoFotoUrl } from '../../shared/produto-foto';
+
+type ChartTab = 'daily' | 'weekly' | 'monthly';
+
+interface PedidoRecenteUi {
+  id: number;
+  cliente: string;
+  tipo: string;
+  status: string;
+  statusClass: string;
+}
+
+interface CriticoUi {
+  nome: string;
+  qtd: string;
+  foto: string;
+}
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [
-    MatCardModule,
-    MatProgressBarModule,
-    MatButtonModule,
-    MatIconModule,
-    DecimalPipe,
-    KeyValuePipe,
-    DatePipe,
-    SalesStatusPanelComponent,
-  ],
+  imports: [MatIconModule, DecimalPipe, RouterLink],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
@@ -30,13 +35,56 @@ export class DashboardComponent implements OnInit {
   readonly loading = signal(true);
   readonly data = signal<DashboardResponse | null>(null);
   readonly error = signal<string | null>(null);
-  readonly salesPageDark = signal(false);
+  readonly chartTab = signal<ChartTab>('monthly');
+  readonly recentes = signal<PedidoRecenteUi[]>([]);
+  readonly criticos = signal<CriticoUi[]>([]);
 
-  today = new Date().toLocaleDateString('pt-BR', {
+  readonly today = new Date().toLocaleDateString('pt-BR', {
     weekday: 'long',
-    day: '2-digit',
+    day: 'numeric',
     month: 'long',
     year: 'numeric',
+  });
+
+  readonly chartSeries = computed(() => {
+    const d = this.data();
+    if (!d) return [];
+    switch (this.chartTab()) {
+      case 'daily':
+        return d.graficoDiario ?? [];
+      case 'weekly':
+        return d.graficoSemanal ?? [];
+      default:
+        return d.graficoMensal ?? [];
+    }
+  });
+
+  readonly chartMax = computed(() => Math.max(...this.chartSeries().map((s) => s.vendas), 1));
+
+  readonly paymentRows = computed(() => {
+    const map = this.data()?.caixa?.vendasPorFormaPagamento ?? {};
+    const entries = Object.entries(map).map(([k, v]) => ({ key: k, value: Number(v) || 0 }));
+    const total = entries.reduce((a, e) => a + e.value, 0) || 1;
+    return entries
+      .sort((a, b) => b.value - a.value)
+      .map((e) => ({
+        nome: this.labelPagamento(e.key),
+        valor: e.value,
+        pct: Math.round((e.value / total) * 100),
+      }));
+  });
+
+  readonly pedidosHoje = computed(() => {
+    const n = this.recentes().length;
+    const d = this.data();
+    if (!d) return n;
+    return Math.max(n, d.pedidosEmAndamento + (d.cancelamentosHoje || 0));
+  });
+
+  readonly entreguesHoje = computed(() => {
+    const d = this.data();
+    if (!d) return 0;
+    return Math.max(0, this.pedidosHoje() - d.pedidosEmAndamento);
   });
 
   constructor(private readonly http: HttpClient) {}
@@ -59,35 +107,104 @@ export class DashboardComponent implements OnInit {
         this.error.set(this.messageForError(err));
       },
     });
+    this.loadRecentes();
+    this.loadCriticos();
   }
 
-  /** Texto curto para o card de vendas (usa `vendasOntem` da API). */
-  variacaoVendasHint(d: DashboardResponse): string | null {
-    const o = Number(d.vendasOntem);
-    const h = Number(d.vendasHoje);
-    if (o <= 0) return null;
-    const p = ((h - o) / o) * 100;
-    return (p >= 0 ? '+' : '') + p.toFixed(1) + '% vs ontem';
+  setChartTab(t: ChartTab): void {
+    this.chartTab.set(t);
+  }
+
+  barHeight(vendas: number): number {
+    return Math.max(6, Math.round((vendas / this.chartMax()) * 100));
+  }
+
+  statusBadge(status: string): string {
+    const s = (status || '').toUpperCase();
+    if (s === 'ENTREGUE' || s === 'CONCLUIDO') return 'em-badge--ok';
+    if (s === 'EM_ROTA' || s === 'SAIU_ENTREGA') return 'em-badge--warn';
+    if (s === 'CANCELADO') return 'em-badge--danger';
+    if (s === 'PREPARANDO' || s === 'CONFIRMADO' || s === 'PENDENTE') return 'em-badge--gold';
+    return 'em-badge--neutral';
+  }
+
+  labelStatus(status: string): string {
+    const map: Record<string, string> = {
+      ENTREGUE: 'Entregue',
+      CONCLUIDO: 'Concluído',
+      EM_ROTA: 'Em rota',
+      SAIU_ENTREGA: 'Em rota',
+      PREPARANDO: 'Preparando',
+      CONFIRMADO: 'Preparando',
+      PENDENTE: 'Preparando',
+      CANCELADO: 'Cancelado',
+    };
+    return map[(status || '').toUpperCase()] ?? status;
+  }
+
+  private loadRecentes(): void {
+    this.http.get<any[]>(`${environment.apiUrl}/api/pedidos`).subscribe({
+      next: (list) => {
+        const rows = (list ?? []).slice(0, 3).map((p) => ({
+          id: p.id as number,
+          cliente: (p.clienteNome as string) || (p.tipo === 'BALCAO' ? 'Balcão' : 'Consumidor'),
+          tipo: p.tipo === 'ENTREGA' || p.tipo === 'DELIVERY' ? 'Delivery' : 'Balcão',
+          status: this.labelStatus(p.status),
+          statusClass: this.statusBadge(p.status),
+        }));
+        this.recentes.set(rows);
+      },
+      error: () => this.recentes.set([]),
+    });
+  }
+
+  private loadCriticos(): void {
+    this.http.get<any[]>(`${environment.apiUrl}/api/estoque/baixo`).subscribe({
+      next: (list) => {
+        this.criticos.set(
+          (list ?? []).slice(0, 3).map((p) => ({
+            nome: p.nome as string,
+            qtd: `${p.estoqueAtual} ${p.estoqueAtual === 1 ? 'unidade' : 'unidades'}`,
+            foto: produtoFotoUrl(p.nome, p.categoria),
+          })),
+        );
+      },
+      error: () => {
+        this.http.get<any[]>(`${environment.apiUrl}/api/produtos`).subscribe({
+          next: (prods) => {
+            const baixo = (prods ?? [])
+              .filter((p) => p.ativo && p.estoqueAtual <= p.estoqueMinimo)
+              .slice(0, 3);
+            this.criticos.set(
+              baixo.map((p) => ({
+                nome: p.nome as string,
+                qtd: `${p.estoqueAtual} ${p.estoqueAtual === 1 ? 'unidade' : 'unidades'}`,
+                foto: produtoFotoUrl(p.nome, p.categoria),
+              })),
+            );
+          },
+          error: () => this.criticos.set([]),
+        });
+      },
+    });
+  }
+
+  private labelPagamento(k: string): string {
+    const u = k.toUpperCase();
+    if (u.includes('PIX')) return 'PIX';
+    if (u.includes('CARTAO') || u.includes('CARTÃO') || u.includes('CREDITO') || u.includes('DEBITO')) return 'Cartão';
+    if (u.includes('DINHEIRO') || u.includes('CASH')) return 'Dinheiro';
+    return k;
   }
 
   private messageForError(err: HttpErrorResponse): string {
     if (err.status === 0) {
-      return `Sem resposta de ${environment.apiUrl}. Verifique se o backend está no ar (GET /api/dashboard) e se não há bloqueio de rede ou CORS.`;
+      return `Sem resposta de ${environment.apiUrl}. Verifique se o backend está no ar.`;
     }
-    if (err.status === 401) {
-      return 'Sessão expirada ou não autenticado. Você será redirecionado ao login.';
-    }
-    if (err.status === 403) {
-      return 'Acesso negado a este recurso.';
-    }
-    if (err.status >= 500) {
-      return 'Erro no servidor ao montar o painel. Tente novamente em instantes.';
-    }
+    if (err.status === 401) return 'Sessão expirada. Faça login novamente.';
+    if (err.status === 403) return 'Acesso negado a este recurso.';
+    if (err.status >= 500) return 'Erro no servidor ao montar o painel.';
     const body = err.error as { detail?: string; message?: string } | null;
-    const msg = body?.detail ?? body?.message;
-    if (typeof msg === 'string' && msg.length > 0) {
-      return msg;
-    }
-    return `Falha ao carregar o painel (HTTP ${err.status}).`;
+    return body?.detail ?? body?.message ?? `Falha ao carregar (HTTP ${err.status}).`;
   }
 }

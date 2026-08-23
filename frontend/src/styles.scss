@@ -1,23 +1,30 @@
+@use './styles/em-ds';
+
 html,
 body {
   height: 100%;
   margin: 0;
-  font-family: 'Montserrat', 'Roboto', sans-serif;
+  font-family: 'Inter', 'Montserrat', 'Roboto', sans-serif;
   color: var(--em-ink);
   background: var(--em-canvas);
 }
 
 :root {
-  --em-black: #070707;
-  --em-gold: #c9a227;
-  --em-gold-bright: #e4c45a;
-  --em-canvas: #f3efe6;
-  --em-surface: #fffcf6;
-  --em-ink: #161410;
-  --em-muted: #6f6a60;
-  --em-line: #e4ddd0;
-  --erp-green: #c9a227;
-  --erp-green-light: #e4c45a;
+  --em-black: #090909;
+  --em-black-soft: #111111;
+  --em-gold: #d2a410;
+  --em-gold-dark: #b98d00;
+  --em-gold-bright: #f4e8bc;
+  --em-canvas: #f7f3eb;
+  --em-surface: #ffffff;
+  --em-ink: #171717;
+  --em-muted: #667085;
+  --em-line: #e7e1d7;
+  --em-gray-soft: #f5f6f8;
+  --em-stock-bg: #fde8e7;
+  --em-stock-text: #dc2626;
+  --erp-green: #d2a410;
+  --erp-green-light: #f4e8bc;
 }
 
 .dc-page {

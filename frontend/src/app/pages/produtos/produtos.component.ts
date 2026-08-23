@@ -1,7 +1,7 @@
 import { Component, ElementRef, OnDestroy, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { MatTableModule } from '@angular/material/table';
+import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -26,15 +26,26 @@ import { ProdutoCodigoService } from '../../shared/barcode/produto-codigo.servic
 import { codigoPrincipal, produtoCombinaBusca } from '../../shared/barcode/produto-codigo-display';
 import { formatLabel, isValidProductCode, normalizeScannedCode } from '../../shared/barcode/barcode-format.util';
 import { BarcodeFeedbackService } from '../../shared/barcode/barcode-feedback.service';
+import { produtoFotoUrl } from '../../shared/produto-foto';
 
 const MAX_IMAGEM_BYTES = 1024 * 1024;
+
+const CATEGORIAS = [
+  'CERVEJAS',
+  'DESTILADOS',
+  'REFRIGERANTES',
+  'ENERGETICOS',
+  'PETISCOS',
+  'COMBOS',
+] as const;
+
+type ProdutoComImagem = Produto & { imagemUrl?: string | null };
 
 @Component({
   selector: 'app-produtos',
   standalone: true,
   imports: [
     FormsModule,
-    MatTableModule,
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
@@ -56,7 +67,8 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   @ViewChild('cadastroStepper') private cadastroStepper?: MatStepper;
   @ViewChild('wizardPanel') private wizardPanel?: ElementRef<HTMLElement>;
 
-  displayedColumns = ['nome', 'codigo', 'categoria', 'compra', 'venda', 'lucro', 'estoque', 'ativo', 'acoes'];
+  readonly categorias = CATEGORIAS;
+
   produtos = signal<Produto[]>([]);
   loading = signal(false);
   salvando = signal(false);
@@ -67,6 +79,15 @@ export class ProdutosComponent implements OnInit, OnDestroy {
 
   readonly filtroTabela = signal('');
   readonly filtroSomenteComCodigo = signal(false);
+  readonly filtroCategoria = signal('');
+  readonly filtroStatus = signal('');
+  readonly filtroBaixoEstoque = signal(false);
+  readonly filtrosAvancadosAbertos = signal(false);
+  readonly selectedIds = signal<Set<number>>(new Set());
+  readonly page = signal(1);
+  readonly pageSize = signal(20);
+  readonly menuProdutoId = signal<number | null>(null);
+
   ultimaLeituraPreview = signal<{ code: string; format: string } | null>(null);
   codigoDuplicadoMsg = signal<string | null>(null);
   travarCodigoAposScan = false;
@@ -74,6 +95,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
 
   totalProdutos = computed(() => this.produtos().length);
   totalAtivos = computed(() => this.produtos().filter((p) => p.ativo).length);
+  totalInativos = computed(() => this.totalProdutos() - this.totalAtivos());
   totalBaixoEstoque = computed(() =>
     this.produtos().filter((p) => p.ativo && p.estoqueAtual <= p.estoqueMinimo).length,
   );
@@ -83,11 +105,64 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     if (this.filtroSomenteComCodigo()) {
       list = list.filter((p) => !!codigoPrincipal(p));
     }
-    const termo = this.filtroTabela();
-    if (termo.trim()) {
-      list = list.filter((p) => produtoCombinaBusca(p, termo));
+    const cat = this.filtroCategoria();
+    if (cat) {
+      list = list.filter((p) => p.categoria === cat);
+    }
+    const status = this.filtroStatus();
+    if (status === 'ativo') {
+      list = list.filter((p) => p.ativo);
+    } else if (status === 'inativo') {
+      list = list.filter((p) => !p.ativo);
+    }
+    if (this.filtroBaixoEstoque()) {
+      list = list.filter((p) => p.ativo && p.estoqueAtual <= p.estoqueMinimo);
+    }
+    const termo = this.filtroTabela().trim();
+    if (termo) {
+      const q = termo.toLowerCase();
+      list = list.filter(
+        (p) =>
+          produtoCombinaBusca(p, termo) ||
+          p.categoria.toLowerCase().includes(q) ||
+          p.categoria.replace(/_/g, ' ').toLowerCase().includes(q),
+      );
     }
     return list;
+  });
+
+  readonly totalPaginas = computed(() =>
+    Math.max(1, Math.ceil(this.produtosFiltrados().length / this.pageSize())),
+  );
+
+  readonly produtosPaginados = computed(() => {
+    const start = (this.page() - 1) * this.pageSize();
+    return this.produtosFiltrados().slice(start, start + this.pageSize());
+  });
+
+  readonly paginationLabel = computed(() => {
+    const total = this.produtosFiltrados().length;
+    if (total === 0) return '0 de 0';
+    const start = (this.page() - 1) * this.pageSize() + 1;
+    const end = Math.min(this.page() * this.pageSize(), total);
+    return `${start}–${end} de ${total}`;
+  });
+
+  readonly paginasVisiveis = computed(() => {
+    const total = this.totalPaginas();
+    const atual = this.page();
+    const pages: number[] = [];
+    const from = Math.max(1, atual - 2);
+    const to = Math.min(total, from + 4);
+    for (let i = from; i <= to; i++) pages.push(i);
+    return pages;
+  });
+
+  readonly todosSelecionadosNaPagina = computed(() => {
+    const pagina = this.produtosPaginados();
+    if (!pagina.length) return false;
+    const sel = this.selectedIds();
+    return pagina.every((p) => sel.has(p.id));
   });
 
   novoNome = '';
@@ -108,9 +183,10 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     private readonly http: HttpClient,
     private readonly snack: MatSnackBar,
     private readonly dialog: MatDialog,
-    private readonly scanner: BarcodeScannerService,
+    readonly scanner: BarcodeScannerService,
     private readonly codigoService: ProdutoCodigoService,
     private readonly feedback: BarcodeFeedbackService,
+    private readonly router: Router,
     readonly auth: AuthService,
   ) {}
 
@@ -158,6 +234,28 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     return this.toMoney(p.preco) - this.toMoney(p.custo ?? 0);
   }
 
+  margemPercent(p: Produto): number | null {
+    const venda = this.toMoney(p.preco);
+    if (venda <= 0) {
+      return null;
+    }
+    return (this.lucroUnitario(p) / venda) * 100;
+  }
+
+  produtoImagem(p: Produto): string {
+    const ext = p as ProdutoComImagem;
+    if (ext.imagemUrl) {
+      return ext.imagemUrl;
+    }
+    return produtoFotoUrl(p.nome, p.categoria);
+  }
+
+  estoqueBadgeClass(p: Produto): 'danger' | 'warn' | 'ok' {
+    if (p.estoqueAtual < p.estoqueMinimo) return 'danger';
+    if (p.estoqueAtual === p.estoqueMinimo) return 'warn';
+    return 'ok';
+  }
+
   codigoBarrasResumo(): string | null {
     const c = this.novoCodigoBarras.trim();
     return c.length ? c : null;
@@ -177,6 +275,148 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     if (p.codigoQr) return 'QR';
     if (p.codigoInterno) return 'Interno';
     return '';
+  }
+
+  isSelected(id: number): boolean {
+    return this.selectedIds().has(id);
+  }
+
+  mostrarAcoesPrimarias(p: Produto): boolean {
+    const sel = this.selectedIds();
+    return sel.size === 0 || sel.has(p.id);
+  }
+
+  toggleSelect(id: number): void {
+    const next = new Set(this.selectedIds());
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    this.selectedIds.set(next);
+  }
+
+  toggleSelectAllPagina(): void {
+    const pagina = this.produtosPaginados();
+    const next = new Set(this.selectedIds());
+    const allOnPage = pagina.every((p) => next.has(p.id));
+    if (allOnPage) {
+      pagina.forEach((p) => next.delete(p.id));
+    } else {
+      pagina.forEach((p) => next.add(p.id));
+    }
+    this.selectedIds.set(next);
+  }
+
+  limparSelecao(): void {
+    this.selectedIds.set(new Set());
+  }
+
+  resetPagina(): void {
+    this.page.set(1);
+  }
+
+  irParaPagina(n: number): void {
+    const clamped = Math.max(1, Math.min(n, this.totalPaginas()));
+    this.page.set(clamped);
+  }
+
+  toggleFiltroBaixoEstoque(): void {
+    this.filtroBaixoEstoque.update((v) => !v);
+    this.resetPagina();
+  }
+
+  toggleFiltrosAvancados(): void {
+    this.filtrosAvancadosAbertos.update((v) => !v);
+  }
+
+  importarProdutos(): void {
+    this.snack.open('Importação em breve.', 'OK', { duration: 2500 });
+  }
+
+  toggleScannerBusca(): void {
+    if (this.scanner.isOpen()) {
+      this.scanSub?.unsubscribe();
+      this.scanner.close();
+      return;
+    }
+    this.scanSub?.unsubscribe();
+    this.scanSub = this.scanner.scanned$.subscribe((r) => this.aplicarBuscaPorCodigo(r));
+    this.scanner.open({ mode: 'continuous' });
+  }
+
+  private aplicarBuscaPorCodigo(r: BarcodeScanResult): void {
+    if (r.isPix) {
+      this.snack.open('QR Pix — informe um código de produto.', 'OK', { duration: 2800 });
+      return;
+    }
+    const code = normalizeScannedCode(r.code);
+    this.filtroTabela.set(code);
+    this.resetPagina();
+    const found = this.produtos().find(
+      (p) => p.codigoBarras === code || p.codigoQr === code || p.codigoInterno === code,
+    );
+    if (found) {
+      this.feedback.success();
+      this.snack.open(`Produto: ${found.nome}`, 'OK', { duration: 2000 });
+    } else {
+      this.feedback.warn();
+      this.snack.open('Código não encontrado na lista carregada.', 'OK', { duration: 3000 });
+    }
+  }
+
+  toggleMenuProduto(id: number, ev: Event): void {
+    ev.stopPropagation();
+    this.menuProdutoId.update((cur) => (cur === id ? null : id));
+  }
+
+  fecharMenuProduto(): void {
+    this.menuProdutoId.set(null);
+  }
+
+  ajustarEstoque(p: Produto): void {
+    this.fecharMenuProduto();
+    void this.router.navigate(['/estoque'], { queryParams: { produto: p.id } });
+    this.snack.open(`Ajuste de estoque: "${p.nome}" — abra a aba Produtos em Estoque.`, 'OK', {
+      duration: 3500,
+    });
+  }
+
+  executarAcaoLote(acao: string): void {
+    const ids = [...this.selectedIds()];
+    if (!ids.length) return;
+    if (acao === 'desativar') {
+      if (!this.auth.isAdmin()) return;
+      this.dialog
+        .open(ConfirmDialogComponent, {
+          data: {
+            titulo: 'Desativar produtos',
+            mensagem: `Deseja desativar ${ids.length} produto(s) selecionado(s)?`,
+            confirmLabel: 'Desativar',
+            confirmColor: 'warn',
+          },
+          width: '360px',
+        })
+        .afterClosed()
+        .subscribe((ok) => {
+          if (!ok) return;
+          let done = 0;
+          ids.forEach((id) => {
+            this.http.delete(`${environment.apiUrl}/api/produtos/${id}`).subscribe({
+              next: () => {
+                done++;
+                if (done === ids.length) {
+                  this.snack.open('Produtos desativados.', 'OK', { duration: 2000 });
+                  this.limparSelecao();
+                  this.reload();
+                }
+              },
+            });
+          });
+        });
+      return;
+    }
+    this.snack.open('Ação em breve.', 'OK', { duration: 2000 });
   }
 
   private toInt(v: unknown, fallback = 0): number {
@@ -315,6 +555,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     if (!this.auth.isAdmin()) {
       return;
     }
+    this.fecharMenuProduto();
     this.produtoEmEdicao.set(p);
     this.codigoInternoEdicao = p.codigoInterno ?? null;
     this.novoNome = p.nome;
@@ -412,6 +653,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
 
   desativar(p: Produto) {
     if (!this.auth.isAdmin()) return;
+    this.fecharMenuProduto();
     this.dialog
       .open(ConfirmDialogComponent, {
         data: {
@@ -439,6 +681,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     if (!this.auth.isAdmin()) {
       return;
     }
+    this.fecharMenuProduto();
     this.dialog
       .open(EditarPrecosDialogComponent, {
         data: p,

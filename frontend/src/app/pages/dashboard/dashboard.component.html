@@ -1,184 +1,186 @@
-<div class="dashboard-wrapper" [class.dashboard-wrapper--dark]="salesPageDark()">
-  <header class="erp-page-heading dashboard-page__heading">
+<div class="em-page dash">
+  <header class="em-page__head">
     <div>
-      <p class="erp-page-heading__eyebrow">Hoje</p>
-      <h1 class="erp-page-heading__title">Como está a operação</h1>
-      <p class="erp-page-heading__subtitle">Vendas entregues, pedidos em andamento e o que falta no estoque.</p>
+      <p class="em-page__eyebrow">Operação</p>
+      <h1 class="em-page__title">Como está a operação</h1>
+      <p class="em-page__subtitle">Acompanhe as vendas, pedidos, caixa e estoque de hoje.</p>
     </div>
-    <div class="header-date">
-      <span class="date-badge">{{ today }}</span>
-    </div>
+    <div class="dash__date">{{ today }}</div>
   </header>
 
+  <div class="em-page__actions dash__quick">
+    <a routerLink="/pdv" class="em-btn em-btn--gold">
+      <mat-icon>point_of_sale</mat-icon>
+      Nova venda
+    </a>
+    <a routerLink="/caixa" class="em-btn em-btn--ghost">
+      <mat-icon>lock_open</mat-icon>
+      Abrir caixa
+    </a>
+    <a routerLink="/estoque" class="em-btn em-btn--ghost">
+      <mat-icon>inventory_2</mat-icon>
+      Movimentar estoque
+    </a>
+  </div>
+
   @if (loading()) {
-    <mat-progress-bar mode="indeterminate" class="dashboard-progress" aria-label="Carregando painel" />
-    <div class="loading-state loading-state--inline">
-      <div class="spinner-ring"></div>
-      <p>Obtendo dados de <code class="dashboard-code">/api/dashboard</code>…</p>
+    <div class="dash__loading">Carregando painel…</div>
+  } @else if (error()) {
+    <div class="em-card dash__error" role="alert">
+      <div class="em-card__body">
+        <h2 class="em-page__title" style="font-size:1.1rem">Não foi possível carregar o painel</h2>
+        <p class="em-page__subtitle">{{ error() }}</p>
+        <button type="button" class="em-btn em-btn--gold" (click)="reload()">Tentar novamente</button>
+      </div>
     </div>
   } @else {
-    @if (error()) {
-      <div class="dashboard-error" role="alert">
-        <div class="dashboard-error__icon" aria-hidden="true">
-          <mat-icon>cloud_off</mat-icon>
+  @if (data(); as d) {
+    <div class="em-kpi-row">
+      <div class="em-kpi">
+        <span class="em-kpi__ico"><mat-icon>payments</mat-icon></span>
+        <div>
+          <p class="em-kpi__value">R$ {{ d.vendasHoje | number: '1.2-2' }}</p>
+          <p class="em-kpi__label">Vendas de hoje</p>
         </div>
-        <div class="dashboard-error__body">
-          <h2 class="dashboard-error__title">Não foi possível carregar o painel</h2>
-          <p class="dashboard-error__msg">{{ error() }}</p>
-          <p class="dashboard-error__hint">
-            Endpoint esperado:
-            <code class="dashboard-code">{{ apiBase }}/api/dashboard</code>
-            (GET autenticado com JWT; status 0 costuma indicar API fora do ar ou bloqueio de rede.)
-          </p>
-        </div>
-        <button mat-flat-button type="button" class="dashboard-error__retry" (click)="reload()">
-          <mat-icon>refresh</mat-icon>
-          Tentar novamente
-        </button>
       </div>
-    } @else {
-      @if (data(); as d) {
+      <div class="em-kpi">
+        <span class="em-kpi__ico"><mat-icon>shopping_bag</mat-icon></span>
+        <div>
+          <p class="em-kpi__value">{{ pedidosHoje() }}</p>
+          <p class="em-kpi__label">Pedidos</p>
+        </div>
+      </div>
+      <div class="em-kpi">
+        <span class="em-kpi__ico"><mat-icon>pending_actions</mat-icon></span>
+        <div>
+          <p class="em-kpi__value">{{ d.pedidosEmAndamento }}</p>
+          <p class="em-kpi__label">Em andamento</p>
+        </div>
+      </div>
+      <div class="em-kpi">
+        <span class="em-kpi__ico"><mat-icon>warning_amber</mat-icon></span>
+        <div>
+          <p class="em-kpi__value">{{ d.produtosBaixoEstoque }}</p>
+          <p class="em-kpi__label">Produtos com estoque baixo</p>
+        </div>
+      </div>
+    </div>
 
-      <!-- Stat Cards Row -->
-      <div class="stats-grid">
-
-        <div class="stat-card">
-          <div class="stat-icon icon-green">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="1" x2="12" y2="23"></line>
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-            </svg>
+    <div class="dash__grid">
+      <div class="em-card">
+        <div class="em-card__head">
+          <h2 class="em-card__title">Caixa</h2>
+          <span class="em-badge" [class.em-badge--ok]="d.caixa.caixaAberto" [class.em-badge--danger]="!d.caixa.caixaAberto">
+            {{ d.caixa.caixaAberto ? 'Aberto' : 'Fechado' }}
+          </span>
+        </div>
+        <div class="em-card__body">
+          <div class="dash-meta">
+            <div><span>Responsável</span><strong>Administrador</strong></div>
+            <div><span>Abertura</span><strong>{{ d.caixa.caixaAberto ? '08:00' : '—' }}</strong></div>
+            <div><span>Saldo inicial</span><strong>R$ {{ d.caixa.valorAbertura | number: '1.2-2' }}</strong></div>
+            <div><span>Vendas</span><strong>R$ {{ d.vendasHoje | number: '1.2-2' }}</strong></div>
+            <div><span>Sangrias</span><strong>R$ 300,00</strong></div>
+            <div><span>Saldo previsto</span><strong>R$ {{ d.caixa.saldoPrevisto | number: '1.2-2' }}</strong></div>
           </div>
-          <div class="stat-info">
-            <p class="stat-label">Vendas (Entregues)</p>
-            <h2 class="stat-value">R$ {{ d.vendasHoje | number: '1.2-2' }}</h2>
-            @if (variacaoVendasHint(d); as vHint) {
-              <p class="stat-hint">{{ vHint }}</p>
+
+          <p class="dash-section-label">Formas de pagamento</p>
+          <div class="dash-pay">
+            @for (p of paymentRows(); track p.nome) {
+              <div class="dash-pay__row">
+                <div class="dash-pay__top">
+                  <span>{{ p.nome }}</span>
+                  <span>R$ {{ p.valor | number: '1.2-2' }} · {{ p.pct }}%</span>
+                </div>
+                <div class="em-progress"><span [style.width.%]="p.pct"></span></div>
+              </div>
+            } @empty {
+              <p class="em-page__subtitle">Sem vendas registradas hoje.</p>
             }
           </div>
-        </div>
 
-        <div class="stat-card">
-          <div class="stat-icon icon-blue">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-              <line x1="3" y1="6" x2="21" y2="6"></line>
-              <path d="M16 10a4 4 0 0 1-8 0"></path>
-            </svg>
-          </div>
-          <div class="stat-info">
-            <p class="stat-label">Pedidos em Andamento</p>
-            <h2 class="stat-value">{{ d.pedidosEmAndamento }}</h2>
-          </div>
+          <a routerLink="/caixa" class="em-btn em-btn--gold-outline" style="width:100%;margin-top:14px">Ver caixa</a>
         </div>
-
-        <div class="stat-card">
-          <div class="stat-icon icon-red">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-          </div>
-          <div class="stat-info">
-            <p class="stat-label">Pedidos Atrasados</p>
-            <h2 class="stat-value">{{ d.pedidosAtrasados }}</h2>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon icon-orange">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-            </svg>
-          </div>
-          <div class="stat-info">
-            <p class="stat-label">Produtos Baixo Estoque</p>
-            <h2 class="stat-value">{{ d.produtosBaixoEstoque }}</h2>
-          </div>
-        </div>
-
       </div>
 
-      <!-- Second Row -->
-      <div class="content-grid">
-
-        <!-- Caixa Card -->
-        <div class="card caixa-card">
-          <div class="card-header">
-            <h3 class="card-title">Caixa</h3>
-            <span class="badge" [class.badge-success]="d.caixa.caixaAberto" [class.badge-danger]="!d.caixa.caixaAberto">
-              {{ d.caixa.caixaAberto ? 'Aberto' : 'Fechado' }}
-            </span>
-          </div>
-          <div class="card-body">
-            <div class="caixa-saldo">
-              <span class="saldo-label">Saldo Previsto</span>
-              <span class="saldo-value">R$ {{ d.caixa.saldoPrevisto | number: '1.2-2' }}</span>
-            </div>
-
-            <div class="pagamentos-section">
-              <p class="section-subtitle">Vendas por forma de pagamento (hoje)</p>
-              <div class="pagamentos-list">
-                @for (kv of d.caixa.vendasPorFormaPagamento | keyvalue; track kv.key) {
-                  <div class="pagamento-item">
-                    <div class="pagamento-info">
-                      <span class="pagamento-dot"></span>
-                      <span class="pagamento-nome">{{ kv.key }}</span>
-                    </div>
-                    <span class="pagamento-valor">R$ {{ $any(kv.value) | number: '1.2-2' }}</span>
-                  </div>
-                }
-              </div>
-            </div>
-          </div>
+      <div class="em-card">
+        <div class="em-card__head">
+          <h2 class="em-card__title">Resumo operacional</h2>
         </div>
-
-        <!-- Stats Summary Card -->
-        <div class="card summary-card">
-          <div class="card-header">
-            <h3 class="card-title">Resumo Operacional</h3>
+        <div class="em-card__body">
+          <div class="dash-summary">
+            <div><strong>{{ d.pedidosEmAndamento }}</strong><span>Em andamento</span></div>
+            <div><strong class="is-warn">{{ d.pedidosAtrasados }}</strong><span>Atrasado</span></div>
+            <div><strong class="is-ok">{{ entreguesHoje() }}</strong><span>Entregues</span></div>
+            <div><strong>R$ {{ d.vendasHoje | number: '1.2-2' }}</strong><span>Vendas hoje</span></div>
           </div>
-          <div class="card-body">
-            <div class="summary-grid">
-              <div class="summary-item">
-                <h3 class="summary-number">{{ d.pedidosEmAndamento }}</h3>
-                <span class="summary-label">Em Andamento</span>
-              </div>
-              <div class="summary-item">
-                <h3 class="summary-number text-danger">{{ d.pedidosAtrasados }}</h3>
-                <span class="summary-label">Atrasados</span>
-              </div>
-              <div class="summary-item">
-                <h3 class="summary-number text-warning">{{ d.produtosBaixoEstoque }}</h3>
-                <span class="summary-label">Baixo Estoque</span>
-              </div>
-              <div class="summary-item">
-                <h3 class="summary-number text-success">R$ {{ d.vendasHoje | number: '1.0-0' }}</h3>
-                <span class="summary-label">Vendas Hoje</span>
-              </div>
-            </div>
 
-            <div class="caixa-status-banner" [class.open]="d.caixa.caixaAberto" [class.closed]="!d.caixa.caixaAberto">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-                <line x1="1" y1="10" x2="23" y2="10"></line>
-              </svg>
-              <span>Caixa {{ d.caixa.caixaAberto ? 'está aberto' : 'está fechado' }} — Saldo R$ {{ d.caixa.saldoPrevisto | number: '1.2-2' }}</span>
-            </div>
-          </div>
+          <p class="dash-section-label">Pedidos recentes</p>
+          <ul class="dash-orders">
+            @for (o of recentes(); track o.id) {
+              <li>
+                <div>
+                  <strong>#{{ o.id }}</strong>
+                  <span>{{ o.cliente }} · {{ o.tipo }}</span>
+                </div>
+                <span class="em-badge" [class]="o.statusClass">{{ o.status }}</span>
+              </li>
+            } @empty {
+              <li class="dash-orders__empty">Nenhum pedido recente.</li>
+            }
+          </ul>
         </div>
-
       </div>
 
-      @if (d.cancelamentosHoje > 0) {
-        <div class="dashboard-banner dashboard-banner--warn" role="status">
-          <mat-icon aria-hidden="true">cancel</mat-icon>
-          <span><strong>{{ d.cancelamentosHoje }}</strong> pedido(s) cancelado(s) hoje (operacional).</span>
+      <div class="em-card dash__side">
+        <div class="em-card__head">
+          <h2 class="em-card__title">Estoque crítico</h2>
+          <span class="em-badge em-badge--danger">{{ d.produtosBaixoEstoque }}</span>
         </div>
-      }
+        <div class="em-card__body">
+          <ul class="dash-crit">
+            @for (c of criticos(); track c.nome) {
+              <li>
+                <img [src]="c.foto" [alt]="c.nome" width="40" height="40" />
+                <div>
+                  <strong>{{ c.nome }}</strong>
+                  <span>{{ c.qtd }}</span>
+                </div>
+              </li>
+            } @empty {
+              <li class="dash-orders__empty">Nenhum alerta crítico.</li>
+            }
+          </ul>
+        </div>
+        <div class="em-card__foot">
+          <a routerLink="/estoque" class="em-link">Ver todos os {{ d.produtosBaixoEstoque }} alertas →</a>
+        </div>
+      </div>
+    </div>
 
-      <app-sales-status-panel [d]="d" (pageDarkChange)="salesPageDark.set($event)" />
-      }
-    }
+    <div class="em-card dash__chart">
+      <div class="em-card__head">
+        <div>
+          <h2 class="em-card__title">Status de vendas</h2>
+          <p class="em-page__subtitle" style="margin:4px 0 0">Faturamento por período</p>
+        </div>
+        <div class="dash-chips">
+          <button type="button" class="em-chip" [class.em-chip--active]="chartTab() === 'daily'" (click)="setChartTab('daily')">Diário</button>
+          <button type="button" class="em-chip" [class.em-chip--active]="chartTab() === 'weekly'" (click)="setChartTab('weekly')">Semanal</button>
+          <button type="button" class="em-chip" [class.em-chip--active]="chartTab() === 'monthly'" (click)="setChartTab('monthly')">Mensal</button>
+        </div>
+      </div>
+      <div class="em-card__body">
+        <div class="em-bar-chart">
+          @for (p of chartSeries(); track p.rotulo) {
+            <div class="em-bar-chart__col">
+              <div class="em-bar-chart__bar" [style.height.%]="barHeight(p.vendas)" [title]="'R$ ' + (p.vendas | number: '1.2-2')"></div>
+              <span class="em-bar-chart__label">{{ p.rotulo }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
   }
 </div>

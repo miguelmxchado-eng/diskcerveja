@@ -1,130 +1,344 @@
-<div class="erp-page-heading">
-  <div>
-    <p class="erp-page-heading__eyebrow">Financeiro</p>
-    <h2 class="erp-page-heading__title">Controle de caixa</h2>
-    <p class="erp-page-heading__subtitle">Abertura, saídas, fechamento e conferência de movimentos.</p>
-  </div>
-  <button mat-stroked-button type="button" (click)="reload()" [disabled]="loading()">
-    <mat-icon>refresh</mat-icon>
-    Atualizar
-  </button>
-</div>
+<div class="em-page cx">
+  <header class="em-page__head">
+    <div>
+      <p class="em-page__eyebrow">Financeiro</p>
+      <h1 class="em-page__title">Controle de caixa</h1>
+      <p class="em-page__subtitle">Abertura, sangria, suprimento e fechamento.</p>
+    </div>
+    <div class="em-page__actions">
+      <button type="button" class="em-btn em-btn--ghost" (click)="verHistorico()">
+        <mat-icon>history</mat-icon>
+        Histórico de caixas
+      </button>
+      <button type="button" class="em-btn em-btn--ghost" (click)="reload()" [disabled]="loading()">
+        <mat-icon>refresh</mat-icon>
+        Atualizar
+      </button>
+    </div>
+  </header>
 
-@if (loading()) {
-  <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-}
+  @if (loading()) {
+    <div class="cx__loading" aria-live="polite">Carregando caixa…</div>
+  }
 
-@if (sessao(); as s) {
-
-  <!-- Resumo -->
-  <mat-card class="mb">
-    <mat-card-content>
-      <div class="resumo-caixa">
-        <div class="resumo-caixa__item">
-          <span class="resumo-caixa__label">Abertura</span>
-          <strong>R$ {{ s.valorAbertura | number: '1.2-2' }}</strong>
-        </div>
-        <div class="resumo-caixa__item resumo-caixa__item--destaque">
-          <span class="resumo-caixa__label">Saldo previsto</span>
-          <strong>R$ {{ s.saldoPrevisto | number: '1.2-2' }}</strong>
-        </div>
-        <div class="resumo-caixa__badge">
-          <mat-icon>lock_open</mat-icon> Caixa aberto
+  @if (sessao(); as s) {
+    <div class="em-kpi-row cx__kpi-row--3">
+      <div class="em-kpi">
+        <span class="em-kpi__ico"><mat-icon>account_balance_wallet</mat-icon></span>
+        <div>
+          <p class="em-kpi__value">R$ {{ s.valorAbertura | number: '1.2-2' }}</p>
+          <p class="em-kpi__label">Saldo inicial</p>
         </div>
       </div>
-    </mat-card-content>
-  </mat-card>
-
-  <!-- Lançar saída -->
-  <mat-card class="mb">
-    <mat-card-title>Lançar saída</mat-card-title>
-    <mat-card-content class="row">
-      <mat-form-field appearance="outline">
-        <mat-label>Tipo</mat-label>
-        <select matNativeControl [(ngModel)]="movTipo" name="mt">
-          <option value="SAIDA_TROCO">Troco</option>
-          <option value="SAIDA_DESPESA">Despesa</option>
-        </select>
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>Valor</mat-label>
-        <span matPrefix>R$&nbsp;</span>
-        <input matInput type="number" [(ngModel)]="movValor" />
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="grow">
-        <mat-label>Descrição</mat-label>
-        <input matInput [(ngModel)]="movDesc" />
-      </mat-form-field>
-      <button mat-stroked-button type="button" (click)="movimento()">Registrar</button>
-    </mat-card-content>
-  </mat-card>
-
-  <!-- Fechamento — em destaque antes dos movimentos -->
-  <mat-card class="mb fechamento-card">
-    <mat-card-title>
-      <mat-icon>lock</mat-icon>
-      Fechar caixa
-    </mat-card-title>
-    <mat-card-content class="row">
-      <mat-form-field appearance="outline">
-        <mat-label>Valor contado em caixa</mat-label>
-        <span matPrefix>R$&nbsp;</span>
-        <input matInput type="number" [(ngModel)]="valorFechamento" />
-      </mat-form-field>
-      <button mat-flat-button color="warn" type="button" (click)="fechar()">Fechar caixa</button>
-    </mat-card-content>
-  </mat-card>
-
-  <!-- Movimentos recentes -->
-  <mat-card>
-    <mat-card-title>Movimentos recentes</mat-card-title>
-    <mat-card-content>
-      <div class="table-wrapper">
-        <table mat-table [dataSource]="s.movimentosRecentes ?? []" class="wide">
-          <ng-container matColumnDef="tipo">
-            <th mat-header-cell *matHeaderCellDef>Tipo</th>
-            <td mat-cell *matCellDef="let m">{{ m.tipo }}</td>
-          </ng-container>
-          <ng-container matColumnDef="valor">
-            <th mat-header-cell *matHeaderCellDef>Valor</th>
-            <td mat-cell *matCellDef="let m">R$ {{ m.valor | number: '1.2-2' }}</td>
-          </ng-container>
-          <ng-container matColumnDef="descricao">
-            <th mat-header-cell *matHeaderCellDef>Descrição</th>
-            <td mat-cell *matCellDef="let m">{{ m.descricao }}</td>
-          </ng-container>
-          <ng-container matColumnDef="data">
-            <th mat-header-cell *matHeaderCellDef>Data</th>
-            <td mat-cell *matCellDef="let m">{{ m.createdAt | date: 'dd/MM HH:mm' }}</td>
-          </ng-container>
-          <tr mat-header-row *matHeaderRowDef="cols"></tr>
-          <tr mat-row *matRowDef="let row; columns: cols"></tr>
-          <tr class="mat-mdc-row" *matNoDataRow>
-            <td class="mat-mdc-cell empty-state" colspan="4">Nenhum movimento registrado.</td>
-          </tr>
-        </table>
+      <div class="em-kpi">
+        <span class="em-kpi__ico"><mat-icon>payments</mat-icon></span>
+        <div>
+          <p class="em-kpi__value">R$ {{ totalVendas(s.movimentosRecentes) | number: '1.2-2' }}</p>
+          <p class="em-kpi__label">Vendas no caixa</p>
+        </div>
       </div>
-    </mat-card-content>
-  </mat-card>
+      <div class="em-kpi">
+        <span class="em-kpi__ico"><mat-icon>savings</mat-icon></span>
+        <div>
+          <p class="em-kpi__value">R$ {{ s.saldoPrevisto | number: '1.2-2' }}</p>
+          <p class="em-kpi__label">Saldo previsto</p>
+        </div>
+      </div>
+    </div>
 
-} @else if (!loading()) {
-  <mat-card class="abertura-card">
-    <mat-card-content>
-      <div class="abertura-content">
-        <mat-icon class="abertura-icon">point_of_sale</mat-icon>
-        <h3>Caixa fechado</h3>
-        <p>Abra o caixa para registrar vendas e movimentos.</p>
-        <div class="row abertura-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Valor de abertura</mat-label>
-            <span matPrefix>R$&nbsp;</span>
-            <input matInput type="number" [(ngModel)]="valorAbertura" />
-          </mat-form-field>
-          <button mat-flat-button color="primary" type="button" (click)="abrir()">
-            <mat-icon>lock_open</mat-icon> Abrir caixa
+    <div class="em-card cx__resumo">
+      <div class="em-card__head">
+        <h2 class="em-card__title">Resumo da sessão</h2>
+        <span class="em-badge em-badge--ok">
+          <mat-icon>lock_open</mat-icon>
+          Aberto
+        </span>
+      </div>
+      <div class="em-card__body">
+        <div class="cx-meta">
+          <div>
+            <span>Abertura</span>
+            <strong>{{ s.horaAbertura | date: 'dd/MM/yyyy · HH:mm' }}</strong>
+          </div>
+          <div>
+            <span>Responsável</span>
+            <strong>{{ responsavel }}</strong>
+          </div>
+          <div>
+            <span>Sangrias</span>
+            <strong>R$ {{ totalSangrias(s.movimentosRecentes) | number: '1.2-2' }}</strong>
+          </div>
+          <div>
+            <span>Saldo previsto</span>
+            <strong class="cx-meta__gold">R$ {{ s.saldoPrevisto | number: '1.2-2' }}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="em-grid-2 cx__actions-grid">
+      <div class="em-card">
+        <div class="em-card__head">
+          <h2 class="em-card__title">Lançar saída</h2>
+        </div>
+        <div class="em-card__body">
+          <p class="cx-card-desc">Registre sangrias (troco) ou despesas pagas em dinheiro.</p>
+
+          <div class="cx-field">
+            <label for="mov-tipo">Tipo</label>
+            <select id="mov-tipo" class="em-select cx-field__full" [(ngModel)]="movTipo" name="movTipo">
+              <option value="SAIDA_TROCO">Sangria (troco)</option>
+              <option value="SAIDA_DESPESA">Despesa</option>
+            </select>
+          </div>
+
+          <div class="cx-field">
+            <label for="mov-valor">Valor</label>
+            <div class="cx-money">
+              <span>R$</span>
+              <input
+                id="mov-valor"
+                type="number"
+                min="0"
+                step="0.01"
+                [(ngModel)]="movValor"
+                name="movValor"
+                placeholder="0,00"
+              />
+            </div>
+          </div>
+
+          <div class="cx-field">
+            <label for="mov-desc">Descrição</label>
+            <input
+              id="mov-desc"
+              class="cx-input cx-field__full"
+              type="text"
+              [(ngModel)]="movDesc"
+              name="movDesc"
+              placeholder="Ex.: Troco para entregador"
+            />
+          </div>
+
+          <button type="button" class="em-btn em-btn--gold cx-field__full" (click)="movimento()">
+            <mat-icon>remove_circle_outline</mat-icon>
+            Registrar saída
           </button>
         </div>
       </div>
-    </mat-card-content>
-  </mat-card>
-}
+
+      <div class="em-card cx__fechar-card">
+        <div class="em-card__head">
+          <h2 class="em-card__title">Fechar caixa</h2>
+        </div>
+        <div class="em-card__body">
+          <p class="cx-card-desc">Informe o valor contado em dinheiro para conferência do fechamento.</p>
+
+          <div class="cx-field">
+            <label for="valor-fechamento">Valor contado em caixa</label>
+            <div class="cx-money">
+              <span>R$</span>
+              <input
+                id="valor-fechamento"
+                type="number"
+                min="0"
+                step="0.01"
+                [(ngModel)]="valorFechamento"
+                name="valorFechamento"
+                placeholder="0,00"
+              />
+            </div>
+          </div>
+
+          @if (valorFechamento > 0) {
+            <p class="cx-diff-hint">
+              Diferença:
+              <strong
+                [class.cx-diff-hint--ok]="valorFechamento === s.saldoPrevisto"
+                [class.cx-diff-hint--warn]="valorFechamento !== s.saldoPrevisto"
+              >
+                R$ {{ valorFechamento - s.saldoPrevisto | number: '1.2-2' }}
+              </strong>
+            </p>
+          }
+
+          <button type="button" class="em-btn em-btn--gold-outline cx-field__full" (click)="fechar()">
+            <mat-icon>lock</mat-icon>
+            Fechar caixa
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="em-card cx__movimentos">
+      <div class="em-card__head">
+        <h2 class="em-card__title">Movimentos recentes</h2>
+      </div>
+      <div class="em-table-wrap">
+        <table class="em-table">
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Valor</th>
+              <th>Descrição</th>
+              <th>Data</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (m of s.movimentosRecentes ?? []; track m.id) {
+              <tr>
+                <td>{{ m.tipo | statusLabel }}</td>
+                <td>R$ {{ m.valor | number: '1.2-2' }}</td>
+                <td>{{ m.descricao || '—' }}</td>
+                <td>{{ m.createdAt | date: 'dd/MM/yyyy · HH:mm' }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="4" class="cx-empty">Nenhum movimento registrado.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  } @else if (!loading()) {
+    <div class="em-grid-2">
+      <div class="em-card cx__abrir-card">
+        <div class="em-card__body">
+          <div class="cx-card-top">
+            <span class="cx-card-top__ico"><mat-icon>point_of_sale</mat-icon></span>
+            <div class="cx-card-top__titles">
+              <div class="cx-card-top__row">
+                <h2 class="cx-card-top__title">Abrir caixa</h2>
+                <span class="em-badge em-badge--danger">Fechado</span>
+              </div>
+            </div>
+          </div>
+
+          <p class="cx-card-desc">Informe o saldo inicial para começar as vendas.</p>
+
+          <div class="cx-field">
+            <label for="valor-abertura">Valor de abertura</label>
+            <div class="cx-money">
+              <span>R$</span>
+              <input
+                id="valor-abertura"
+                type="number"
+                min="0"
+                step="0.01"
+                [(ngModel)]="valorAbertura"
+                name="valorAbertura"
+                placeholder="200,00"
+              />
+            </div>
+          </div>
+
+          <div class="cx-field">
+            <label for="observacao">Observação (opcional)</label>
+            <textarea
+              id="observacao"
+              class="cx-textarea cx-field__full"
+              rows="3"
+              [(ngModel)]="observacao"
+              name="observacao"
+              placeholder="Ex.: Troco inicial..."
+            ></textarea>
+          </div>
+
+          <div class="cx-field">
+            <label for="responsavel">Responsável</label>
+            <select id="responsavel" class="em-select cx-field__full" [(ngModel)]="responsavel" name="responsavel">
+              <option value="Administrador">Administrador</option>
+            </select>
+          </div>
+
+          <button type="button" class="em-btn em-btn--gold cx-field__full" (click)="abrir()">
+            <mat-icon>lock_open</mat-icon>
+            Abrir caixa
+          </button>
+        </div>
+        <div class="em-card__foot cx-card-note">
+          <mat-icon>info</mat-icon>
+          O saldo inicial será registrado como suprimento.
+        </div>
+      </div>
+
+      <div class="em-card">
+        <div class="em-card__head">
+          <h2 class="em-card__title">Último fechamento</h2>
+          <span class="em-badge em-badge--ok">Sem diferença</span>
+        </div>
+        <div class="em-card__body">
+          <p class="cx-fechamento-data">
+            {{ ultimoFechamento.data | date: 'dd/MM/yyyy · HH:mm' }}
+            · {{ ultimoFechamento.responsavel }}
+          </p>
+
+          <div class="cx-meta cx-meta--stack">
+            <div>
+              <span>Saldo inicial</span>
+              <strong>R$ {{ ultimoFechamento.saldoInicial | number: '1.2-2' }}</strong>
+            </div>
+            <div>
+              <span>Vendas</span>
+              <strong>R$ {{ ultimoFechamento.vendas | number: '1.2-2' }}</strong>
+            </div>
+            <div>
+              <span>Sangrias</span>
+              <strong>R$ {{ ultimoFechamento.sangrias | number: '1.2-2' }}</strong>
+            </div>
+            <div>
+              <span>Esperado / informado</span>
+              <strong>
+                R$ {{ ultimoFechamento.saldoEsperado | number: '1.2-2' }}
+                / R$ {{ ultimoFechamento.saldoInformado | number: '1.2-2' }}
+              </strong>
+            </div>
+          </div>
+
+          <button type="button" class="em-btn em-btn--ghost cx-field__full" (click)="verDetalhesFechamento()">
+            Ver detalhes
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="em-card cx__checklist">
+      <div class="em-card__body">
+        <h2 class="cx-checklist__title">Antes de abrir o caixa, confira:</h2>
+        <ul class="cx-checklist">
+          @for (item of checklist; track item) {
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              {{ item }}
+            </li>
+          }
+        </ul>
+      </div>
+    </div>
+
+    <div class="em-kpi-row cx__kpi-row--3">
+      <div class="em-kpi">
+        <span class="em-kpi__ico"><mat-icon>calendar_view_week</mat-icon></span>
+        <div>
+          <p class="em-kpi__value">R$ {{ kpis.ultimos7Dias | number: '1.2-2' }}</p>
+          <p class="em-kpi__label">Últimos 7 dias</p>
+        </div>
+      </div>
+      <div class="em-kpi">
+        <span class="em-kpi__ico"><mat-icon>trending_up</mat-icon></span>
+        <div>
+          <p class="em-kpi__value">R$ {{ kpis.mediaDiaria | number: '1.2-2' }}</p>
+          <p class="em-kpi__label">Média diária</p>
+        </div>
+      </div>
+      <div class="em-kpi">
+        <span class="em-kpi__ico"><mat-icon>balance</mat-icon></span>
+        <div>
+          <p class="em-kpi__value">R$ {{ kpis.diferencas | number: '1.2-2' }}</p>
+          <p class="em-kpi__label">Diferenças</p>
+        </div>
+      </div>
+    </div>
+  }
+</div>

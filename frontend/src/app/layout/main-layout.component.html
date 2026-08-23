@@ -1,4 +1,9 @@
-<div id="main-wrapper" class="erp-shell show" [class.menu-toggle]="menuToggle">
+<div
+  id="main-wrapper"
+  class="erp-shell show"
+  [class.menu-toggle]="menuToggle"
+  [class.erp-shell--pdv]="isPdv()"
+>
   <div class="nav-header">
     <a routerLink="/dashboard" class="brand-logo erp-brand">
       <span class="erp-brand__eyebrow">Empório</span>

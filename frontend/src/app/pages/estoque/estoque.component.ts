@@ -1,9 +1,7 @@
 import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { MatTabsModule } from '@angular/material/tabs';
 import { MatSelectModule } from '@angular/material/select';
-import { MatTableModule } from '@angular/material/table';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
@@ -28,10 +26,15 @@ import {
   ConfirmDialogData,
 } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { Subscription } from 'rxjs';
-import { isPixQrPayload, normalizeScannedCode } from '../../shared/barcode/barcode-format.util';
+import { normalizeScannedCode } from '../../shared/barcode/barcode-format.util';
 import { BarcodeFeedbackService } from '../../shared/barcode/barcode-feedback.service';
+import { produtoFotoUrl } from '../../shared/produto-foto';
 
 const MAX_IMAGEM_COMBO_BYTES = 1024 * 1024;
+const PAGE_SIZE = 10;
+
+type EstoqueTab = 'visao' | 'movimentos' | 'alertas' | 'ajustes' | 'combos';
+type FiltroNivel = 'todos' | 'critico' | 'baixo';
 
 interface ComboItemForm {
   produtoId: number | null;
@@ -42,8 +45,6 @@ interface ComboItemForm {
   selector: 'app-estoque',
   standalone: true,
   imports: [
-    MatTabsModule,
-    MatTableModule,
     MatSelectModule,
     FormsModule,
     MatFormFieldModule,
@@ -65,8 +66,8 @@ interface ComboItemForm {
   styleUrl: './estoque.component.scss',
 })
 export class EstoqueComponent implements OnInit, OnDestroy {
-  movCols = ['data', 'produto', 'tipo', 'qtd', 'motivo'];
-  prodCols = ['nome', 'codigo', 'categoria', 'estoque', 'compra', 'venda', 'lucro'];
+  readonly PAGE_SIZE = PAGE_SIZE;
+
   movimentos = signal<any[]>([]);
   baixo = signal<Produto[]>([]);
   todosProdutos = signal<Produto[]>([]);
@@ -74,13 +75,33 @@ export class EstoqueComponent implements OnInit, OnDestroy {
   loadingBaixo = signal(false);
   loadingProdutos = signal(false);
 
+  readonly tabAtiva = signal<EstoqueTab>('visao');
   readonly filtroProdutos = signal('');
   readonly filtroSomenteComCodigo = signal(false);
+  readonly filtroCategoria = signal('TODAS');
+  readonly filtroNivel = signal<FiltroNivel>('todos');
+  readonly mostrarFiltrosAvancados = signal(false);
+  readonly paginaProdutos = signal(1);
   produtoDestacadoId = signal<number | null>(null);
 
   totalProdutos = computed(() => this.todosProdutos().length);
   totalMovimentos = computed(() => this.movimentos().length);
   totalAlertas = computed(() => this.baixo().length);
+
+  valorEstoque = computed(() =>
+    this.todosProdutos().reduce((acc, p) => acc + (p.custo ?? 0) * p.estoqueAtual, 0),
+  );
+
+  movimentosHoje = computed(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    return this.movimentos().filter((m) => {
+      if (!m.createdAt) return false;
+      const d = new Date(m.createdAt);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime() === hoje.getTime();
+    }).length;
+  });
 
   produtosFiltrados = computed(() => {
     let list = this.todosProdutos();
@@ -92,6 +113,43 @@ export class EstoqueComponent implements OnInit, OnDestroy {
       list = list.filter((p) => produtoCombinaBusca(p, termo));
     }
     return list;
+  });
+
+  produtosVisaoGeral = computed(() => {
+    let list = this.produtosFiltrados();
+    const cat = this.filtroCategoria();
+    if (cat !== 'TODAS') {
+      list = list.filter((p) => p.categoria === cat);
+    }
+    const nivel = this.filtroNivel();
+    if (nivel === 'critico') {
+      list = list.filter((p) => this.isCritico(p));
+    } else if (nivel === 'baixo') {
+      list = list.filter((p) => this.isBaixo(p));
+    }
+    return list;
+  });
+
+  produtosPaginados = computed(() => {
+    const list = this.produtosVisaoGeral();
+    const start = (this.paginaProdutos() - 1) * PAGE_SIZE;
+    return list.slice(start, start + PAGE_SIZE);
+  });
+
+  totalPaginasProdutos = computed(() =>
+    Math.max(1, Math.ceil(this.produtosVisaoGeral().length / PAGE_SIZE)),
+  );
+
+  paginasProdutos = computed(() =>
+    Array.from({ length: this.totalPaginasProdutos() }, (_, i) => i + 1),
+  );
+
+  movimentosRecentes = computed(() => this.movimentos().slice(0, 3));
+  alertasTop2 = computed(() => this.baixo().slice(0, 2));
+
+  readonly categoriasProduto = computed(() => {
+    const cats = new Set(this.todosProdutos().map((p) => p.categoria));
+    return ['TODAS', ...Array.from(cats).sort()];
   });
 
   ajusteId: number | null = null;
@@ -111,7 +169,6 @@ export class EstoqueComponent implements OnInit, OnDestroy {
     'PETISCOS',
     'COMBOS',
   ];
-  comboCols = ['nome', 'codigo', 'categoria', 'preco', 'custo', 'margem', 'vendidos', 'status', 'acoes'];
   combos = signal<ComboResponse[]>([]);
   loadingCombos = signal(false);
   filtroCombos = '';
@@ -195,6 +252,116 @@ export class EstoqueComponent implements OnInit, OnDestroy {
     this.scanner.close();
   }
 
+  fotoProduto(p: Produto): string {
+    return produtoFotoUrl(p.nome, p.categoria);
+  }
+
+  isCritico(p: Produto): boolean {
+    return p.estoqueAtual === 0;
+  }
+
+  isBaixo(p: Produto): boolean {
+    return p.estoqueAtual > 0 && p.estoqueAtual <= p.estoqueMinimo;
+  }
+
+  valorProdutoEstoque(p: Produto): number {
+    return (p.custo ?? 0) * p.estoqueAtual;
+  }
+
+  setTab(tab: EstoqueTab): void {
+    this.tabAtiva.set(tab);
+  }
+
+  setFiltroProdutos(valor: string): void {
+    this.filtroProdutos.set(valor);
+    this.paginaProdutos.set(1);
+  }
+
+  setFiltroCategoria(valor: string): void {
+    this.filtroCategoria.set(valor);
+    this.paginaProdutos.set(1);
+  }
+
+  setFiltroNivel(valor: FiltroNivel): void {
+    this.filtroNivel.set(valor);
+    this.paginaProdutos.set(1);
+  }
+
+  irPaginaProdutos(p: number): void {
+    const max = this.totalPaginasProdutos();
+    this.paginaProdutos.set(Math.min(Math.max(1, p), max));
+  }
+
+  novaMovimentacao(): void {
+    this.tabAtiva.set('ajustes');
+    setTimeout(() => {
+      document.getElementById('entrada-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  }
+
+  movimentarProduto(p: Produto): void {
+    this.entradaId = p.id;
+    this.entradaQtd = 0;
+    this.entradaMotivo = '';
+    this.ajusteId = p.id;
+    this.ajusteQtd = p.estoqueAtual;
+    this.tabAtiva.set('ajustes');
+    setTimeout(() => {
+      document.getElementById('ajustes-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  }
+
+  reporAgora(p: Produto): void {
+    this.entradaId = p.id;
+    this.entradaQtd = Math.max(p.estoqueMinimo - p.estoqueAtual, 1);
+    this.entradaMotivo = 'Reposição de estoque';
+    this.tabAtiva.set('ajustes');
+    setTimeout(() => {
+      document.getElementById('entrada-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  }
+
+  tipoMovimentoIcon(tipo: string): string {
+    if (tipo === 'ENTRADA') return 'south';
+    if (tipo === 'AJUSTE') return 'sync_alt';
+    return 'north';
+  }
+
+  tipoMovimentoClass(tipo: string): string {
+    if (tipo === 'ENTRADA') return 'est-mov--entrada';
+    if (tipo === 'AJUSTE') return 'est-mov--ajuste';
+    return 'est-mov--saida';
+  }
+
+  exportar(): void {
+    const rows = this.produtosVisaoGeral();
+    if (!rows.length) {
+      this.snack.open('Nenhum produto para exportar.', 'OK', { duration: 2200 });
+      return;
+    }
+    const header = ['Produto', 'Código', 'Categoria', 'Estoque', 'Mínimo', 'Custo', 'Valor em estoque'];
+    const lines = rows.map((p) => [
+      p.nome,
+      this.codigoExibicao(p) ?? '',
+      p.categoria,
+      String(p.estoqueAtual),
+      String(p.estoqueMinimo),
+      String(p.custo ?? 0),
+      String(this.valorProdutoEstoque(p)),
+    ]);
+    const csv = [header, ...lines]
+      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';'))
+      .join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `estoque-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    this.snack.open('Exportação concluída.', 'OK', { duration: 2000 });
+  }
+
   codigoExibicao(p: Produto): string | null {
     return codigoPrincipal(p);
   }
@@ -256,7 +423,7 @@ export class EstoqueComponent implements OnInit, OnDestroy {
       return;
     }
     const code = normalizeScannedCode(r.code);
-    this.filtroProdutos.set(code);
+    this.setFiltroProdutos(code);
     const found = this.todosProdutos().find(
       (p) =>
         p.codigoBarras === code ||

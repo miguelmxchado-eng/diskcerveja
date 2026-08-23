@@ -24,12 +24,16 @@ export class MainLayoutComponent {
   readonly contentMinHeight = signal(600);
   readonly sectionTitle = signal('Início');
   readonly sectionHint = signal('Resumo do dia');
+  readonly isPdv = signal(false);
 
   private readonly titles: Record<string, { title: string; hint: string }> = {
     dashboard: { title: 'Início', hint: 'Vendas, caixa e alertas de agora' },
     pdv: { title: 'PDV', hint: 'Lançar pedido no balcão ou delivery' },
-    'relatorio-pedidos': { title: 'Histórico', hint: 'Pedidos por dia, semana, mês ou ano' },
-    produtos: { title: 'Produtos', hint: 'Cadastro, preço e código de barras' },
+    'relatorio-pedidos': {
+      title: 'Histórico de vendas',
+      hint: 'Consulte pedidos, pagamentos e resultados',
+    },
+    produtos: { title: 'Produtos', hint: 'Cadastre, organize e acompanhe seu catálogo' },
     estoque: { title: 'Estoque', hint: 'Entrada, ajuste e itens em falta' },
     caixa: { title: 'Caixa', hint: 'Abertura, sangria e fechamento' },
     entregas: { title: 'Rotas', hint: 'Pedidos em rota e confirmação de entrega' },
@@ -94,6 +98,7 @@ export class MainLayoutComponent {
     const meta = this.titles[key] ?? { title: 'Início', hint: 'Vendas, caixa e alertas de agora' };
     this.sectionTitle.set(meta.title);
     this.sectionHint.set(meta.hint);
+    this.isPdv.set(key === 'pdv');
   }
 
   private closeOverlayMenuAfterNav(): void {

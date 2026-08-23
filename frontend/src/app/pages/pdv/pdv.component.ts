@@ -1,15 +1,20 @@
-import { Component, ElementRef, OnDestroy, OnInit, ViewChild, computed, signal } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  HostListener,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+  computed,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatButtonModule } from '@angular/material/button';
-import { MatSelectModule } from '@angular/material/select';
-import { MatCardModule } from '@angular/material/card';
+import { Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatChipsModule } from '@angular/material/chips';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { DecimalPipe } from '@angular/common';
 import { StatusLabelPipe } from '../../shared/pipes/status-label.pipe';
 import { environment } from '../../../environments/environment';
@@ -23,9 +28,39 @@ import { ScanDebounce } from '../../shared/barcode/scan-debounce';
 import { ScanHistory, ScanHistoryEntry } from '../../shared/barcode/scan-history';
 import { HidScannerService } from '../../shared/barcode/hid-scanner.service';
 import { isPixQrPayload, normalizeScannedCode } from '../../shared/barcode/barcode-format.util';
+import { codigoPrincipal } from '../../shared/barcode/produto-codigo-display';
+import {
+  ConfirmDialogComponent,
+  ConfirmDialogData,
+} from '../../shared/confirm-dialog/confirm-dialog.component';
 import { Subscription } from 'rxjs';
 
 const LAST_KEY = 'dcm_last_pedido';
+const FAV_KEY = 'dcm_pdv_favoritos';
+
+/** Fotos de produto (estoque Unsplash) por família — sem emoji. */
+const IMG = {
+  cerveja:
+    'https://images.unsplash.com/photo-1608270586620-248524c67de9?auto=format&fit=crop&w=400&q=80',
+  cervejaPack:
+    'https://images.unsplash.com/photo-1618885472179-5e474019f2a9?auto=format&fit=crop&w=400&q=80',
+  destilado:
+    'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?auto=format&fit=crop&w=400&q=80',
+  whisky:
+    'https://images.unsplash.com/photo-1527281400683-1aae777175f8?auto=format&fit=crop&w=400&q=80',
+  licor:
+    'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1a?auto=format&fit=crop&w=400&q=80',
+  petisco:
+    'https://images.unsplash.com/photo-1621939514649-280e2ee25f60?auto=format&fit=crop&w=400&q=80',
+  refrigerante:
+    'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=400&q=80',
+  energetico:
+    'https://images.unsplash.com/photo-1622543925227-4804d6c5da76?auto=format&fit=crop&w=400&q=80',
+  combo:
+    'https://images.unsplash.com/photo-1608270586620-248524c67de9?auto=format&fit=crop&w=400&q=80',
+  generico:
+    'https://images.unsplash.com/photo-1586995930424-bf275ccd02ad?auto=format&fit=crop&w=400&q=80',
+} as const;
 
 type Linha = {
   produtoId?: number;
@@ -36,23 +71,30 @@ type Linha = {
   ultimoCodigo?: string;
   isCombo?: boolean;
   componentes?: string;
+  categoria?: string;
+  imagemUrl?: string;
 };
-type AtalhoPdv = 'todos' | 'maisVendidos' | 'combos' | 'favoritos';
+
+type AtalhoPdv =
+  | 'todos'
+  | 'maisVendidos'
+  | 'cervejas'
+  | 'destilados'
+  | 'petiscos'
+  | 'combos'
+  | 'favoritos';
+
+type Ordenacao = 'maisVendidos' | 'nome' | 'precoAsc' | 'precoDesc' | 'estoque';
 
 @Component({
   selector: 'app-pdv',
   standalone: true,
   imports: [
     FormsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatButtonModule,
-    MatSelectModule,
-    MatCardModule,
     MatIconModule,
     MatSnackBarModule,
     MatProgressBarModule,
-    MatChipsModule,
+    MatDialogModule,
     DecimalPipe,
     StatusLabelPipe,
   ],
@@ -61,26 +103,48 @@ type AtalhoPdv = 'todos' | 'maisVendidos' | 'combos' | 'favoritos';
 })
 export class PdvComponent implements OnInit, OnDestroy {
   @ViewChild('itensLista') private itensLista?: ElementRef<HTMLElement>;
+  @ViewChild('buscaInput') private buscaInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('clienteInput') private clienteInput?: ElementRef<HTMLInputElement>;
 
-  q = '';
+  readonly filtros: { id: AtalhoPdv; label: string }[] = [
+    { id: 'todos', label: 'Todos' },
+    { id: 'maisVendidos', label: 'Mais vendidos' },
+    { id: 'cervejas', label: 'Cervejas' },
+    { id: 'destilados', label: 'Destilados' },
+    { id: 'petiscos', label: 'Petiscos' },
+    { id: 'combos', label: 'Combos' },
+    { id: 'favoritos', label: 'Favoritos' },
+  ];
+
+  q = signal('');
   codigoBarras = '';
+  ordenacao = signal<Ordenacao>('maisVendidos');
+  observacao = '';
+
   produtos = signal<Produto[]>([]);
   combos = signal<ComboResponse[]>([]);
   carrinho = signal<Linha[]>([]);
   loadingProdutos = signal(false);
   loadingCombos = signal(false);
   atalhoAtivo = signal<AtalhoPdv>('todos');
-  favoritos = signal<number[]>([]);
+  favoritos = signal<number[]>(this.lerFavoritos());
   ultimoScan = signal<{ code: string; nome: string; qtd: number; preco: number } | null>(null);
   historicoScans = signal<ScanHistoryEntry[]>([]);
   scanFlash = signal(false);
+  buscaFocada = signal(false);
+  clienteAberto = signal(false);
+  obsAberta = signal(false);
+  descontoAberto = signal(false);
+  descontoModo = signal<'valor' | 'percent'>('valor');
+  descontoValor = signal(0);
+  descontoInput = 0;
 
   clienteNome = '';
   telefone = '';
-  tipo: 'ENTREGA' | 'RETIRADA' | 'BALCAO' = 'BALCAO';
+  tipo = signal<'ENTREGA' | 'RETIRADA' | 'BALCAO'>('BALCAO');
   formaPagamento: 'PIX' | 'DINHEIRO' | 'CARTAO' = 'PIX';
   enderecoEntrega = '';
-  taxaEntrega = 0;
+  taxaEntrega = signal(0);
   entregadorNome = '';
 
   private readonly scanDebounce = new ScanDebounce(1100, 500);
@@ -88,6 +152,7 @@ export class PdvComponent implements OnInit, OnDestroy {
   private hidSub?: Subscription;
   private cameraSub?: Subscription;
   private barcodeIdle?: ReturnType<typeof setTimeout>;
+  private buscaIdle?: ReturnType<typeof setTimeout>;
 
   readonly indicePorCodigo = computed(() => {
     const map = new Map<string, Produto>();
@@ -100,38 +165,74 @@ export class PdvComponent implements OnInit, OnDestroy {
     return map;
   });
 
+  readonly desconto = computed(() => this.descontoValor());
+
   readonly totalItens = computed(() =>
     this.carrinho().reduce((acc, l) => acc + l.qtd * l.preco, 0),
   );
   readonly totalQuantidade = computed(() => this.carrinho().reduce((acc, l) => acc + l.qtd, 0));
   readonly totalPedido = computed(() => {
-    const taxa = this.tipo === 'ENTREGA' ? Number(this.taxaEntrega || 0) : 0;
-    return this.totalItens() + taxa;
+    const taxa = this.tipo() === 'ENTREGA' ? Number(this.taxaEntrega() || 0) : 0;
+    return Math.max(0, this.totalItens() - this.desconto() + taxa);
   });
+
   readonly produtosVisiveis = computed(() => {
-    const produtos = [...this.produtos()];
-    switch (this.atalhoAtivo()) {
-      case 'maisVendidos':
-        return produtos.sort((a, b) => b.estoqueAtual - a.estoqueAtual);
-      case 'favoritos':
-        return produtos.filter((p) => this.favoritos().includes(p.id));
-      default:
-        return produtos;
+    let list = [...this.produtos()];
+    const atalho = this.atalhoAtivo();
+    const termo = this.q().trim().toLowerCase();
+    const ord = this.ordenacao();
+
+    if (atalho === 'cervejas') list = list.filter((p) => p.categoria === 'CERVEJAS');
+    else if (atalho === 'destilados') list = list.filter((p) => p.categoria === 'DESTILADOS');
+    else if (atalho === 'petiscos') list = list.filter((p) => p.categoria === 'PETISCOS');
+    else if (atalho === 'favoritos') {
+      list = list.filter((p) => this.favoritos().includes(p.id));
     }
+
+    if (termo) {
+      list = list.filter(
+        (p) =>
+          p.nome.toLowerCase().includes(termo) ||
+          (p.categoria || '').toLowerCase().includes(termo) ||
+          (p.codigoBarras || '').toLowerCase().includes(termo) ||
+          (p.codigoInterno || '').toLowerCase().includes(termo) ||
+          (p.codigoQr || '').toLowerCase().includes(termo),
+      );
+    }
+
+    switch (ord) {
+      case 'nome':
+        list.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+        break;
+      case 'precoAsc':
+        list.sort((a, b) => Number(a.preco) - Number(b.preco));
+        break;
+      case 'precoDesc':
+        list.sort((a, b) => Number(b.preco) - Number(a.preco));
+        break;
+      case 'estoque':
+        list.sort((a, b) => b.estoqueAtual - a.estoqueAtual);
+        break;
+      default:
+        list.sort((a, b) => b.estoqueAtual - a.estoqueAtual);
+    }
+    return list;
   });
 
   readonly mostrandoCombos = computed(() => this.atalhoAtivo() === 'combos');
 
   readonly combosVisiveis = computed(() => {
-    const termo = this.q.trim().toLowerCase();
-    const list = this.combos();
-    if (!termo) return list;
-    return list.filter(
-      (c) =>
-        c.nome.toLowerCase().includes(termo) ||
-        (c.codigo ?? '').toLowerCase().includes(termo) ||
-        (c.codigoBarras ?? '').toLowerCase().includes(termo),
-    );
+    const termo = this.q().trim().toLowerCase();
+    let list = [...this.combos()];
+    if (termo) {
+      list = list.filter(
+        (c) =>
+          c.nome.toLowerCase().includes(termo) ||
+          (c.codigo ?? '').toLowerCase().includes(termo) ||
+          (c.codigoBarras ?? '').toLowerCase().includes(termo),
+      );
+    }
+    return list;
   });
 
   ultimoPedidoId = signal<number | null>(null);
@@ -141,6 +242,8 @@ export class PdvComponent implements OnInit, OnDestroy {
   constructor(
     private readonly http: HttpClient,
     private readonly snack: MatSnackBar,
+    private readonly dialog: MatDialog,
+    private readonly router: Router,
     readonly scanner: BarcodeScannerService,
     private readonly codigoService: ProdutoCodigoService,
     private readonly feedback: BarcodeFeedbackService,
@@ -156,6 +259,29 @@ export class PdvComponent implements OnInit, OnDestroy {
     this.cameraSub = this.scanner.scanned$.subscribe((r) => this.onScanCamera(r));
   }
 
+  ngOnDestroy(): void {
+    this.hidSub?.unsubscribe();
+    this.cameraSub?.unsubscribe();
+    if (this.barcodeIdle) clearTimeout(this.barcodeIdle);
+    if (this.buscaIdle) clearTimeout(this.buscaIdle);
+    this.hid.stopListening();
+    this.scanner.close();
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  onGlobalKey(ev: KeyboardEvent): void {
+    if (ev.key === 'F2') {
+      ev.preventDefault();
+      this.buscaInput?.nativeElement.focus();
+      this.buscaInput?.nativeElement.select();
+      return;
+    }
+    if (ev.key === 'F4') {
+      ev.preventDefault();
+      this.abrirScanner();
+    }
+  }
+
   carregarCombos(): void {
     this.loadingCombos.set(true);
     this.comboService.listarAtivos().subscribe({
@@ -167,18 +293,9 @@ export class PdvComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnDestroy(): void {
-    this.hidSub?.unsubscribe();
-    this.cameraSub?.unsubscribe();
-    if (this.barcodeIdle) clearTimeout(this.barcodeIdle);
-    this.hid.stopListening();
-    this.scanner.close();
-  }
-
   buscarProdutos() {
     this.loadingProdutos.set(true);
-    const url = `${environment.apiUrl}/api/produtos` + (this.q ? `?q=${encodeURIComponent(this.q)}` : '');
-    this.http.get<Produto[]>(url).subscribe({
+    this.http.get<Produto[]>(`${environment.apiUrl}/api/produtos`).subscribe({
       next: (p) => {
         this.produtos.set(p.filter((x) => x.ativo));
         this.loadingProdutos.set(false);
@@ -190,29 +307,96 @@ export class PdvComponent implements OnInit, OnDestroy {
     });
   }
 
-  lerCodigoBarras() {
-    if (this.barcodeIdle) {
-      clearTimeout(this.barcodeIdle);
-      this.barcodeIdle = undefined;
+  onBuscaChange(): void {
+    if (this.buscaIdle) clearTimeout(this.buscaIdle);
+    const raw = this.q().trim();
+    if (/^\d{8,}$/.test(raw)) {
+      this.buscaIdle = setTimeout(() => {
+        this.codigoBarras = raw;
+        this.processarCodigo(raw, 'manual');
+        this.q.set('');
+      }, 220);
     }
-    const codigo = normalizeScannedCode(this.codigoBarras);
-    if (!codigo) return;
-    this.processarCodigo(codigo, 'manual');
   }
 
-  onCodigoBarrasChange(): void {
-    if (this.barcodeIdle) clearTimeout(this.barcodeIdle);
-    const codigo = normalizeScannedCode(this.codigoBarras);
-    if (codigo.length < 8) return;
-    this.barcodeIdle = setTimeout(() => this.lerCodigoBarras(), 200);
+  onOrdenacaoChange(): void {
+    /* signal atualizado via ngModelChange no template */
+  }
+
+  selecionarAtalho(atalho: AtalhoPdv) {
+    this.atalhoAtivo.set(atalho);
+  }
+
+  setTipo(t: 'BALCAO' | 'ENTREGA') {
+    this.tipo.set(t);
+    if (t === 'ENTREGA') {
+      this.clienteAberto.set(true);
+    }
+  }
+
+  taxaEntregaExibida(): number {
+    return this.tipo() === 'ENTREGA' ? Number(this.taxaEntrega() || 0) : 0;
+  }
+
+  focarCliente(): void {
+    this.clienteAberto.set(true);
+    setTimeout(() => this.clienteInput?.nativeElement.focus(), 50);
+  }
+
+  formaPagamentoLabel(): string {
+    if (this.formaPagamento === 'DINHEIRO') return 'Dinheiro';
+    if (this.formaPagamento === 'CARTAO') return 'Cartão';
+    return 'PIX';
+  }
+
+  irParaProdutos(): void {
+    void this.router.navigateByUrl('/produtos');
+  }
+
+  codigoExibicao(p: Produto): string | null {
+    return codigoPrincipal(p);
+  }
+
+  produtoImagemUrl(p: Produto): string {
+    const n = p.nome.toLowerCase();
+    if (n.includes('whisky') || n.includes('whiskey') || n.includes('51')) return IMG.whisky;
+    if (n.includes('amarula') || n.includes('licor')) return IMG.licor;
+    if (n.includes('amstel') || n.includes('heineken') || n.includes('skol') || n.includes('brahma')) {
+      return IMG.cervejaPack;
+    }
+    if (n.includes('bacon') || n.includes('trident') || n.includes('salg')) return IMG.petisco;
+    switch (p.categoria) {
+      case 'CERVEJAS':
+        return IMG.cerveja;
+      case 'DESTILADOS':
+        return IMG.destilado;
+      case 'PETISCOS':
+        return IMG.petisco;
+      case 'REFRIGERANTES':
+        return IMG.refrigerante;
+      case 'ENERGETICOS':
+        return IMG.energetico;
+      case 'COMBOS':
+        return IMG.combo;
+      default:
+        return IMG.generico;
+    }
+  }
+
+  comboImagemUrl(c: ComboResponse): string {
+    return c.imagem?.trim() || IMG.combo;
+  }
+
+  linhaImagemUrl(l: Linha): string {
+    if (l.imagemUrl) return l.imagemUrl;
+    if (l.isCombo) return IMG.combo;
+    const p = this.produtos().find((x) => x.id === l.produtoId);
+    return p ? this.produtoImagemUrl(p) : IMG.generico;
   }
 
   toggleScanner(): void {
-    if (this.scanner.isOpen()) {
-      this.fecharScanner();
-    } else {
-      this.abrirScanner();
-    }
+    if (this.scanner.isOpen()) this.fecharScanner();
+    else this.abrirScanner();
   }
 
   abrirScanner(): void {
@@ -278,9 +462,7 @@ export class PdvComponent implements OnInit, OnDestroy {
     this.add(produto, codigo);
     this.codigoBarras = '';
     this.piscarScanOk();
-    if (bip) {
-      this.feedback.success();
-    }
+    if (bip) this.feedback.success();
     this.scanHistory.push(codigo, true, produto.nome);
     this.historicoScans.set(this.scanHistory.list());
     const linha = this.carrinho().find((l) => l.produtoId === produto.id);
@@ -302,6 +484,11 @@ export class PdvComponent implements OnInit, OnDestroy {
   }
 
   add(p: Produto, codigoLido?: string) {
+    if (p.estoqueAtual <= 0) {
+      this.feedback.warn();
+      this.snack.open(`"${p.nome}" sem estoque.`, 'OK', { duration: 2500 });
+      return;
+    }
     const atual = [...this.carrinho()];
     const idx = atual.findIndex((x) => !x.isCombo && x.produtoId === p.id);
     if (idx >= 0) {
@@ -317,6 +504,8 @@ export class PdvComponent implements OnInit, OnDestroy {
         qtd: 1,
         preco: Number(p.preco),
         ultimoCodigo: codigoLido,
+        categoria: p.categoria,
+        imagemUrl: this.produtoImagemUrl(p),
       });
     }
     this.carrinho.set(atual);
@@ -349,42 +538,35 @@ export class PdvComponent implements OnInit, OnDestroy {
         isCombo: true,
         componentes,
         ultimoCodigo: codigoLido,
+        imagemUrl: this.comboImagemUrl(c),
       });
     }
     this.carrinho.set(atual);
     this.rolarListaItens();
   }
 
-  selecionarAtalho(atalho: AtalhoPdv) {
-    this.atalhoAtivo.set(atalho);
-  }
-
   toggleFavorito(produto: Produto, event: MouseEvent) {
     event.stopPropagation();
     const ids = this.favoritos();
-    this.favoritos.set(ids.includes(produto.id) ? ids.filter((id) => id !== produto.id) : [...ids, produto.id]);
+    const next = ids.includes(produto.id)
+      ? ids.filter((id) => id !== produto.id)
+      : [...ids, produto.id];
+    this.favoritos.set(next);
+    localStorage.setItem(FAV_KEY, JSON.stringify(next));
   }
 
   isFavorito(produto: Produto) {
     return this.favoritos().includes(produto.id);
   }
 
-  produtoImagem(produto: Produto): string {
-    switch (produto.categoria) {
-      case 'CERVEJAS':
-        return '🍺';
-      case 'REFRIGERANTES':
-        return '🥤';
-      case 'ENERGETICOS':
-        return '⚡';
-      case 'PETISCOS':
-        return '🍟';
-      case 'COMBOS':
-        return '🎁';
-      case 'DESTILADOS':
-        return '🥃';
-      default:
-        return '🛒';
+  private lerFavoritos(): number[] {
+    try {
+      const raw = localStorage.getItem(FAV_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as number[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
     }
   }
 
@@ -398,11 +580,36 @@ export class PdvComponent implements OnInit, OnDestroy {
   dec(i: number) {
     const atual = [...this.carrinho()];
     if (atual[i].qtd <= 1) {
-      atual.splice(i, 1);
-    } else {
-      atual[i] = { ...atual[i], qtd: atual[i].qtd - 1 };
+      this.confirmarRemocao(i);
+      return;
     }
+    atual[i] = { ...atual[i], qtd: atual[i].qtd - 1 };
     this.carrinho.set(atual);
+  }
+
+  removerLinha(i: number): void {
+    this.confirmarRemocao(i);
+  }
+
+  private confirmarRemocao(i: number): void {
+    const nome = this.carrinho()[i]?.nome ?? 'item';
+    this.dialog
+      .open(ConfirmDialogComponent, {
+        width: '360px',
+        data: {
+          titulo: 'Remover item',
+          mensagem: `Remover "${nome}" do carrinho?`,
+          confirmLabel: 'Remover',
+          confirmColor: 'warn',
+        } satisfies ConfirmDialogData,
+      })
+      .afterClosed()
+      .subscribe((ok) => {
+        if (!ok) return;
+        const atual = [...this.carrinho()];
+        atual.splice(i, 1);
+        this.carrinho.set(atual);
+      });
   }
 
   private rolarListaItens(): void {
@@ -415,20 +622,50 @@ export class PdvComponent implements OnInit, OnDestroy {
   limpar() {
     this.carrinho.set([]);
     this.ultimoScan.set(null);
+    this.descontoValor.set(0);
+    this.observacao = '';
   }
 
-  salvarPedido() {
+  abrirDesconto(): void {
+    this.descontoInput = this.descontoModo() === 'valor' ? this.descontoValor() : 0;
+    this.descontoAberto.set(true);
+  }
+
+  fecharDesconto(): void {
+    this.descontoAberto.set(false);
+  }
+
+  aplicarDesconto(): void {
+    const sub = this.totalItens();
+    let valor = Number(this.descontoInput) || 0;
+    if (this.descontoModo() === 'percent') {
+      valor = (sub * Math.min(100, Math.max(0, valor))) / 100;
+    }
+    valor = Math.min(sub, Math.max(0, valor));
+    this.descontoValor.set(Math.round(valor * 100) / 100);
+    this.descontoAberto.set(false);
+  }
+
+  acaoConfirmar(): void {
+    if (this.pedidoPendenteConfirmacao() != null) {
+      this.confirmarVenda();
+      return;
+    }
+    this.salvarPedido(true);
+  }
+
+  salvarPedido(confirmarDepois = false) {
     if (!this.carrinho().length) {
       this.snack.open('Adicione itens ao pedido.', 'OK', { duration: 2500 });
       return;
     }
     const body = {
       clienteNome: this.clienteNome || null,
-      telefone: this.telefone || null,
-      tipo: this.tipo,
+      telefone: this.tipo() === 'ENTREGA' ? this.telefone || null : null,
+      tipo: this.tipo(),
       formaPagamento: this.formaPagamento,
-      enderecoEntrega: this.tipo === 'ENTREGA' ? this.enderecoEntrega : null,
-      taxaEntrega: this.tipo === 'ENTREGA' ? Number(this.taxaEntrega || 0) : 0,
+      enderecoEntrega: this.tipo() === 'ENTREGA' ? this.enderecoEntrega : null,
+      taxaEntrega: this.tipo() === 'ENTREGA' ? Number(this.taxaEntrega() || 0) : 0,
       entregadorNome: this.entregadorNome || null,
       itens: this.carrinho().map((l) =>
         l.isCombo
@@ -442,82 +679,22 @@ export class PdvComponent implements OnInit, OnDestroy {
         this.pedidoPendenteConfirmacao.set(p.id);
         localStorage.setItem(LAST_KEY, JSON.stringify(body));
         this.snack.open(
-          `Pedido #${p.id} salvo. Confirme a venda para baixar estoque.`,
+          confirmarDepois
+            ? `Pedido #${p.id} salvo. Confirmando venda…`
+            : `Pedido #${p.id} salvo. Confirme a venda para baixar estoque.`,
           'OK',
           { duration: 4000 },
         );
         this.limpar();
+        if (confirmarDepois) {
+          this.confirmarVenda();
+        }
       },
       error: (e) => {
         const msg = e?.error?.erro ?? 'Erro ao salvar pedido';
         this.snack.open(msg, 'OK', { duration: 4000 });
       },
     });
-  }
-
-  repetirUltimo() {
-    const raw = localStorage.getItem(LAST_KEY);
-    if (!raw) {
-      this.snack.open('Não há último pedido salvo neste navegador.', 'OK', { duration: 2500 });
-      return;
-    }
-    try {
-      const o = JSON.parse(raw) as any;
-      this.clienteNome = o.clienteNome ?? '';
-      this.telefone = o.telefone ?? '';
-      this.tipo = o.tipo ?? 'BALCAO';
-      this.formaPagamento = o.formaPagamento ?? 'PIX';
-      this.enderecoEntrega = o.enderecoEntrega ?? '';
-      this.taxaEntrega = Number(o.taxaEntrega ?? 0);
-      this.entregadorNome = o.entregadorNome ?? '';
-      const linhas: Linha[] = [];
-      for (const it of o.itens ?? []) {
-        if (it.comboId != null) {
-          const c = this.combos().find((x) => x.id === it.comboId);
-          if (!c) continue;
-          linhas.push({
-            comboId: c.id,
-            nome: c.nome,
-            qtd: it.quantidade,
-            preco: Number(c.precoVenda),
-            isCombo: true,
-            componentes: c.itens.map((i) => `${i.quantidade}x ${i.produtoNome}`).join(', '),
-          });
-          continue;
-        }
-        const p = this.produtos().find((x) => x.id === it.produtoId);
-        const nome = p?.nome ?? `Produto ${it.produtoId}`;
-        const preco = p ? Number(p.preco) : 0;
-        linhas.push({ produtoId: it.produtoId, nome, qtd: it.quantidade, preco });
-      }
-      this.carrinho.set(linhas);
-      this.snack.open('Último pedido carregado (revise preços/itens).', 'OK', { duration: 3000 });
-    } catch {
-      this.snack.open('Não foi possível repetir o último pedido.', 'OK', { duration: 2500 });
-    }
-  }
-
-  whatsapp() {
-    const digits = (this.telefone || '').replace(/\D/g, '');
-    if (digits.length < 10) {
-      this.snack.open('Informe um telefone válido para WhatsApp.', 'OK', { duration: 2500 });
-      return;
-    }
-    const itens = this.carrinho()
-      .map((l) => `- ${l.qtd}x ${l.nome}`)
-      .join('\n');
-    const msg = [
-      this.ultimoPedidoId() ? `Pedido #${this.ultimoPedidoId()}` : 'Pedido',
-      this.clienteNome ? `Cliente: ${this.clienteNome}` : '',
-      'Itens:',
-      itens || '(sem itens no carrinho)',
-      `Total: R$ ${this.totalPedido().toFixed(2)}`,
-      this.tipo === 'ENTREGA' && this.enderecoEntrega ? `Entrega: ${this.enderecoEntrega}` : '',
-    ]
-      .filter(Boolean)
-      .join('\n');
-    const url = `https://wa.me/55${digits}?text=${encodeURIComponent(msg)}`;
-    window.open(url, '_blank');
   }
 
   confirmarVenda() {

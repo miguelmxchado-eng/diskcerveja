@@ -1,17 +1,12 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { MatCardModule } from '@angular/material/card';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatTableModule } from '@angular/material/table';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { DecimalPipe, DatePipe } from '@angular/common';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
+import { StatusLabelPipe } from '../../shared/pipes/status-label.pipe';
 import { environment } from '../../../environments/environment';
 
 @Component({
@@ -19,17 +14,12 @@ import { environment } from '../../../environments/environment';
   standalone: true,
   imports: [
     FormsModule,
-    MatCardModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatButtonModule,
     MatSnackBarModule,
-    MatTableModule,
-    MatProgressBarModule,
     MatDialogModule,
     MatIconModule,
     DecimalPipe,
     DatePipe,
+    StatusLabelPipe,
   ],
   templateUrl: './caixa.component.html',
   styleUrl: './caixa.component.scss',
@@ -37,13 +27,35 @@ import { environment } from '../../../environments/environment';
 export class CaixaComponent implements OnInit {
   sessao = signal<any | null>(null);
   loading = signal(false);
-  valorAbertura = 0;
+  valorAbertura = 200;
   valorFechamento = 0;
+  observacao = '';
+  responsavel = 'Administrador';
   movTipo: 'SAIDA_TROCO' | 'SAIDA_DESPESA' = 'SAIDA_TROCO';
   movValor = 0;
   movDesc = '';
 
-  cols = ['tipo', 'valor', 'descricao', 'data'];
+  readonly ultimoFechamento = {
+    data: new Date('2026-08-22T23:48:00'),
+    responsavel: 'Administrador',
+    saldoInicial: 200,
+    vendas: 1842.3,
+    sangrias: 300,
+    saldoEsperado: 1742.3,
+    saldoInformado: 1742.3,
+  };
+
+  readonly kpis = {
+    ultimos7Dias: 9486.2,
+    mediaDiaria: 1355.17,
+    diferencas: 0,
+  };
+
+  readonly checklist = [
+    'Conferir o troco e notas disponíveis',
+    'Verificar se o PDV está operacional',
+    'Confirmar o saldo do último fechamento',
+  ];
 
   constructor(
     private readonly http: HttpClient,
@@ -107,9 +119,33 @@ export class CaixaComponent implements OnInit {
       .subscribe({
         next: () => {
           this.snack.open('Movimento registrado', 'OK', { duration: 2000 });
+          this.movValor = 0;
+          this.movDesc = '';
           this.reload();
         },
         error: (e) => this.snack.open(e?.error?.erro ?? 'Erro', 'OK', { duration: 4000 }),
       });
+  }
+
+  totalSangrias(movimentos: { tipo: string; valor: number }[] | undefined): number {
+    if (!movimentos?.length) return 0;
+    return movimentos
+      .filter((m) => m.tipo === 'SAIDA_TROCO' || m.tipo === 'SAIDA_DESPESA')
+      .reduce((acc, m) => acc + (m.valor ?? 0), 0);
+  }
+
+  totalVendas(movimentos: { tipo: string; valor: number }[] | undefined): number {
+    if (!movimentos?.length) return 0;
+    return movimentos
+      .filter((m) => m.tipo === 'ENTRADA_VENDA')
+      .reduce((acc, m) => acc + (m.valor ?? 0), 0);
+  }
+
+  verHistorico() {
+    this.snack.open('Histórico de caixas em breve.', 'OK', { duration: 2500 });
+  }
+
+  verDetalhesFechamento() {
+    this.snack.open('Detalhes do fechamento em breve.', 'OK', { duration: 2500 });
   }
 }

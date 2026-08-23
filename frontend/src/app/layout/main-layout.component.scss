@@ -4,19 +4,32 @@
 }
 
 .erp-shell {
-  --erp-sidebar-width: 238px;
-  --erp-sidebar-bg: #070707;
-  --erp-sidebar-bg-2: #0d0d0d;
+  --erp-sidebar-width: 280px;
+  --erp-header-height: 80px;
+  --erp-sidebar-bg: #090909;
+  --erp-sidebar-bg-2: #111111;
   --erp-green: var(--em-gold);
   --erp-green-light: var(--em-gold-bright);
-  --erp-text-muted: #a39b88;
+  --erp-text-muted: #667085;
   min-height: 100vh;
   background: var(--em-canvas);
 }
 
-.dc-page {
-  max-width: 1280px;
-  padding: 1.25rem 1.5rem 1.5rem;
+.erp-shell--pdv {
+  .dc-page {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+  }
+
+  .content-body {
+    padding: 0 !important;
+  }
+
+  .footer {
+    display: none;
+  }
 }
 
 /* Dropdown antigo (Bootstrap) substituído por .erp-dropdown — mantém compat se algo referenciar */
@@ -34,12 +47,13 @@
   left: 0;
   z-index: 1003;
   width: var(--erp-sidebar-width);
-  height: 78px;
+  height: 92px;
   display: flex;
   align-items: center;
+  justify-content: center;
   padding: 0 1.25rem;
-  background: var(--erp-sidebar-bg);
-  border-right: 1px solid rgba(201, 162, 39, 0.18);
+  background: #090909;
+  border-right: 1px solid rgba(210, 164, 16, 0.16);
 }
 
 .erp-brand {
@@ -52,21 +66,23 @@
 }
 
 .erp-brand__eyebrow {
-  font-family: 'Montserrat', sans-serif;
-  font-size: 0.58rem;
+  font-family: 'Inter', 'Montserrat', sans-serif;
+  font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.42em;
   text-transform: uppercase;
-  color: var(--em-gold);
+  color: #d2a410;
+  text-align: center;
 }
 
 .erp-brand__name {
   font-family: 'Oswald', sans-serif;
-  font-size: 1.35rem;
+  font-size: 1.55rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #fff;
+  text-align: center;
 }
 
 /*
@@ -78,19 +94,14 @@
   position: fixed;
   top: 0;
   right: 0;
-  left: var(--erp-sidebar-width, 238px);
+  left: var(--erp-sidebar-width, 280px);
   z-index: 1001;
   width: auto;
-  height: 78px;
+  height: var(--erp-header-height, 80px);
   box-sizing: border-box;
-  background: var(--em-surface);
-  border-bottom: 1px solid var(--em-line);
+  background: #ffffff;
+  border-bottom: 1px solid #e7e1d7;
   box-shadow: none;
-  /*
-   * Travl (style.css) coloca .header em largura total e usa padding-left (~20rem)
-   * para “pular” a sidebar. Aqui o bloco já começa em left: sidebar, então esse
-   * padding viraria faixa vazia entre o menu e o título.
-   */
   padding: 0;
 }
 
@@ -169,13 +180,13 @@
 
 .dlabnav {
   position: fixed;
-  top: 78px;
+  top: 92px;
   left: 0;
   bottom: 0;
   z-index: 1002;
   width: var(--erp-sidebar-width);
-  background: linear-gradient(180deg, #0d0d0d 0%, #070707 100%);
-  border-right: 1px solid rgba(201, 162, 39, 0.14);
+  background: #090909;
+  border-right: 1px solid rgba(210, 164, 16, 0.14);
 }
 
 .metismenu {
@@ -202,12 +213,13 @@
   width: 100%;
   box-sizing: border-box;
   gap: 0.75rem;
-  min-height: 44px;
-  padding: 0.35rem 0.65rem 0.35rem 0.55rem;
-  margin: 0.12rem 0;
-  border-radius: 4px;
+  min-height: 54px;
+  padding: 0.4rem 0.7rem 0.4rem 0.55rem;
+  margin: 0.15rem 0;
+  border-radius: 8px;
   color: #d8d0c2;
-  font-size: 0.875rem;
+  font-family: 'Inter', 'Montserrat', sans-serif;
+  font-size: 0.9rem;
   font-weight: 500;
   letter-spacing: -0.01em;
   line-height: 1.35;
@@ -227,11 +239,11 @@
 
   &:hover {
     color: #fff;
-    background: rgba(201, 162, 39, 0.1);
-    border-color: rgba(201, 162, 39, 0.16);
+    background: rgba(210, 164, 16, 0.1);
+    border-color: rgba(210, 164, 16, 0.16);
 
     .erp-nav__ico {
-      background: rgba(201, 162, 39, 0.18);
+      background: rgba(210, 164, 16, 0.22);
       color: #fff;
     }
   }
@@ -240,18 +252,18 @@
   &.active {
     color: #fff;
     font-weight: 600;
-    background: rgba(201, 162, 39, 0.22);
-    border-color: rgba(201, 162, 39, 0.4);
-    box-shadow: inset 3px 0 0 var(--em-gold);
+    background: rgba(210, 164, 16, 0.18);
+    border-color: rgba(210, 164, 16, 0.55);
+    box-shadow: inset 3px 0 0 #d2a410;
 
     .erp-nav__ico {
-      background: rgba(201, 162, 39, 0.28);
-      color: #fff;
+      background: #d2a410;
+      color: #090909;
     }
   }
 
   &:focus-visible {
-    outline: 2px solid var(--em-gold);
+    outline: 2px solid #d2a410;
     outline-offset: 2px;
   }
 }
@@ -264,8 +276,9 @@
   flex-shrink: 0;
   width: 36px;
   height: 36px;
-  border-radius: 4px;
-  background: rgba(201, 162, 39, 0.12);
+  border-radius: 6px;
+  background: linear-gradient(145deg, #1a1608 0%, #0d0d0d 100%);
+  border: 1px solid rgba(210, 164, 16, 0.22);
   color: #e8d9a8;
   transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
 
@@ -293,10 +306,10 @@
   margin: 0;
   line-height: 1.2;
   padding: 1rem 0.65rem 0.4rem;
-  color: rgba(139, 149, 165, 0.95);
+  color: #667085;
   font-size: 0.625rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 
   &:not(:first-child) {
@@ -321,14 +334,22 @@
   text-align: left;
 
   .dashboard_bar {
-    color: var(--em-ink);
-    font-size: clamp(1rem, 2.5vw, 1.12rem);
-    font-weight: 700;
+    color: #171717;
+    font-family: 'Inter', 'Montserrat', sans-serif;
+    font-size: clamp(1.05rem, 2.5vw, 1.25rem);
+    font-weight: 800;
     letter-spacing: -0.02em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     line-height: 1.25;
+  }
+
+  small {
+    color: #667085;
+    font-size: 0.82rem;
+    font-weight: 400;
+    line-height: 1.35;
   }
 
   small {
@@ -446,11 +467,12 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: 4px;
-  color: #070707;
-  background: var(--em-gold);
+  border-radius: 6px;
+  color: #090909;
+  background: #d2a410;
   font-size: 0.85rem;
   font-weight: 800;
+  font-family: 'Inter', sans-serif;
   text-transform: uppercase;
   flex-shrink: 0;
 }
@@ -584,7 +606,7 @@
 .content-body {
   min-height: 100vh;
   margin-left: var(--erp-sidebar-width);
-  padding-top: 78px;
+  padding-top: var(--erp-header-height, 80px);
   background: var(--em-canvas);
 }
 

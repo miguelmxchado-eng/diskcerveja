@@ -1,505 +1,213 @@
-// =============================================
-// Dashboard Component — Travl-inspired styles
-// =============================================
-
-// Color palette
-$primary:     #c9a227;
-$primary-light: #19a77c;
-$danger:      #E23428;
-$warning:     #f59e0b;
-$info:        #3b82f6;
-$success:     #10b981;
-$bg:          #f4f6f9;
-$card-bg:     #ffffff;
-$text-main:   #1a1a2e;
-$text-muted:  #6b7280;
-$border:      #e5e7eb;
-
-// ---- Wrapper ----
-.dashboard-wrapper {
-  padding: 1.5rem 2rem;
-  background: $bg;
-  min-height: 100%;
-  font-family: 'Poppins', 'Segoe UI', sans-serif;
-}
-
-// ---- Header (tokens compartilhados .erp-page-heading + data) ----
-.dashboard-page__heading {
-  margin-bottom: 1.5rem;
-  align-items: flex-start;
-
-  .header-date {
-    flex-shrink: 0;
-    padding-top: 0.15rem;
+.dash {
+  &__date {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #667085;
+    text-transform: capitalize;
+    padding: 10px 14px;
+    background: #fff;
+    border: 1px solid #e7e1d7;
+    border-radius: 8px;
   }
 
-  .date-badge {
-    background: $primary;
-    color: #fff;
-    padding: 0.45rem 1rem;
-    border-radius: 2px;
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    color: #070707;
-    box-shadow: none;
+  &__quick {
+    margin-bottom: 18px;
+  }
+
+  &__loading {
+    padding: 40px;
+    text-align: center;
+    color: #667085;
+  }
+
+  &__error {
+    margin-top: 12px;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 0.9fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  &__chart {
+    margin-top: 4px;
   }
 }
 
-// ---- Loading ----
-.dashboard-progress {
-  margin-bottom: 1rem;
-  border-radius: 4px;
-  height: 4px;
-}
-
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem;
-  gap: 1rem;
-  color: $text-muted;
-
-  &--inline {
-    padding: 2rem 1rem 3rem;
-  }
-
-  .spinner-ring {
-    width: 44px;
-    height: 44px;
-    border: 4px solid $border;
-    border-top-color: $primary;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-}
-
-.dashboard-code {
-  font-family: ui-monospace, monospace;
-  font-size: 0.8em;
-  padding: 0.1rem 0.35rem;
-  border-radius: 4px;
-  background: rgba(15, 23, 42, 0.06);
-  color: $text-main;
-}
-
-// ---- Erro API ----
-.dashboard-error {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 1rem 1.25rem;
-  padding: 1.35rem 1.5rem;
-  border-radius: 12px;
-  border: 1px solid #fecaca;
-  background: linear-gradient(135deg, #fef2f2 0%, #fff 100%);
-  color: #7f1d1d;
-}
-
-.dashboard-error__icon mat-icon {
-  font-size: 40px;
-  width: 40px;
-  height: 40px;
-  color: #dc2626;
-  opacity: 0.9;
-}
-
-.dashboard-error__body {
-  flex: 1;
-  min-width: 200px;
-}
-
-.dashboard-error__title {
-  margin: 0 0 0.35rem;
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: #991b1b;
-}
-
-.dashboard-error__msg {
-  margin: 0 0 0.5rem;
-  font-size: 0.9rem;
-  line-height: 1.45;
-}
-
-.dashboard-error__hint {
-  margin: 0;
-  font-size: 0.78rem;
-  color: #9a3412;
-  line-height: 1.4;
-}
-
-.dashboard-error__retry {
-  align-self: center;
-  background: $primary !important;
-  color: #fff !important;
-  font-weight: 700;
-
-  mat-icon {
-    margin-right: 0.35rem;
-    font-size: 20px;
-    width: 20px;
-    height: 20px;
-    vertical-align: middle;
-  }
-}
-
-// ---- Banner cancelamentos ----
-.dashboard-banner {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  margin-bottom: 1.25rem;
-  padding: 0.75rem 1rem;
-  border-radius: 10px;
-  font-size: 0.88rem;
-
-  mat-icon {
-    flex-shrink: 0;
-    font-size: 22px;
-    width: 22px;
-    height: 22px;
-  }
-
-  &--warn {
-    background: #fffbeb;
-    border: 1px solid #fde68a;
-    color: #92400e;
-  }
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.stat-hint {
-  margin: 0.35rem 0 0;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: $text-muted;
-}
-
-// ---- Stats Grid ----
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1.25rem;
-  margin-bottom: 1.5rem;
-
-  @media (max-width: 1200px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  @media (max-width: 600px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-.stat-card {
-  background: $card-bg;
-  border-radius: 12px;
-  padding: 1.4rem 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
-  transition: box-shadow 0.2s, transform 0.2s;
-
-  &:hover {
-    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
-    transform: translateY(-2px);
-  }
-
-  .stat-icon {
-    width: 52px;
-    height: 52px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-
-    &.icon-green  { background: rgba($primary, 0.12); color: $primary; }
-    &.icon-blue   { background: rgba($info, 0.12);    color: $info; }
-    &.icon-red    { background: rgba($danger, 0.12);  color: $danger; }
-    &.icon-orange { background: rgba($warning, 0.12); color: $warning; }
-  }
-
-  .stat-info {
-    .stat-label {
-      font-size: 0.8rem;
-      color: $text-muted;
-      margin: 0 0 0.3rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .stat-value {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: $text-main;
-      margin: 0;
-      line-height: 1.2;
-    }
-  }
-}
-
-// ---- Content Grid ----
-.content-grid {
+.dash-meta {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.25rem;
+  gap: 10px 16px;
+  margin-bottom: 16px;
 
-  @media (max-width: 900px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-// ---- Cards ----
-.card {
-  background: $card-bg;
-  border-radius: 12px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
-  overflow: hidden;
-
-  .card-header {
-    padding: 1.25rem 1.5rem;
-    border-bottom: 1px solid $border;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    .card-title {
-      font-size: 1rem;
-      font-weight: 600;
-      color: $text-main;
-      margin: 0;
-    }
-  }
-
-  .card-body {
-    padding: 1.5rem;
-  }
-}
-
-// ---- Badge ----
-.badge {
-  padding: 0.3rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-
-  &.badge-success { background: rgba($success, 0.12); color: $success; }
-  &.badge-danger  { background: rgba($danger, 0.12);  color: $danger; }
-}
-
-// ---- Caixa Card ----
-.caixa-card {
-  .caixa-saldo {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: linear-gradient(135deg, $primary, $primary-light);
-    border-radius: 10px;
-    padding: 1.25rem 1.5rem;
-    margin-bottom: 1.5rem;
-
-    .saldo-label {
-      font-size: 0.85rem;
-      color: rgba(255,255,255,0.8);
-    }
-
-    .saldo-value {
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: #fff;
-    }
-  }
-
-  .section-subtitle {
-    font-size: 0.8rem;
-    color: $text-muted;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin: 0 0 0.75rem;
-  }
-
-  .pagamentos-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-  }
-
-  .pagamento-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.6rem 0;
-    border-bottom: 1px solid $border;
-
-    &:last-child { border-bottom: none; }
-
-    .pagamento-info {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-
-      .pagamento-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: $primary;
-      }
-
-      .pagamento-nome {
-        font-size: 0.9rem;
-        color: $text-main;
-        font-weight: 500;
-        text-transform: capitalize;
-      }
-    }
-
-    .pagamento-valor {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: $text-main;
-    }
-  }
-}
-
-// ---- Summary Card ----
-.summary-card {
-  .summary-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.25rem;
-    margin-bottom: 1.5rem;
-
-    .summary-item {
-      text-align: center;
-      padding: 1rem;
-      background: $bg;
-      border-radius: 10px;
-
-      .summary-number {
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: $text-main;
-        margin: 0 0 0.25rem;
-      }
-
-      .summary-label {
-        font-size: 0.78rem;
-        color: $text-muted;
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-      }
-    }
-  }
-
-  .caixa-status-banner {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.9rem 1.2rem;
-    border-radius: 10px;
-    font-size: 0.875rem;
+  span {
+    display: block;
+    font-size: 0.72rem;
+    color: #667085;
     font-weight: 500;
+  }
 
-    &.open {
-      background: rgba($success, 0.1);
-      color: darken($success, 10%);
+  strong {
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+}
+
+.dash-section-label {
+  margin: 0 0 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #d2a410;
+}
+
+.dash-pay {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  &__top {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #171717;
+  }
+}
+
+.dash-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+
+  div {
+    text-align: center;
+    padding: 12px 8px;
+    background: #faf8f4;
+    border-radius: 8px;
+    border: 1px solid #e7e1d7;
+  }
+
+  strong {
+    display: block;
+    font-size: 1.15rem;
+    font-weight: 800;
+  }
+
+  span {
+    font-size: 0.7rem;
+    color: #667085;
+    font-weight: 500;
+  }
+
+  .is-warn {
+    color: #e65100;
+  }
+
+  .is-ok {
+    color: #2e7d32;
+  }
+}
+
+.dash-orders {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0ebe3;
+
+    &:last-child {
+      border-bottom: 0;
     }
 
-    &.closed {
-      background: rgba($danger, 0.1);
-      color: darken($danger, 5%);
+    strong {
+      display: block;
+      font-size: 0.88rem;
+    }
+
+    span {
+      font-size: 0.75rem;
+      color: #667085;
+    }
+  }
+
+  &__empty {
+    color: #667085;
+    font-size: 0.85rem;
+    padding: 8px 0 !important;
+  }
+}
+
+.dash-crit {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0ebe3;
+
+    &:last-child {
+      border-bottom: 0;
+    }
+
+    img {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: #f5f6f8;
+    }
+
+    strong {
+      display: block;
+      font-size: 0.85rem;
+    }
+
+    span {
+      font-size: 0.75rem;
+      color: #dc2626;
+      font-weight: 600;
     }
   }
 }
 
-// ---- Utility ----
-.text-danger  { color: $danger !important; }
-.text-warning { color: $warning !important; }
-.text-success { color: $success !important; }
+.dash-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 
-// Tema escuro (alternância a partir do painel Status de Vendas)
-.dashboard-wrapper--dark {
-  background: #18181b;
-  transition: background-color 0.3s ease;
-
-  .page-title {
-    color: #fafafa;
+@media (max-width: 1100px) {
+  .dash__grid {
+    grid-template-columns: 1fr 1fr;
   }
 
-  .page-subtitle,
-  .loading-state {
-    color: #a1a1aa;
+  .dash__side {
+    grid-column: 1 / -1;
   }
 
-  .date-badge {
-    background: $primary-light;
+  .dash-summary {
+    grid-template-columns: 1fr 1fr;
   }
+}
 
-  .stat-card {
-    background: #27272a;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
-
-    .stat-label {
-      color: #a1a1aa;
-    }
-
-    .stat-value {
-      color: #fafafa;
-    }
-  }
-
-  .card {
-    background: #27272a;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
-
-    .card-header {
-      border-bottom-color: #3f3f46;
-
-      .card-title {
-        color: #fafafa;
-      }
-    }
-  }
-
-  .pagamento-item {
-    border-bottom-color: #3f3f46;
-
-    .pagamento-nome,
-    .pagamento-valor {
-      color: #e4e4e7;
-    }
-  }
-
-  .section-subtitle {
-    color: #a1a1aa;
-  }
-
-  .summary-card .summary-item {
-    background: #18181b;
-
-    .summary-number {
-      color: #fafafa;
-    }
-
-    .summary-label {
-      color: #a1a1aa;
-    }
-  }
-
-  .caixa-status-banner.open {
-    background: rgba($success, 0.15);
-    color: #86efac;
-  }
-
-  .caixa-status-banner.closed {
-    background: rgba($danger, 0.15);
-    color: #fca5a5;
+@media (max-width: 720px) {
+  .dash__grid {
+    grid-template-columns: 1fr;
   }
 }

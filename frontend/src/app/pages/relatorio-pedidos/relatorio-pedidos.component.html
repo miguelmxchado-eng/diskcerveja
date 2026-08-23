@@ -1,140 +1,332 @@
-<div class="erp-page-heading">
-  <div>
-    <p class="erp-page-heading__eyebrow">Relatórios</p>
-    <h2 class="erp-page-heading__title">Pedidos por período</h2>
-    <p class="erp-page-heading__subtitle">Lucro real das vendas entregues: receita menos o custo de compra gravado na venda.</p>
+<div class="em-page hist" (click)="fecharMenuPedido()">
+  <header class="em-page__head">
+    <div>
+      <h1 class="em-page__title">Histórico de vendas</h1>
+      <p class="em-page__subtitle">Consulte pedidos, pagamentos e resultados</p>
+    </div>
+    <div class="em-page__actions">
+      <button type="button" class="em-btn em-btn--ghost" (click)="exportar()" [disabled]="carregando()">
+        <mat-icon>download</mat-icon>
+        Exportar
+      </button>
+      <button type="button" class="em-btn em-btn--ghost" (click)="carregar()" [disabled]="carregando()">
+        <mat-icon>refresh</mat-icon>
+        Atualizar
+      </button>
+    </div>
+  </header>
+
+  <div class="hist-period">
+    @if (periodoExibicao()) {
+      <span class="hist-period__range">{{ periodoExibicao() }}</span>
+    }
+    <div class="hist-period__chips">
+      <button
+        type="button"
+        class="em-chip"
+        [class.em-chip--active]="periodoChip() === 'hoje'"
+        (click)="selecionarPeriodo('hoje')"
+      >
+        Hoje
+      </button>
+      <button
+        type="button"
+        class="em-chip"
+        [class.em-chip--active]="periodoChip() === '7dias'"
+        (click)="selecionarPeriodo('7dias')"
+      >
+        7 dias
+      </button>
+      <button
+        type="button"
+        class="em-chip"
+        [class.em-chip--active]="periodoChip() === '30dias'"
+        (click)="selecionarPeriodo('30dias')"
+      >
+        30 dias
+      </button>
+      <button
+        type="button"
+        class="em-chip"
+        [class.em-chip--active]="periodoChip() === 'mes'"
+        (click)="selecionarPeriodo('mes')"
+      >
+        Este mês
+      </button>
+    </div>
   </div>
-  <button mat-stroked-button type="button" (click)="carregar()" [disabled]="carregando()">
-    Atualizar
-  </button>
-</div>
 
-<mat-tab-group [selectedIndex]="tabIndex()" (selectedIndexChange)="onTabChange($event)">
-  <mat-tab label="Hoje"></mat-tab>
-  <mat-tab label="Semana"></mat-tab>
-  <mat-tab label="Mês"></mat-tab>
-  <mat-tab label="Ano"></mat-tab>
-</mat-tab-group>
-
-@if (carregando()) {
-  <mat-progress-bar mode="indeterminate" style="margin-top: 4px"></mat-progress-bar>
-}
-
-@if (!carregando()) {
-  @if (dados(); as d) {
-
-    <mat-card class="resumo">
-      <mat-card-content>
-        <div class="resumo-grid">
-          <div class="resumo-stat">
-            <span class="resumo-stat__label">Período</span>
-            <strong class="resumo-stat__value">{{ d.periodoDescricao }}</strong>
-            <span class="resumo-stat__sub">{{ d.dataInicio }} → {{ d.dataFim }}</span>
-          </div>
-          <div class="resumo-stat">
-            <span class="resumo-stat__label">Total pedidos</span>
-            <strong class="resumo-stat__value">R$ {{ d.somaTotalPedidos | number: '1.2-2' }}</strong>
-          </div>
-          <div class="resumo-stat resumo-stat--destaque">
-            <span class="resumo-stat__label">Vendas entregues</span>
-            <strong class="resumo-stat__value">R$ {{ d.somaVendasEntregues | number: '1.2-2' }}</strong>
-          </div>
-          <div class="resumo-stat">
-            <span class="resumo-stat__label">Custo de compra</span>
-            <strong class="resumo-stat__value">R$ {{ d.somaCustoEntregues | number: '1.2-2' }}</strong>
-          </div>
-          <div class="resumo-stat resumo-stat--lucro" [class.resumo-stat--prejuizo]="d.somaLucroEntregues < 0">
-            <span class="resumo-stat__label">Lucro real</span>
-            <strong class="resumo-stat__value">R$ {{ d.somaLucroEntregues | number: '1.2-2' }}</strong>
-            <span class="resumo-stat__sub">Margem {{ d.margemPercentual | number: '1.1-1' }}%</span>
-          </div>
+  @if (carregando()) {
+    <div class="hist-loading">Carregando histórico…</div>
+  } @else if (dados()) {
+    <div class="em-kpi-row">
+      <div class="em-kpi">
+        <span class="em-kpi__ico"><mat-icon>receipt_long</mat-icon></span>
+        <div>
+          <p class="em-kpi__value">{{ kpis().pedidos }}</p>
+          <p class="em-kpi__label">Pedidos</p>
         </div>
-
-        @if (d.quantidadeEntreguesSemCaixa > 0) {
-          <div class="alerta">
-            ⚠ {{ d.quantidadeEntreguesSemCaixa }} entregue(s) sem lançamento no caixa
-          </div>
-        }
-
-        <div class="acoes">
-          <button mat-flat-button color="primary" type="button" (click)="sincronizarCaixa()">
-            Sincronizar com o caixa
-          </button>
-          <button mat-stroked-button type="button" (click)="carregar()">Atualizar</button>
+      </div>
+      <div class="em-kpi">
+        <span class="em-kpi__ico"><mat-icon>payments</mat-icon></span>
+        <div>
+          <p class="em-kpi__value">R$ {{ kpis().faturamento | number: '1.2-2' }}</p>
+          <p class="em-kpi__label">Faturamento</p>
         </div>
-      </mat-card-content>
-    </mat-card>
-
-    <div class="table-wrapper">
-      <table mat-table [dataSource]="d.pedidos" class="mat-elevation-z1 wide">
-        <ng-container matColumnDef="id">
-          <th mat-header-cell *matHeaderCellDef>#</th>
-          <td mat-cell *matCellDef="let r">{{ r.id }}</td>
-        </ng-container>
-        <ng-container matColumnDef="data">
-          <th mat-header-cell *matHeaderCellDef>Data</th>
-          <td mat-cell *matCellDef="let r">{{ r.dataHora | date: 'dd/MM HH:mm' }}</td>
-        </ng-container>
-        <ng-container matColumnDef="cliente">
-          <th mat-header-cell *matHeaderCellDef>Cliente</th>
-          <td mat-cell *matCellDef="let r">{{ r.clienteNome || '—' }}</td>
-        </ng-container>
-        <ng-container matColumnDef="tipo">
-          <th mat-header-cell *matHeaderCellDef>Tipo</th>
-          <td mat-cell *matCellDef="let r">
-            <span class="tipo-chip tipo-chip--{{ r.tipo | lowercase }}">{{ r.tipo | statusLabel }}</span>
-          </td>
-        </ng-container>
-        <ng-container matColumnDef="status">
-          <th mat-header-cell *matHeaderCellDef>Status</th>
-          <td mat-cell *matCellDef="let r">
-            <span class="status-chip status-chip--{{ r.status | lowercase }}">{{ r.status | statusLabel }}</span>
-          </td>
-        </ng-container>
-        <ng-container matColumnDef="total">
-          <th mat-header-cell *matHeaderCellDef>Total</th>
-          <td mat-cell *matCellDef="let r"><strong>R$ {{ r.total | number: '1.2-2' }}</strong></td>
-        </ng-container>
-        <ng-container matColumnDef="lucro">
-          <th mat-header-cell *matHeaderCellDef>Lucro</th>
-          <td mat-cell *matCellDef="let r">
-            @if (r.status === 'ENTREGUE' && r.lucro != null) {
-              <strong [class.lucro-positivo]="r.lucro > 0" [class.lucro-negativo]="r.lucro < 0">
-                R$ {{ r.lucro | number: '1.2-2' }}
-              </strong>
-            } @else {
-              —
-            }
-          </td>
-        </ng-container>
-        <ng-container matColumnDef="pagamento">
-          <th mat-header-cell *matHeaderCellDef>Pagamento</th>
-          <td mat-cell *matCellDef="let r">
-            <span class="pag-chip pag-chip--{{ r.formaPagamento | lowercase }}">{{ r.formaPagamento | statusLabel }}</span>
-          </td>
-        </ng-container>
-        <ng-container matColumnDef="caixa">
-          <th mat-header-cell *matHeaderCellDef>Caixa</th>
-          <td mat-cell *matCellDef="let r">
-            @if (r.status === 'ENTREGUE') {
-              <span class="status-chip" [class.status-chip--entregue]="r.registradoNoCaixa" [class.status-chip--cancelado]="!r.registradoNoCaixa">
-                {{ r.registradoNoCaixa ? 'Sim' : 'Não' }}
-              </span>
-            } @else { — }
-          </td>
-        </ng-container>
-        <tr mat-header-row *matHeaderRowDef="cols"></tr>
-        <tr mat-row *matRowDef="let row; columns: cols"></tr>
-        <tr class="mat-mdc-row" *matNoDataRow>
-          <td class="mat-mdc-cell empty-state" [attr.colspan]="cols.length">Nenhum pedido neste período.</td>
-        </tr>
-      </table>
+      </div>
+      <div class="em-kpi">
+        <span class="em-kpi__ico"><mat-icon>trending_up</mat-icon></span>
+        <div>
+          <p class="em-kpi__value">R$ {{ kpis().lucro | number: '1.2-2' }}</p>
+          <p class="em-kpi__label">Lucro real</p>
+        </div>
+      </div>
+      <div class="em-kpi">
+        <span class="em-kpi__ico"><mat-icon>percent</mat-icon></span>
+        <div>
+          <p class="em-kpi__value">{{ kpis().margem | number: '1.1-1' }}%</p>
+          <p class="em-kpi__label">Margem</p>
+        </div>
+      </div>
     </div>
 
+    <div class="em-toolbar">
+      <label class="em-search">
+        <mat-icon>search</mat-icon>
+        <input
+          type="search"
+          placeholder="Buscar pedido, cliente ou telefone"
+          [ngModel]="busca()"
+          (ngModelChange)="onBuscaChange($event)"
+        />
+      </label>
+      <select
+        class="em-select"
+        [ngModel]="filtroStatus()"
+        (ngModelChange)="filtroStatus.set($event); onFiltroChange()"
+      >
+        <option value="">Todos os status</option>
+        <option value="ABERTO">Aberto</option>
+        <option value="EM_PREPARO">Em preparo</option>
+        <option value="SAIU_ENTREGA">Saiu p/ entrega</option>
+        <option value="ENTREGUE">Entregue</option>
+        <option value="CANCELADO">Cancelado</option>
+      </select>
+      <select
+        class="em-select"
+        [ngModel]="filtroTipo()"
+        (ngModelChange)="filtroTipo.set($event); onFiltroChange()"
+      >
+        <option value="">Todos os tipos</option>
+        <option value="BALCAO">Balcão</option>
+        <option value="RETIRADA">Retirada</option>
+        <option value="ENTREGA">Entrega</option>
+      </select>
+      <select
+        class="em-select"
+        [ngModel]="filtroPagamento()"
+        (ngModelChange)="filtroPagamento.set($event); onFiltroChange()"
+      >
+        <option value="">Todos os pagamentos</option>
+        <option value="PIX">PIX</option>
+        <option value="CARTAO">Cartão</option>
+        <option value="DINHEIRO">Dinheiro</option>
+      </select>
+      <button type="button" class="em-btn em-btn--ghost" (click)="toggleFiltros()">
+        <mat-icon>tune</mat-icon>
+        Filtros
+      </button>
+    </div>
+
+    @if (filtrosAbertos()) {
+      <div class="hist-extra-filters em-card">
+        <div class="em-card__body">
+          @if ((dados()?.quantidadeEntreguesSemCaixa ?? 0) > 0) {
+            <p class="hist-alert">
+              <mat-icon>warning_amber</mat-icon>
+              {{ dados()?.quantidadeEntreguesSemCaixa }} entregue(s) sem lançamento no caixa
+            </p>
+          }
+          <div class="hist-extra-filters__actions">
+            <button type="button" class="em-btn em-btn--gold-outline" (click)="sincronizarCaixa()">
+              <mat-icon>sync</mat-icon>
+              Sincronizar com o caixa
+            </button>
+            <button type="button" class="em-link" (click)="toggleFiltros()">Fechar</button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <div class="em-grid-main-side">
+      <div class="hist-main">
+        <div class="em-table-wrap">
+          <table class="em-table">
+            <thead>
+              <tr>
+                <th>Pedido</th>
+                <th>Data/hora</th>
+                <th>Cliente</th>
+                <th>Tipo</th>
+                <th>Status</th>
+                <th>Pagamento</th>
+                <th>Total</th>
+                <th>Lucro</th>
+                <th>Caixa</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (p of pedidosPaginados(); track p.id) {
+                <tr>
+                  <td><span class="em-code">#{{ p.id }}</span></td>
+                  <td>{{ p.dataHora | date: 'dd/MM/yyyy HH:mm' }}</td>
+                  <td>{{ p.clienteNome || '—' }}</td>
+                  <td>
+                    <span class="em-badge" [class]="tipoBadge(p.tipo)">{{ p.tipo | statusLabel }}</span>
+                  </td>
+                  <td>
+                    <span class="em-badge" [class]="statusBadge(p.status)">{{ p.status | statusLabel }}</span>
+                  </td>
+                  <td>{{ p.formaPagamento | statusLabel }}</td>
+                  <td><strong>R$ {{ p.total | number: '1.2-2' }}</strong></td>
+                  <td>
+                    @if (p.status === 'ENTREGUE' && p.lucro != null) {
+                      <span class="hist-lucro" [class.hist-lucro--neg]="p.lucro < 0">
+                        R$ {{ p.lucro | number: '1.2-2' }}
+                      </span>
+                    } @else {
+                      —
+                    }
+                  </td>
+                  <td>
+                    @if (p.status === 'ENTREGUE') {
+                      <span
+                        class="em-badge"
+                        [class.em-badge--ok]="p.registradoNoCaixa"
+                        [class.em-badge--danger]="!p.registradoNoCaixa"
+                      >
+                        {{ p.registradoNoCaixa ? 'Sim' : 'Não' }}
+                      </span>
+                    } @else {
+                      —
+                    }
+                  </td>
+                  <td class="hist-actions">
+                    <div class="hist-actions__wrap">
+                      <button
+                        type="button"
+                        class="hist-actions__btn"
+                        (click)="toggleMenuPedido(p.id, $event)"
+                        aria-label="Ações do pedido"
+                      >
+                        <mat-icon>more_vert</mat-icon>
+                      </button>
+                      @if (menuPedidoId() === p.id) {
+                        <div class="hist-actions__menu" (click)="$event.stopPropagation()">
+                          <button type="button" (click)="copiarIdPedido(p)">Copiar nº do pedido</button>
+                        </div>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="10" class="hist-empty">Nenhum pedido encontrado neste período.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          <div class="em-pagination">
+            <span>{{ paginationLabel() }}</span>
+            <div class="em-pager">
+              <button type="button" [disabled]="paginaAtual() <= 1" (click)="irParaPagina(paginaAtual() - 1)">
+                ‹
+              </button>
+              @for (pg of paginasVisiveis(); track pg) {
+                <button type="button" [class.on]="pg === paginaAtual()" (click)="irParaPagina(pg)">
+                  {{ pg }}
+                </button>
+              }
+              <button
+                type="button"
+                [disabled]="paginaAtual() >= totalPaginas()"
+                (click)="irParaPagina(paginaAtual() + 1)"
+              >
+                ›
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="hist-side">
+        <div class="em-card">
+          <div class="em-card__head">
+            <h2 class="em-card__title">Resumo do período</h2>
+          </div>
+          <div class="em-card__body">
+            @if (chartBars().length) {
+              <div class="em-bar-chart">
+                @for (bar of chartBars(); track bar.label) {
+                  <div class="em-bar-chart__col">
+                    <div class="em-bar-chart__bar" [style.height.%]="bar.heightPct"></div>
+                    <span class="em-bar-chart__label">{{ bar.label }}</span>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="em-page__subtitle">Sem vendas entregues no período.</p>
+            }
+          </div>
+        </div>
+
+        <div class="em-card">
+          <div class="em-card__head">
+            <h2 class="em-card__title">Formas de pagamento</h2>
+          </div>
+          <div class="em-card__body">
+            @for (pay of paymentRows(); track pay.nome) {
+              <div class="hist-pay">
+                <div class="hist-pay__top">
+                  <span>{{ pay.nome }}</span>
+                  <span>R$ {{ pay.valor | number: '1.2-2' }} · {{ pay.pct }}%</span>
+                </div>
+                <div class="em-progress"><span [style.width.%]="pay.pct"></span></div>
+              </div>
+            } @empty {
+              <p class="em-page__subtitle">Sem pagamentos registrados.</p>
+            }
+          </div>
+        </div>
+
+        <div class="em-card">
+          <div class="em-card__head">
+            <h2 class="em-card__title">Top produtos</h2>
+          </div>
+          <div class="em-card__body">
+            <ul class="hist-top">
+              @for (prod of topProdutos; track prod.nome) {
+                <li>
+                  <div>
+                    <strong>{{ prod.nome }}</strong>
+                    <span>{{ prod.unidades }} un.</span>
+                  </div>
+                  <span>R$ {{ prod.valor | number: '1.2-2' }}</span>
+                </li>
+              }
+            </ul>
+            <p class="hist-top__hint">Dados ilustrativos — aguardando endpoint de produtos.</p>
+          </div>
+        </div>
+      </aside>
+    </div>
   } @else {
-    <div class="empty-periodo">
-      <p>Nenhum dado encontrado para este período.</p>
-      <button mat-stroked-button type="button" (click)="carregar()">Tentar novamente</button>
+    <div class="em-card hist-empty-state">
+      <div class="em-card__body">
+        <p class="em-page__subtitle">Nenhum dado encontrado para este período.</p>
+        <button type="button" class="em-btn em-btn--gold" (click)="carregar()">Tentar novamente</button>
+      </div>
     </div>
   }
-}
+</div>
