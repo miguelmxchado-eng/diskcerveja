@@ -171,179 +171,109 @@
       <mat-progress-bar mode="indeterminate"></mat-progress-bar>
     }
 
-    <div class="em-grid-main-side">
-      <div class="est-main">
-        <div class="em-table-wrap">
-          <table class="em-table">
-            <thead>
-              <tr>
-                <th>Produto</th>
-                <th>Código</th>
-                <th>Categoria</th>
-                <th>Estoque atual</th>
-                <th>Mínimo</th>
-                <th>Custo médio</th>
-                <th>Valor em estoque</th>
-                <th>Ação</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (p of produtosPaginados(); track p.id) {
-                <tr [class.est-row--highlight]="produtoDestacadoId() === p.id">
-                  <td>
-                    <div class="em-product-cell">
-                      <img
-                        class="em-product-cell__img"
-                        [src]="fotoProduto(p)"
-                        [alt]="p.nome"
-                        width="44"
-                        height="44"
-                      />
-                      <span class="em-product-cell__name">{{ p.nome }}</span>
-                    </div>
-                  </td>
-                  <td>
-                    @if (codigoExibicao(p); as cod) {
-                      <div class="est-code-cell">
-                        <code class="em-code">{{ cod }}</code>
-                        <button
-                          type="button"
-                          class="est-icon-btn"
-                          (click)="copiarCodigo(p, $event)"
-                          matTooltip="Copiar código"
-                          aria-label="Copiar código"
-                        >
-                          <mat-icon>content_copy</mat-icon>
-                        </button>
-                      </div>
-                    } @else {
-                      —
-                    }
-                  </td>
-                  <td>{{ p.categoria | statusLabel }}</td>
-                  <td>
-                    @if (isCritico(p)) {
-                      <span class="em-badge em-badge--danger">Crítico · {{ p.estoqueAtual }} un.</span>
-                    } @else if (isBaixo(p)) {
-                      <span class="em-badge em-badge--warn">Baixo · {{ p.estoqueAtual }} un.</span>
-                    } @else {
-                      <span class="em-badge em-badge--neutral">{{ p.estoqueAtual }} un.</span>
-                    }
-                  </td>
-                  <td>{{ p.estoqueMinimo }}</td>
-                  <td>R$ {{ p.custo | number: '1.2-2' }}</td>
-                  <td>R$ {{ valorProdutoEstoque(p) | number: '1.2-2' }}</td>
-                  <td>
-                    <button type="button" class="em-btn em-btn--gold-outline est-btn-sm" (click)="movimentarProduto(p)">
-                      Movimentar
+    <div class="em-table-wrap est-table-full">
+      <table class="em-table est-table">
+        <thead>
+          <tr>
+            <th>Produto</th>
+            <th>Código</th>
+            <th>Categoria</th>
+            <th>Estoque atual</th>
+            <th>Mínimo</th>
+            <th>Custo médio</th>
+            <th>Valor em estoque</th>
+            <th>Ação</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of produtosPaginados(); track p.id) {
+            <tr [class.est-row--highlight]="produtoDestacadoId() === p.id">
+              <td>
+                <div class="em-product-cell">
+                  <img
+                    class="em-product-cell__img"
+                    [src]="fotoProduto(p)"
+                    [alt]="p.nome"
+                    width="44"
+                    height="44"
+                  />
+                  <span class="em-product-cell__name">{{ p.nome }}</span>
+                </div>
+              </td>
+              <td>
+                @if (codigoExibicao(p); as cod) {
+                  <div class="est-code-cell">
+                    <code class="em-code">{{ cod }}</code>
+                    <button
+                      type="button"
+                      class="est-icon-btn"
+                      (click)="copiarCodigo(p, $event)"
+                      matTooltip="Copiar código"
+                      aria-label="Copiar código"
+                    >
+                      <mat-icon>content_copy</mat-icon>
                     </button>
-                  </td>
-                </tr>
-              } @empty {
-                <tr>
-                  <td colspan="8" class="est-empty">Nenhum produto encontrado.</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-
-          @if (produtosVisaoGeral().length > PAGE_SIZE) {
-            <div class="em-pagination">
-              <span>
-                {{ (paginaProdutos() - 1) * PAGE_SIZE + 1 }}–{{
-                  paginaProdutos() * PAGE_SIZE > produtosVisaoGeral().length
-                    ? produtosVisaoGeral().length
-                    : paginaProdutos() * PAGE_SIZE
-                }}
-                de {{ produtosVisaoGeral().length }} produtos
-              </span>
-              <div class="em-pager">
-                <button type="button" (click)="irPaginaProdutos(paginaProdutos() - 1)" [disabled]="paginaProdutos() <= 1">
-                  ‹
-                </button>
-                @for (pg of paginasProdutos(); track pg) {
-                  <button type="button" [class.on]="paginaProdutos() === pg" (click)="irPaginaProdutos(pg)">
-                    {{ pg }}
-                  </button>
+                  </div>
+                } @else {
+                  —
                 }
-                <button
-                  type="button"
-                  (click)="irPaginaProdutos(paginaProdutos() + 1)"
-                  [disabled]="paginaProdutos() >= totalPaginasProdutos()"
-                >
-                  ›
+              </td>
+              <td>{{ p.categoria | statusLabel }}</td>
+              <td>
+                @if (isCritico(p)) {
+                  <span class="em-badge em-badge--danger">Crítico · {{ p.estoqueAtual }} un.</span>
+                } @else if (isBaixo(p)) {
+                  <span class="em-badge em-badge--warn">Baixo · {{ p.estoqueAtual }} un.</span>
+                } @else {
+                  <span class="em-badge em-badge--neutral">{{ p.estoqueAtual }} un.</span>
+                }
+              </td>
+              <td>{{ p.estoqueMinimo }}</td>
+              <td>R$ {{ p.custo | number: '1.2-2' }}</td>
+              <td>R$ {{ valorProdutoEstoque(p) | number: '1.2-2' }}</td>
+              <td>
+                <button type="button" class="em-btn em-btn--gold-outline est-btn-sm" (click)="movimentarProduto(p)">
+                  Movimentar
                 </button>
-              </div>
-            </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="8" class="est-empty">Nenhum produto encontrado.</td>
+            </tr>
           }
-        </div>
-      </div>
+        </tbody>
+      </table>
 
-      <aside class="est-side">
-        <div class="em-card">
-          <div class="em-card__head">
-            <h2 class="em-card__title">Atenção necessária</h2>
-            @if (totalAlertas() > 0) {
-              <span class="em-badge em-badge--danger">{{ totalAlertas() }}</span>
-            }
-          </div>
-          <div class="em-card__body">
-            <ul class="est-alert-list">
-              @for (p of alertasTop2(); track p.id) {
-                <li class="est-alert-item">
-                  <img [src]="fotoProduto(p)" [alt]="p.nome" width="40" height="40" class="est-alert-item__img" />
-                  <div class="est-alert-item__info">
-                    <strong>{{ p.nome }}</strong>
-                    <span>{{ p.estoqueAtual }} un. · mín. {{ p.estoqueMinimo }}</span>
-                  </div>
-                  <button type="button" class="em-btn em-btn--gold est-btn-sm" (click)="reporAgora(p)">
-                    Repor agora
-                  </button>
-                </li>
-              } @empty {
-                <li class="est-empty-side">
-                  <mat-icon>check_circle_outline</mat-icon>
-                  Estoque em dia.
-                </li>
-              }
-            </ul>
-          </div>
-          @if (totalAlertas() > 0) {
-            <div class="em-card__foot">
-              <button type="button" class="em-link" (click)="setTab('alertas')">
-                Ver todos os {{ totalAlertas() }} alertas
+      @if (produtosVisaoGeral().length > PAGE_SIZE) {
+        <div class="em-pagination">
+          <span>
+            {{ (paginaProdutos() - 1) * PAGE_SIZE + 1 }}–{{
+              paginaProdutos() * PAGE_SIZE > produtosVisaoGeral().length
+                ? produtosVisaoGeral().length
+                : paginaProdutos() * PAGE_SIZE
+            }}
+            de {{ produtosVisaoGeral().length }} produtos
+          </span>
+          <div class="em-pager">
+            <button type="button" (click)="irPaginaProdutos(paginaProdutos() - 1)" [disabled]="paginaProdutos() <= 1">
+              ‹
+            </button>
+            @for (pg of paginasProdutos(); track pg) {
+              <button type="button" [class.on]="paginaProdutos() === pg" (click)="irPaginaProdutos(pg)">
+                {{ pg }}
               </button>
-            </div>
-          }
-        </div>
-
-        <div class="em-card">
-          <div class="em-card__head">
-            <h2 class="em-card__title">Movimentações recentes</h2>
-            <button type="button" class="em-link" (click)="setTab('movimentos')">Ver todas</button>
-          </div>
-          <div class="em-card__body">
-            <ul class="est-mov-list">
-              @for (m of movimentosRecentes(); track m.id ?? $index) {
-                <li class="est-mov-item">
-                  <span class="est-mov-icon" [class]="tipoMovimentoClass(m.tipo)">
-                    <mat-icon>{{ tipoMovimentoIcon(m.tipo) }}</mat-icon>
-                  </span>
-                  <div class="est-mov-item__info">
-                    <strong>{{ m.produto?.nome ?? '—' }}</strong>
-                    <span>{{ m.tipo | statusLabel }} · {{ m.createdAt | date: 'dd/MM HH:mm' }}</span>
-                  </div>
-                  <span class="est-mov-item__qtd" [class]="tipoMovimentoClass(m.tipo)">
-                    {{ m.tipo === 'ENTRADA' ? '+' : '' }}{{ m.quantidade }}
-                  </span>
-                </li>
-              } @empty {
-                <li class="est-empty-side">Nenhuma movimentação registrada.</li>
-              }
-            </ul>
+            }
+            <button
+              type="button"
+              (click)="irPaginaProdutos(paginaProdutos() + 1)"
+              [disabled]="paginaProdutos() >= totalPaginasProdutos()"
+            >
+              ›
+            </button>
           </div>
         </div>
-      </aside>
+      }
     </div>
   }
 

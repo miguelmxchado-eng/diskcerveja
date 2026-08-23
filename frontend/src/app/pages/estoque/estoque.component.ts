@@ -144,9 +144,6 @@ export class EstoqueComponent implements OnInit, OnDestroy {
     Array.from({ length: this.totalPaginasProdutos() }, (_, i) => i + 1),
   );
 
-  movimentosRecentes = computed(() => this.movimentos().slice(0, 3));
-  alertasTop2 = computed(() => this.baixo().slice(0, 2));
-
   readonly categoriasProduto = computed(() => {
     const cats = new Set(this.todosProdutos().map((p) => p.categoria));
     return ['TODAS', ...Array.from(cats).sort()];
