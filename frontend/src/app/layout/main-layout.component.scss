@@ -16,15 +16,24 @@
 }
 
 .erp-shell--pdv {
-  .dc-page {
-    max-width: none;
-    margin: 0;
-    padding: 0;
-    height: 100%;
+  .content-body {
+    /* Anula padding do Travl (7.5rem + container-fluid) que esmagava o PDV */
+    box-sizing: border-box;
+    padding: var(--erp-header-height, 80px) 0 0 !important;
+    margin-left: var(--erp-sidebar-width);
+    min-height: 0 !important;
+    height: 100dvh;
+    overflow: hidden;
   }
 
-  .content-body {
+  .dc-page.container-fluid,
+  .container-fluid.dc-page {
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
     padding: 0 !important;
+    height: calc(100dvh - var(--erp-header-height, 80px)) !important;
+    overflow: hidden;
   }
 
   .footer {

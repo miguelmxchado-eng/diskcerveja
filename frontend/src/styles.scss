@@ -135,18 +135,6 @@ body {
   font-weight: 700;
 }
 
-.pdv-grid {
-  display: grid;
-  gap: 12px;
-}
-
-@media (min-width: 900px) {
-  .pdv-grid {
-    grid-template-columns: 1fr 360px;
-    align-items: start;
-  }
-}
-
 .table-wrapper {
   overflow-x: auto;
 }

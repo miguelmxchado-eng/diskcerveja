@@ -63,11 +63,21 @@
       </div>
     </div>
 
-    @if (loadingProdutos() || loadingCombos()) {
-      <mat-progress-bar mode="indeterminate" class="pdv-loading"></mat-progress-bar>
+    @if (catalogoCarregando()) {
+      <div class="pdv-loading" role="status" aria-live="polite">
+        <span class="pdv-loading__spin" aria-hidden="true"></span>
+        <span>Carregando catálogo…</span>
+      </div>
+    } @else if (erroCatalogo()) {
+      <div class="pdv-loading pdv-loading--error" role="alert">
+        <span>{{ erroCatalogo() }}</span>
+        <button type="button" class="pdv-btn pdv-btn--gold" (click)="buscarProdutos(); carregarCombos()">
+          Tentar novamente
+        </button>
+      </div>
     }
 
-    <div class="pdv-grid" role="list">
+    <div class="pdv-products" role="list">
       @if (mostrandoCombos()) {
         @for (c of combosVisiveis(); track c.id) {
           <article
@@ -77,7 +87,7 @@
             (click)="c.estoqueDisponivel > 0 && addCombo(c)"
           >
             <div class="pdv-card__media">
-              <img [src]="comboImagemUrl(c)" [alt]="c.nome" loading="lazy" />
+              <img [src]="comboImagemUrl(c)" [alt]="c.nome" loading="lazy" decoding="async" />
             </div>
             <div class="pdv-card__body">
               <h3 class="pdv-card__name">{{ c.nome }}</h3>
@@ -131,7 +141,7 @@
               <mat-icon>{{ isFavorito(p) ? 'star' : 'star_border' }}</mat-icon>
             </button>
             <div class="pdv-card__media">
-              <img [src]="produtoImagemUrl(p)" [alt]="p.nome" loading="lazy" />
+              <img [src]="produtoImagemUrl(p)" [alt]="p.nome" loading="lazy" decoding="async" />
             </div>
             <div class="pdv-card__body">
               <h3 class="pdv-card__name">{{ p.nome }}</h3>
@@ -165,7 +175,7 @@
             </div>
           </article>
         } @empty {
-          @if (!loadingProdutos()) {
+          @if (!loadingProdutos() && !erroCatalogo()) {
             <div class="pdv-empty">
               <mat-icon>search_off</mat-icon>
               <span>Nenhum produto encontrado.</span>
@@ -174,6 +184,14 @@
         }
       }
     </div>
+
+    @if (!mostrandoCombos() && temMaisProdutos()) {
+      <div class="pdv-more">
+        <button type="button" class="pdv-btn pdv-btn--ghost" (click)="carregarMaisProdutos()">
+          Mostrar mais produtos
+        </button>
+      </div>
+    }
   </section>
 
   <aside class="pdv-cart" aria-label="Carrinho">

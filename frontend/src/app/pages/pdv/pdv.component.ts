@@ -13,7 +13,6 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { DecimalPipe } from '@angular/common';
 import { StatusLabelPipe } from '../../shared/pipes/status-label.pipe';
@@ -33,7 +32,7 @@ import {
   ConfirmDialogComponent,
   ConfirmDialogData,
 } from '../../shared/confirm-dialog/confirm-dialog.component';
-import { Subscription } from 'rxjs';
+import { Subscription, timeout, finalize } from 'rxjs';
 
 const LAST_KEY = 'dcm_last_pedido';
 const FAV_KEY = 'dcm_pdv_favoritos';
@@ -93,7 +92,6 @@ type Ordenacao = 'maisVendidos' | 'nome' | 'precoAsc' | 'precoDesc' | 'estoque';
     FormsModule,
     MatIconModule,
     MatSnackBarModule,
-    MatProgressBarModule,
     MatDialogModule,
     DecimalPipe,
     StatusLabelPipe,
@@ -126,7 +124,11 @@ export class PdvComponent implements OnInit, OnDestroy {
   carrinho = signal<Linha[]>([]);
   loadingProdutos = signal(false);
   loadingCombos = signal(false);
+  erroCatalogo = signal<string | null>(null);
   atalhoAtivo = signal<AtalhoPdv>('todos');
+  /** Evita travar o browser renderizando 100+ cards de uma vez. */
+  pageSize = 24;
+  pagina = signal(1);
   favoritos = signal<number[]>(this.lerFavoritos());
   ultimoScan = signal<{ code: string; nome: string; qtd: number; preco: number } | null>(null);
   historicoScans = signal<ScanHistoryEntry[]>([]);
@@ -176,7 +178,7 @@ export class PdvComponent implements OnInit, OnDestroy {
     return Math.max(0, this.totalItens() - this.desconto() + taxa);
   });
 
-  readonly produtosVisiveis = computed(() => {
+  readonly produtosFiltrados = computed(() => {
     let list = [...this.produtos()];
     const atalho = this.atalhoAtivo();
     const termo = this.q().trim().toLowerCase();
@@ -192,7 +194,7 @@ export class PdvComponent implements OnInit, OnDestroy {
     if (termo) {
       list = list.filter(
         (p) =>
-          p.nome.toLowerCase().includes(termo) ||
+          (p.nome || '').toLowerCase().includes(termo) ||
           (p.categoria || '').toLowerCase().includes(termo) ||
           (p.codigoBarras || '').toLowerCase().includes(termo) ||
           (p.codigoInterno || '').toLowerCase().includes(termo) ||
@@ -202,7 +204,7 @@ export class PdvComponent implements OnInit, OnDestroy {
 
     switch (ord) {
       case 'nome':
-        list.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+        list.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
         break;
       case 'precoAsc':
         list.sort((a, b) => Number(a.preco) - Number(b.preco));
@@ -219,6 +221,15 @@ export class PdvComponent implements OnInit, OnDestroy {
     return list;
   });
 
+  readonly produtosVisiveis = computed(() => {
+    const end = this.pagina() * this.pageSize;
+    return this.produtosFiltrados().slice(0, end);
+  });
+
+  readonly temMaisProdutos = computed(
+    () => this.produtosVisiveis().length < this.produtosFiltrados().length,
+  );
+
   readonly mostrandoCombos = computed(() => this.atalhoAtivo() === 'combos');
 
   readonly combosVisiveis = computed(() => {
@@ -227,13 +238,17 @@ export class PdvComponent implements OnInit, OnDestroy {
     if (termo) {
       list = list.filter(
         (c) =>
-          c.nome.toLowerCase().includes(termo) ||
+          (c.nome || '').toLowerCase().includes(termo) ||
           (c.codigo ?? '').toLowerCase().includes(termo) ||
           (c.codigoBarras ?? '').toLowerCase().includes(termo),
       );
     }
     return list;
   });
+
+  readonly catalogoCarregando = computed(() =>
+    this.mostrandoCombos() ? this.loadingCombos() : this.loadingProdutos(),
+  );
 
   ultimoPedidoId = signal<number | null>(null);
   readonly pedidoPendenteConfirmacao = signal<number | null>(null);
@@ -284,30 +299,47 @@ export class PdvComponent implements OnInit, OnDestroy {
 
   carregarCombos(): void {
     this.loadingCombos.set(true);
-    this.comboService.listarAtivos().subscribe({
-      next: (list) => {
-        this.combos.set(list);
-        this.loadingCombos.set(false);
-      },
-      error: () => this.loadingCombos.set(false),
-    });
+    this.comboService
+      .listarAtivos()
+      .pipe(
+        timeout(15000),
+        finalize(() => this.loadingCombos.set(false)),
+      )
+      .subscribe({
+        next: (list) => this.combos.set(Array.isArray(list) ? list : []),
+        error: () => this.combos.set([]),
+      });
   }
 
   buscarProdutos() {
     this.loadingProdutos.set(true);
-    this.http.get<Produto[]>(`${environment.apiUrl}/api/produtos`).subscribe({
-      next: (p) => {
-        this.produtos.set(p.filter((x) => x.ativo));
-        this.loadingProdutos.set(false);
-      },
-      error: () => {
-        this.loadingProdutos.set(false);
-        this.snack.open('Erro ao carregar produtos.', 'OK', { duration: 3000 });
-      },
-    });
+    this.erroCatalogo.set(null);
+    this.http
+      .get<Produto[]>(`${environment.apiUrl}/api/produtos`)
+      .pipe(
+        timeout(15000),
+        finalize(() => this.loadingProdutos.set(false)),
+      )
+      .subscribe({
+        next: (p) => {
+          const list = Array.isArray(p) ? p : [];
+          this.produtos.set(list.filter((x) => x?.ativo));
+          this.pagina.set(1);
+        },
+        error: () => {
+          this.produtos.set([]);
+          this.erroCatalogo.set('Não foi possível carregar o catálogo. Verifique a conexão e tente de novo.');
+          this.snack.open('Erro ao carregar produtos.', 'OK', { duration: 3000 });
+        },
+      });
+  }
+
+  carregarMaisProdutos(): void {
+    this.pagina.update((n) => n + 1);
   }
 
   onBuscaChange(): void {
+    this.pagina.set(1);
     if (this.buscaIdle) clearTimeout(this.buscaIdle);
     const raw = this.q().trim();
     if (/^\d{8,}$/.test(raw)) {
@@ -325,6 +357,7 @@ export class PdvComponent implements OnInit, OnDestroy {
 
   selecionarAtalho(atalho: AtalhoPdv) {
     this.atalhoAtivo.set(atalho);
+    this.pagina.set(1);
   }
 
   setTipo(t: 'BALCAO' | 'ENTREGA') {
@@ -358,7 +391,7 @@ export class PdvComponent implements OnInit, OnDestroy {
   }
 
   produtoImagemUrl(p: Produto): string {
-    const n = p.nome.toLowerCase();
+    const n = (p.nome || '').toLowerCase();
     if (n.includes('whisky') || n.includes('whiskey') || n.includes('51')) return IMG.whisky;
     if (n.includes('amarula') || n.includes('licor')) return IMG.licor;
     if (n.includes('amstel') || n.includes('heineken') || n.includes('skol') || n.includes('brahma')) {
