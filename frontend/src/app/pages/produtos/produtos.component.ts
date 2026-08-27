@@ -462,18 +462,25 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     </tbody>
   </table>
   <p class="rodape">Impresso pelo sistema Empório Machado. Valores sujeitos a alteração.</p>
-  <script>window.onload = function () { window.print(); };</script>
+  <script>
+    window.addEventListener('load', function () {
+      setTimeout(function () { window.print(); }, 200);
+    });
+  </script>
 </body>
 </html>`;
 
-    const w = window.open('', '_blank', 'noopener,noreferrer,width=900,height=700');
+    // Blob URL evita popup em branco: com "noopener", window.open devolve
+    // referência sem acesso a document.write e a página fica vazia.
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, '_blank');
     if (!w) {
+      URL.revokeObjectURL(url);
       this.snack.open('Permita pop-ups para imprimir a lista.', 'OK', { duration: 3500 });
       return;
     }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
 
   private escapeHtml(value: string): string {
