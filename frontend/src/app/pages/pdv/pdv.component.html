@@ -1,5 +1,20 @@
 <div class="pdv" [class.pdv--flash]="scanFlash()">
   <section class="pdv-catalog" aria-label="Catálogo">
+    @if (precisaAbrirCaixa()) {
+      <div class="pdv-caixa-banner" role="status">
+        <div class="pdv-caixa-banner__text">
+          <mat-icon>lock</mat-icon>
+          <div>
+            <strong>Caixa fechado</strong>
+            <span>Abra o caixa para registrar vendas do dia.</span>
+          </div>
+        </div>
+        <button type="button" class="pdv-btn pdv-btn--gold" (click)="irParaCaixa()">
+          Abrir caixa
+        </button>
+      </div>
+    }
+
     <div class="pdv-search-row">
       <label class="pdv-search" [class.pdv-search--focus]="buscaFocada()">
         <mat-icon class="pdv-search__ico">search</mat-icon>
@@ -386,10 +401,16 @@
     </div>
 
     <div class="pdv-cart__actions">
+      @if (precisaAbrirCaixa()) {
+        <button type="button" class="pdv-caixa-banner pdv-caixa-banner--cart" (click)="irParaCaixa()">
+          <mat-icon>lock</mat-icon>
+          <span>Caixa fechado — toque para abrir</span>
+        </button>
+      }
       <button
         type="button"
         class="pdv-confirm"
-        [disabled]="confirmando() || (!carrinho().length && pedidoPendenteConfirmacao() == null)"
+        [disabled]="precisaAbrirCaixa() || confirmando() || (!carrinho().length && pedidoPendenteConfirmacao() == null)"
         (click)="acaoConfirmar()"
       >
         <mat-icon>{{ confirmando() ? 'hourglass_empty' : 'check_circle' }}</mat-icon>

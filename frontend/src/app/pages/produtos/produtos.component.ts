@@ -334,6 +334,156 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.snack.open('Importação em breve.', 'OK', { duration: 2500 });
   }
 
+  /** Lista em papel: nome + preço de venda (para quem não usa o sistema). */
+  imprimirListaPrecos(): void {
+    const ativos = this.produtos()
+      .filter((p) => p.ativo)
+      .sort((a, b) => {
+        const ca = (a.categoria || '').localeCompare(b.categoria || '', 'pt-BR');
+        if (ca !== 0) return ca;
+        return (a.nome || '').localeCompare(b.nome || '', 'pt-BR');
+      });
+
+    if (!ativos.length) {
+      this.snack.open('Não há produtos ativos para imprimir.', 'OK', { duration: 2500 });
+      return;
+    }
+
+    const hoje = new Date().toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+
+    const categorias: Record<string, string> = {
+      CERVEJAS: 'Cervejas',
+      DESTILADOS: 'Destilados',
+      REFRIGERANTES: 'Refrigerantes',
+      ENERGETICOS: 'Energéticos',
+      PETISCOS: 'Petiscos',
+      COMBOS: 'Combos',
+    };
+
+    let ultimaCat = '';
+    const linhas: string[] = [];
+    for (const p of ativos) {
+      const cat = categorias[p.categoria] ?? p.categoria ?? 'Outros';
+      if (cat !== ultimaCat) {
+        ultimaCat = cat;
+        linhas.push(`<tr class="cat"><td colspan="2">${this.escapeHtml(cat)}</td></tr>`);
+      }
+      const preco = Number(p.preco).toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+      });
+      linhas.push(
+        `<tr><td class="nome">${this.escapeHtml(p.nome)}</td><td class="preco">${preco}</td></tr>`,
+      );
+    }
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Lista de preços — Empório Machado</title>
+  <style>
+    @page { margin: 14mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #111;
+    }
+    h1 {
+      margin: 0 0 4px;
+      font-size: 22pt;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .sub {
+      margin: 0 0 18px;
+      font-size: 11pt;
+      color: #444;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th {
+      text-align: left;
+      font-size: 10pt;
+      padding: 8px 6px;
+      border-bottom: 2px solid #111;
+      text-transform: uppercase;
+    }
+    td {
+      padding: 10px 6px;
+      border-bottom: 1px solid #ddd;
+      font-size: 14pt;
+      vertical-align: middle;
+    }
+    tr.cat td {
+      padding-top: 16px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #111;
+      font-size: 12pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      background: #f5f5f5;
+    }
+    td.nome { width: 72%; }
+    td.preco {
+      width: 28%;
+      text-align: right;
+      font-weight: 700;
+      font-size: 16pt;
+      white-space: nowrap;
+    }
+    .rodape {
+      margin-top: 20px;
+      font-size: 9pt;
+      color: #666;
+    }
+    @media print {
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Empório Machado</h1>
+  <p class="sub">Lista de preços · ${hoje} · ${ativos.length} produtos</p>
+  <table>
+    <thead>
+      <tr><th>Produto</th><th style="text-align:right">Preço</th></tr>
+    </thead>
+    <tbody>
+      ${linhas.join('')}
+    </tbody>
+  </table>
+  <p class="rodape">Impresso pelo sistema Empório Machado. Valores sujeitos a alteração.</p>
+  <script>window.onload = function () { window.print(); };</script>
+</body>
+</html>`;
+
+    const w = window.open('', '_blank', 'noopener,noreferrer,width=900,height=700');
+    if (!w) {
+      this.snack.open('Permita pop-ups para imprimir a lista.', 'OK', { duration: 3500 });
+      return;
+    }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+  }
+
+  private escapeHtml(value: string): string {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   toggleScannerBusca(): void {
     if (this.scanner.isOpen()) {
       this.scanSub?.unsubscribe();

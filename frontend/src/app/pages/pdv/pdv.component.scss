@@ -137,6 +137,66 @@
   }
 }
 
+.pdv-caixa-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid #f4e8bc;
+  border-radius: 8px;
+  background: #fff8e1;
+  flex-wrap: wrap;
+
+  &__text {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    min-width: 0;
+
+    mat-icon {
+      color: #b98d00;
+      flex-shrink: 0;
+    }
+
+    strong {
+      display: block;
+      font-size: 0.92rem;
+      color: #171717;
+    }
+
+    span {
+      display: block;
+      margin-top: 2px;
+      font-size: 0.8rem;
+      color: #667085;
+    }
+  }
+
+  &--cart {
+    width: 100%;
+    margin: 0 0 10px;
+    justify-content: center;
+    border: 1.5px solid #d2a410;
+    background: #f4e8bc;
+    color: #171717;
+    font: 700 0.82rem/1.2 'Inter', sans-serif;
+    cursor: pointer;
+
+    mat-icon {
+      color: #b98d00;
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+    }
+
+    &:hover {
+      background: #efe0a8;
+    }
+  }
+}
+
 .pdv-filters {
   display: flex;
   align-items: center;

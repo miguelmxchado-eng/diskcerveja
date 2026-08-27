@@ -17,7 +17,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { DecimalPipe } from '@angular/common';
 import { StatusLabelPipe } from '../../shared/pipes/status-label.pipe';
 import { environment } from '../../../environments/environment';
-import { ComboResponse, ClienteDto, PedidoResponse, Produto } from '../../core/models';
+import { ComboResponse, ClienteDto, ConfigCaixaResponse, PedidoResponse, Produto } from '../../core/models';
 import { ComboService } from '../../core/combo.service';
 import { ClienteService } from '../../core/cliente.service';
 import { BarcodeScanResult } from '../../shared/barcode/barcode-scan.types';
@@ -261,6 +261,13 @@ export class PdvComponent implements OnInit, OnDestroy {
   ultimoPedidoId = signal<number | null>(null);
   readonly pedidoPendenteConfirmacao = signal<number | null>(null);
   readonly confirmando = signal(false);
+  readonly caixaObrigatorio = signal(false);
+  readonly caixaAberto = signal(true);
+  readonly caixaVerificando = signal(false);
+
+  readonly precisaAbrirCaixa = computed(
+    () => this.caixaObrigatorio() && !this.caixaAberto() && !this.caixaVerificando(),
+  );
 
   constructor(
     private readonly http: HttpClient,
@@ -278,6 +285,7 @@ export class PdvComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.buscarProdutos();
     this.carregarCombos();
+    this.verificarCaixa();
     this.hid.startListening();
     this.hidSub = this.hid.scan$.subscribe((code) => this.processarCodigo(code, 'hid'));
     this.cameraSub = this.scanner.scanned$.subscribe((r) => this.onScanCamera(r));
@@ -472,6 +480,38 @@ export class PdvComponent implements OnInit, OnDestroy {
 
   irParaProdutos(): void {
     void this.router.navigateByUrl('/produtos');
+  }
+
+  irParaCaixa(): void {
+    void this.router.navigateByUrl('/caixa');
+  }
+
+  verificarCaixa(): void {
+    this.caixaVerificando.set(true);
+    this.http.get<ConfigCaixaResponse>(`${environment.apiUrl}/api/config/caixa`).subscribe({
+      next: (cfg) => {
+        this.caixaObrigatorio.set(!!cfg.caixaObrigatorio);
+        if (!cfg.caixaObrigatorio) {
+          this.caixaAberto.set(true);
+          this.caixaVerificando.set(false);
+          return;
+        }
+        this.http.get(`${environment.apiUrl}/api/caixa/sessao`, { observe: 'response' }).subscribe({
+          next: (r) => {
+            this.caixaAberto.set(r.status !== 204 && r.body != null);
+            this.caixaVerificando.set(false);
+          },
+          error: () => {
+            this.caixaAberto.set(false);
+            this.caixaVerificando.set(false);
+          },
+        });
+      },
+      error: () => {
+        /* Se não der para ler a config, não bloqueia a tela. */
+        this.caixaVerificando.set(false);
+      },
+    });
   }
 
   codigoExibicao(p: Produto): string | null {
@@ -776,6 +816,12 @@ export class PdvComponent implements OnInit, OnDestroy {
   }
 
   acaoConfirmar(): void {
+    if (this.precisaAbrirCaixa()) {
+      this.snack.open('Abra o caixa antes de vender.', 'Abrir caixa', { duration: 4500 }).onAction().subscribe(() => {
+        this.irParaCaixa();
+      });
+      return;
+    }
     if (this.pedidoPendenteConfirmacao() != null) {
       this.confirmarVenda();
       return;
@@ -821,8 +867,14 @@ export class PdvComponent implements OnInit, OnDestroy {
         }
       },
       error: (e) => {
-        const msg = e?.error?.erro ?? 'Erro ao salvar pedido';
-        this.snack.open(msg, 'OK', { duration: 4000 });
+        const msg = e?.error?.erro ?? e?.error?.detail ?? 'Erro ao salvar pedido';
+        const sobreCaixa = /caixa/i.test(String(msg));
+        if (sobreCaixa) {
+          this.verificarCaixa();
+        }
+        this.snack.open(msg, sobreCaixa ? 'Abrir caixa' : 'OK', { duration: 4500 }).onAction().subscribe(() => {
+          if (sobreCaixa) this.irParaCaixa();
+        });
       },
     });
   }
