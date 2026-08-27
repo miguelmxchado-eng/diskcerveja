@@ -462,25 +462,50 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     </tbody>
   </table>
   <p class="rodape">Impresso pelo sistema Empório Machado. Valores sujeitos a alteração.</p>
-  <script>
-    window.addEventListener('load', function () {
-      setTimeout(function () { window.print(); }, 200);
-    });
-  </script>
 </body>
 </html>`;
 
-    // Blob URL evita popup em branco: com "noopener", window.open devolve
-    // referência sem acesso a document.write e a página fica vazia.
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const w = window.open(url, '_blank');
-    if (!w) {
-      URL.revokeObjectURL(url);
-      this.snack.open('Permita pop-ups para imprimir a lista.', 'OK', { duration: 3500 });
+    this.imprimirHtml(html);
+  }
+
+  /** Imprime sem popup (iframe oculto) — evita about:blank / bloqueio de pop-up. */
+  private imprimirHtml(html: string): void {
+    document.getElementById('em-print-frame')?.remove();
+
+    const iframe = document.createElement('iframe');
+    iframe.id = 'em-print-frame';
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.cssText =
+      'position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none';
+    document.body.appendChild(iframe);
+
+    const win = iframe.contentWindow;
+    const doc = iframe.contentDocument ?? win?.document;
+    if (!win || !doc) {
+      iframe.remove();
+      this.snack.open('Não foi possível abrir a impressão. Tente de novo.', 'OK', {
+        duration: 3500,
+      });
       return;
     }
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    // Aguarda o layout do iframe antes de chamar a impressão.
+    setTimeout(() => {
+      try {
+        win.focus();
+        win.print();
+      } catch {
+        this.snack.open('Não foi possível abrir a impressão. Tente de novo.', 'OK', {
+          duration: 3500,
+        });
+      } finally {
+        setTimeout(() => iframe.remove(), 1000);
+      }
+    }, 300);
   }
 
   private escapeHtml(value: string): string {
