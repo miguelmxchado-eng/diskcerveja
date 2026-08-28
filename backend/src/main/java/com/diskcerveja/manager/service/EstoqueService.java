@@ -72,8 +72,8 @@ public class EstoqueService {
                     baixarProduto(ci.getProduto(), q, pedido, usuario, motivoBaixaCombo(item, pedido));
                 }
             } else {
-                baixarProduto(item.getProduto(), item.getQuantidade(), pedido, usuario,
-                        "Baixa pedido #" + pedido.getId());
+                int q = quantidadeEstoque(item);
+                baixarProduto(item.getProduto(), q, pedido, usuario, "Baixa pedido #" + pedido.getId());
             }
         });
     }
@@ -105,10 +105,27 @@ public class EstoqueService {
                     estornarProduto(ci.getProduto(), q, pedido, usuario, motivoEstornoCombo(item, pedido));
                 }
             } else {
-                estornarProduto(item.getProduto(), item.getQuantidade(), pedido, usuario,
-                        "Estorno pedido #" + pedido.getId());
+                int q = quantidadeEstoque(item);
+                estornarProduto(item.getProduto(), q, pedido, usuario, "Estorno pedido #" + pedido.getId());
             }
         });
+    }
+
+    /**
+     * Estoque é contado em unidades quando o produto tem embalagem (ex.: pack c/6).
+     * Venda de pacote baixa N unidades; venda avulsa baixa 1 por item.
+     */
+    static int quantidadeEstoque(PedidoItem item) {
+        int q = item.getQuantidade();
+        if (item.isVendaUnidade()) {
+            return q;
+        }
+        Produto p = item.getProduto();
+        Integer upe = p != null ? p.getUnidadesPorEmbalagem() : null;
+        if (upe != null && upe > 1) {
+            return q * upe;
+        }
+        return q;
     }
 
     private void estornarProduto(Produto p, int q, Pedido pedido, Usuario usuario, String motivo) {

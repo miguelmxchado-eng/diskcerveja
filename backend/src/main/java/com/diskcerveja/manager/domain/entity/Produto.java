@@ -38,6 +38,14 @@ public class Produto {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal preco;
 
+    /** Preço de venda da unidade avulsa (opcional; ex.: lata solta de um pack). */
+    @Column(name = "preco_unidade", precision = 12, scale = 2)
+    private BigDecimal precoUnidade;
+
+    /** Quantas unidades vêm na embalagem quando vende pacote e unidade. */
+    @Column(name = "unidades_por_embalagem")
+    private Integer unidadesPorEmbalagem;
+
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal custo;
 
@@ -100,6 +108,29 @@ public class Produto {
 
     public void setPreco(BigDecimal preco) {
         this.preco = preco;
+    }
+
+    public BigDecimal getPrecoUnidade() {
+        return precoUnidade;
+    }
+
+    public void setPrecoUnidade(BigDecimal precoUnidade) {
+        this.precoUnidade = precoUnidade;
+    }
+
+    public Integer getUnidadesPorEmbalagem() {
+        return unidadesPorEmbalagem;
+    }
+
+    public void setUnidadesPorEmbalagem(Integer unidadesPorEmbalagem) {
+        this.unidadesPorEmbalagem = unidadesPorEmbalagem;
+    }
+
+    public boolean permiteVendaUnidade() {
+        return precoUnidade != null
+                && precoUnidade.compareTo(BigDecimal.ZERO) > 0
+                && unidadesPorEmbalagem != null
+                && unidadesPorEmbalagem > 1;
     }
 
     public BigDecimal getCusto() {

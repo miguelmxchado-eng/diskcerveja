@@ -144,7 +144,7 @@
             class="pdv-card"
             role="listitem"
             [class.pdv-card--disabled]="p.estoqueAtual <= 0"
-            (click)="p.estoqueAtual > 0 && add(p)"
+            (click)="p.estoqueAtual > 0 && escolherEAdicionar(p)"
           >
             <button
               type="button"
@@ -169,7 +169,7 @@
                   class="pdv-card__stock"
                   [class.pdv-card__stock--low]="p.estoqueAtual <= p.estoqueMinimo"
                 >
-                  Estoque: {{ p.estoqueAtual }}
+                  Estoque: {{ p.estoqueAtual }}{{ podeVenderUnidade(p) ? ' un.' : '' }}
                 </span>
                 @if (p.estoqueAtual > 0 && p.estoqueAtual <= 2) {
                   <span class="pdv-card__alert">Últimas {{ p.estoqueAtual }} un.</span>
@@ -177,12 +177,17 @@
               </div>
             </div>
             <div class="pdv-card__foot">
-              <strong class="pdv-card__price">R$ {{ p.preco | number: '1.2-2' }}</strong>
+              <div class="pdv-card__prices">
+                <strong class="pdv-card__price">R$ {{ p.preco | number: '1.2-2' }}</strong>
+                @if (podeVenderUnidade(p)) {
+                  <span class="pdv-card__price-un">un. R$ {{ p.precoUnidade | number: '1.2-2' }}</span>
+                }
+              </div>
               <button
                 type="button"
                 class="pdv-card__add"
                 [disabled]="p.estoqueAtual <= 0"
-                (click)="add(p); $event.stopPropagation()"
+                (click)="escolherEAdicionar(p); $event.stopPropagation()"
                 aria-label="Adicionar ao carrinho"
               >
                 <mat-icon>add</mat-icon>

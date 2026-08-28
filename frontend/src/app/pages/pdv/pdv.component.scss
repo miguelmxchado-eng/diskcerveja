@@ -443,13 +443,27 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
     padding: 8px 12px 12px;
+  }
+
+  &__prices {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
   }
 
   &__price {
     font-size: 1.05rem;
     font-weight: 800;
     color: #d2a410;
+  }
+
+  &__price-un {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #667085;
   }
 
   &__add {

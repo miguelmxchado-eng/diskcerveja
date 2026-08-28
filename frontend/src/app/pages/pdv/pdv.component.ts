@@ -6,6 +6,7 @@ import {
   OnInit,
   ViewChild,
   computed,
+  inject,
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -13,7 +14,8 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { MatButtonModule } from '@angular/material/button';
 import { DecimalPipe } from '@angular/common';
 import { StatusLabelPipe } from '../../shared/pipes/status-label.pipe';
 import { environment } from '../../../environments/environment';
@@ -68,6 +70,7 @@ type Linha = {
   nome: string;
   qtd: number;
   preco: number;
+  vendaUnidade?: boolean;
   ultimoCodigo?: string;
   isCombo?: boolean;
   componentes?: string;
@@ -626,7 +629,7 @@ export class PdvComponent implements OnInit, OnDestroy {
     if (bip) this.feedback.success();
     this.scanHistory.push(codigo, true, produto.nome);
     this.historicoScans.set(this.scanHistory.list());
-    const linha = this.carrinho().find((l) => l.produtoId === produto.id);
+    const linha = this.carrinho().find((l) => l.produtoId === produto.id && !l.vendaUnidade);
     this.ultimoScan.set({
       code: codigo,
       nome: produto.nome,
@@ -641,17 +644,84 @@ export class PdvComponent implements OnInit, OnDestroy {
   }
 
   linhaKey(l: Linha): string {
-    return l.comboId != null ? `c${l.comboId}` : `p${l.produtoId}`;
+    if (l.comboId != null) return `c${l.comboId}`;
+    return `p${l.produtoId}${l.vendaUnidade ? '-u' : ''}`;
   }
 
-  add(p: Produto, codigoLido?: string) {
+  podeVenderUnidade(p: Produto): boolean {
+    return (
+      p.precoUnidade != null
+      && Number(p.precoUnidade) > 0
+      && p.unidadesPorEmbalagem != null
+      && Number(p.unidadesPorEmbalagem) > 1
+    );
+  }
+
+  /** Toque no card: se tem preço de unidade, pergunta pacote ou unidade. */
+  escolherEAdicionar(p: Produto): void {
+    if (p.estoqueAtual <= 0) {
+      return;
+    }
+    if (!this.podeVenderUnidade(p)) {
+      this.add(p);
+      return;
+    }
+    this.dialog
+      .open(EscolherVendaDialogComponent, {
+        data: p,
+        width: '360px',
+      })
+      .afterClosed()
+      .subscribe((modo: 'pacote' | 'unidade' | undefined) => {
+        if (modo === 'pacote') this.add(p, undefined, false);
+        if (modo === 'unidade') this.add(p, undefined, true);
+      });
+  }
+
+  private unidadesReservadas(produtoId: number): number {
+    return this.carrinho()
+      .filter((l) => !l.isCombo && l.produtoId === produtoId)
+      .reduce((soma, l) => {
+        const p = this.produtos().find((x) => x.id === produtoId);
+        const upe =
+          p?.unidadesPorEmbalagem != null && Number(p.unidadesPorEmbalagem) > 1
+            ? Number(p.unidadesPorEmbalagem)
+            : 1;
+        return soma + (l.vendaUnidade ? l.qtd : l.qtd * upe);
+      }, 0);
+  }
+
+  private unidadesPorVenda(p: Produto, vendaUnidade: boolean): number {
+    if (vendaUnidade) return 1;
+    if (p.unidadesPorEmbalagem != null && Number(p.unidadesPorEmbalagem) > 1) {
+      return Number(p.unidadesPorEmbalagem);
+    }
+    return 1;
+  }
+
+  private cabeMaisUma(p: Produto, vendaUnidade: boolean): boolean {
+    return p.estoqueAtual >= this.unidadesReservadas(p.id) + this.unidadesPorVenda(p, vendaUnidade);
+  }
+
+  add(p: Produto, codigoLido?: string, vendaUnidade = false) {
     if (p.estoqueAtual <= 0) {
       this.feedback.warn();
       this.snack.open(`"${p.nome}" sem estoque.`, 'OK', { duration: 2500 });
       return;
     }
+    if (vendaUnidade && !this.podeVenderUnidade(p)) {
+      this.snack.open('Este produto não tem preço de unidade.', 'OK', { duration: 2500 });
+      return;
+    }
+    if (!this.cabeMaisUma(p, vendaUnidade)) {
+      this.feedback.warn();
+      this.snack.open(`Estoque insuficiente para "${p.nome}".`, 'OK', { duration: 2500 });
+      return;
+    }
     const atual = [...this.carrinho()];
-    const idx = atual.findIndex((x) => !x.isCombo && x.produtoId === p.id);
+    const idx = atual.findIndex(
+      (x) => !x.isCombo && x.produtoId === p.id && !!x.vendaUnidade === vendaUnidade,
+    );
     if (idx >= 0) {
       atual[idx] = {
         ...atual[idx],
@@ -661,9 +731,10 @@ export class PdvComponent implements OnInit, OnDestroy {
     } else {
       atual.push({
         produtoId: p.id,
-        nome: p.nome,
+        nome: vendaUnidade ? `${p.nome} (unidade)` : p.nome,
         qtd: 1,
-        preco: Number(p.preco),
+        preco: vendaUnidade ? Number(p.precoUnidade) : Number(p.preco),
+        vendaUnidade,
         ultimoCodigo: codigoLido,
         categoria: p.categoria,
         imagemUrl: this.produtoImagemUrl(p),
@@ -733,6 +804,14 @@ export class PdvComponent implements OnInit, OnDestroy {
 
   inc(i: number) {
     const atual = [...this.carrinho()];
+    const linha = atual[i];
+    if (linha.produtoId != null && !linha.isCombo) {
+      const p = this.produtos().find((x) => x.id === linha.produtoId);
+      if (p && !this.cabeMaisUma(p, !!linha.vendaUnidade)) {
+        this.snack.open(`Estoque insuficiente para "${p.nome}".`, 'OK', { duration: 2500 });
+        return;
+      }
+    }
     atual[i] = { ...atual[i], qtd: atual[i].qtd + 1 };
     this.carrinho.set(atual);
     this.rolarListaItens();
@@ -846,7 +925,7 @@ export class PdvComponent implements OnInit, OnDestroy {
       itens: this.carrinho().map((l) =>
         l.isCombo
           ? { comboId: l.comboId, quantidade: l.qtd }
-          : { produtoId: l.produtoId, quantidade: l.qtd },
+          : { produtoId: l.produtoId, quantidade: l.qtd, vendaUnidade: !!l.vendaUnidade },
       ),
     };
     this.http.post<PedidoResponse>(`${environment.apiUrl}/api/pedidos`, body).subscribe({
@@ -901,4 +980,79 @@ export class PdvComponent implements OnInit, OnDestroy {
         },
       });
   }
+}
+
+@Component({
+  selector: 'app-escolher-venda-dialog',
+  standalone: true,
+  imports: [MatDialogModule, MatButtonModule, MatIconModule, DecimalPipe],
+  template: `
+    <h2 mat-dialog-title>Como vender?</h2>
+    <mat-dialog-content>
+      <p class="escolha-nome">{{ data.nome }}</p>
+      <div class="escolha-acoes">
+        <button type="button" class="escolha-btn" (click)="dialogRef.close('pacote')">
+          <mat-icon>inventory_2</mat-icon>
+          <span>Pacote</span>
+          <strong>R$ {{ data.preco | number: '1.2-2' }}</strong>
+        </button>
+        <button type="button" class="escolha-btn escolha-btn--gold" (click)="dialogRef.close('unidade')">
+          <mat-icon>liquor</mat-icon>
+          <span>Unidade</span>
+          <strong>R$ {{ data.precoUnidade | number: '1.2-2' }}</strong>
+        </button>
+      </div>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button mat-stroked-button type="button" [mat-dialog-close]="undefined">Cancelar</button>
+    </mat-dialog-actions>
+  `,
+  styles: `
+    .escolha-nome {
+      margin: 0 0 14px;
+      color: #667085;
+      font-size: 0.9rem;
+    }
+    .escolha-acoes {
+      display: grid;
+      gap: 10px;
+    }
+    .escolha-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 14px 16px;
+      border: 1.5px solid #e4e7ec;
+      border-radius: 10px;
+      background: #fff;
+      cursor: pointer;
+      text-align: left;
+      font: 600 0.95rem/1.2 Inter, sans-serif;
+      color: #171717;
+    }
+    .escolha-btn mat-icon {
+      color: #98a2b3;
+    }
+    .escolha-btn span {
+      flex: 1;
+    }
+    .escolha-btn strong {
+      font-size: 1.05rem;
+    }
+    .escolha-btn--gold {
+      border-color: #d2a410;
+      background: #fff8e1;
+    }
+    .escolha-btn--gold mat-icon {
+      color: #b98d00;
+    }
+    .escolha-btn:hover {
+      border-color: #d2a410;
+    }
+  `,
+})
+export class EscolherVendaDialogComponent {
+  readonly data = inject<Produto>(MAT_DIALOG_DATA);
+  readonly dialogRef = inject(MatDialogRef<EscolherVendaDialogComponent, 'pacote' | 'unidade'>);
 }

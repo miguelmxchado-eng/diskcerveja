@@ -39,6 +39,10 @@ public class PedidoItem {
     @Column(nullable = false)
     private int quantidade;
 
+    /** true = vendeu unidade avulsa; false = embalagem/pacote (ou produto sem pack). */
+    @Column(name = "venda_unidade", nullable = false)
+    private boolean vendaUnidade = false;
+
     @Column(name = "preco_unitario", nullable = false, precision = 12, scale = 2)
     private BigDecimal precoUnitario;
 
@@ -92,6 +96,14 @@ public class PedidoItem {
 
     public void setQuantidade(int quantidade) {
         this.quantidade = quantidade;
+    }
+
+    public boolean isVendaUnidade() {
+        return vendaUnidade;
+    }
+
+    public void setVendaUnidade(boolean vendaUnidade) {
+        this.vendaUnidade = vendaUnidade;
     }
 
     public BigDecimal getPrecoUnitario() {

@@ -265,19 +265,53 @@
                 <mat-label>Preço de compra</mat-label>
                 <span matTextPrefix>R$&nbsp;</span>
                 <input matInput type="number" [(ngModel)]="novoCusto" name="custo" min="0" step="0.01" required />
-                <mat-hint>Quanto você paga no fornecedor</mat-hint>
+                <mat-hint>Quanto você paga no fornecedor (pacote)</mat-hint>
               </mat-form-field>
               <mat-form-field appearance="outline" class="produtos-field">
-                <mat-label>Preço de venda</mat-label>
+                <mat-label>Preço de venda (pacote)</mat-label>
                 <span matTextPrefix>R$&nbsp;</span>
                 <input matInput type="number" [(ngModel)]="novoPreco" name="preco" min="0.01" step="0.01" required />
-                <mat-hint>Quanto o cliente paga</mat-hint>
+                <mat-hint>Preço do pacote / caixa</mat-hint>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="produtos-field">
+                <mat-label>Unidades no pacote</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  [(ngModel)]="novoUnidadesPorEmbalagem"
+                  name="unidadesPacote"
+                  min="2"
+                  step="1"
+                  placeholder="Ex.: 6"
+                />
+                <mat-hint>Só se também vende unidade avulsa</mat-hint>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="produtos-field">
+                <mat-label>Preço da unidade</mat-label>
+                <span matTextPrefix>R$&nbsp;</span>
+                <input
+                  matInput
+                  type="number"
+                  [(ngModel)]="novoPrecoUnidade"
+                  name="precoUnidade"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="Ex.: 12,00"
+                />
+                <mat-hint>Preço de 1 unidade avulsa</mat-hint>
               </mat-form-field>
               <mat-form-field appearance="outline" class="produtos-field">
                 <mat-label>Estoque mínimo</mat-label>
                 <input matInput type="number" [(ngModel)]="novoMin" name="estMin" min="0" />
+                <mat-hint>Em unidades, se o produto vende avulso</mat-hint>
               </mat-form-field>
             </div>
+            @if (novoUnidadesPorEmbalagem != null && +novoUnidadesPorEmbalagem > 1) {
+              <p class="produtos-lucro-preview">
+                Com pacote de {{ novoUnidadesPorEmbalagem }}: estoque deve ser em
+                <strong>unidades</strong> (ex.: 2 pacotes = estoque {{ 2 * (+novoUnidadesPorEmbalagem) }}).
+              </p>
+            }
             @if (lucroCadastro() !== null) {
               <p class="produtos-lucro-preview" [class.produtos-lucro-preview--negativo]="lucroCadastro()! < 0">
                 Lucro unitário: R$ {{ lucroCadastro() | number: '1.2-2' }}
@@ -335,9 +369,20 @@
                 <dd>R$ {{ novoCusto | number: '1.2-2' }}</dd>
               </div>
               <div class="produtos-resumo__row">
-                <dt>Preço de venda</dt>
+                <dt>Preço de venda (pacote)</dt>
                 <dd>R$ {{ novoPreco | number: '1.2-2' }}</dd>
               </div>
+              @if (novoPrecoUnidade != null && +novoPrecoUnidade > 0) {
+                <div class="produtos-resumo__row">
+                  <dt>Preço da unidade</dt>
+                  <dd>
+                    R$ {{ novoPrecoUnidade | number: '1.2-2' }}
+                    @if (novoUnidadesPorEmbalagem) {
+                      <span class="produtos-muted">({{ novoUnidadesPorEmbalagem }} un./pacote)</span>
+                    }
+                  </dd>
+                </div>
+              }
               <div class="produtos-resumo__row">
                 <dt>Lucro unitário</dt>
                 <dd>R$ {{ lucroCadastro() | number: '1.2-2' }}</dd>
@@ -472,7 +517,8 @@
           <th>Código</th>
           <th>Categoria</th>
           <th>Preço compra</th>
-          <th>Preço venda</th>
+          <th>Preço pacote</th>
+          <th>Preço unidade</th>
           <th>Margem</th>
           <th>Estoque</th>
           <th>Status</th>
@@ -521,6 +567,14 @@
             </td>
             <td>R$ {{ p.custo | number: '1.2-2' }}</td>
             <td>R$ {{ p.preco | number: '1.2-2' }}</td>
+            <td>
+              @if (podeVenderUnidade(p)) {
+                R$ {{ p.precoUnidade | number: '1.2-2' }}
+                <span class="produtos-estoque-min">/ {{ p.unidadesPorEmbalagem }} un.</span>
+              } @else {
+                <span class="produtos-muted">—</span>
+              }
+            </td>
             <td>
               @if (margemPercent(p); as margem) {
                 <span [class.produtos-margem--pos]="margem > 0" [class.produtos-margem--neg]="margem < 0">
@@ -582,7 +636,7 @@
           </tr>
         } @empty {
           <tr>
-            <td colspan="10" class="produtos-empty">
+            <td colspan="11" class="produtos-empty">
               <mat-icon>inventory_2</mat-icon>
               <span>Nenhum produto encontrado.</span>
             </td>

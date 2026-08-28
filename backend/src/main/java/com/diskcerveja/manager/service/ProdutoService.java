@@ -82,6 +82,7 @@ public class ProdutoService {
         }
         p.setPreco(dto.preco());
         p.setCusto(dto.custo());
+        aplicarPrecoUnidade(p, dto);
         if (dto.id() == null) {
             p.setEstoqueAtual(dto.estoqueAtual() != null ? dto.estoqueAtual() : 0);
             p.setEstoqueMinimo(dto.estoqueMinimo() != null ? dto.estoqueMinimo() : 0);
@@ -95,6 +96,24 @@ public class ProdutoService {
         }
         p.setAtivo(dto.ativo());
         return produtoRepository.save(p);
+    }
+
+    private static void aplicarPrecoUnidade(Produto p, ProdutoDto dto) {
+        BigDecimal precoUnidade = dto.precoUnidade();
+        Integer unidades = dto.unidadesPorEmbalagem();
+        boolean temPreco = precoUnidade != null && precoUnidade.compareTo(BigDecimal.ZERO) > 0;
+        boolean temUnidades = unidades != null && unidades > 1;
+        if (temPreco != temUnidades) {
+            throw new IllegalArgumentException(
+                    "Para vender unidade, informe o preço da unidade e quantas unidades vêm no pacote (ex.: 6).");
+        }
+        if (!temPreco) {
+            p.setPrecoUnidade(null);
+            p.setUnidadesPorEmbalagem(null);
+            return;
+        }
+        p.setPrecoUnidade(precoUnidade);
+        p.setUnidadesPorEmbalagem(unidades);
     }
 
     @Transactional

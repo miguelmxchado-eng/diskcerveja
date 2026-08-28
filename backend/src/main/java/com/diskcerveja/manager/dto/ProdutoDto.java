@@ -17,6 +17,11 @@ public record ProdutoDto(
         @NotNull(message = "Preço de venda é obrigatório")
         @DecimalMin(value = "0.01", message = "Preço de venda deve ser maior que zero")
         BigDecimal preco,
+        /** Preço avulso (opcional). */
+        @DecimalMin(value = "0.01", message = "Preço da unidade deve ser maior que zero")
+        BigDecimal precoUnidade,
+        /** Ex.: 6 para pack c/6. Obrigatório se informar preço da unidade. */
+        Integer unidadesPorEmbalagem,
         @NotNull(message = "Preço de compra é obrigatório")
         @DecimalMin(value = "0.00", message = "Preço de compra não pode ser negativo")
         BigDecimal custo,

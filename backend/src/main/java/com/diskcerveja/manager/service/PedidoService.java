@@ -249,12 +249,24 @@ public class PedidoService {
         if (!prod.isAtivo()) {
             throw new IllegalArgumentException("Produto inativo: " + prod.getNome());
         }
+        boolean vendaUnidade = Boolean.TRUE.equals(r.vendaUnidade());
+        if (vendaUnidade && !prod.permiteVendaUnidade()) {
+            throw new IllegalArgumentException(
+                    "Produto sem preço de unidade cadastrado: " + prod.getNome());
+        }
         PedidoItem pi = new PedidoItem();
         pi.setPedido(p);
         pi.setProduto(prod);
         pi.setQuantidade(r.quantidade());
-        pi.setPrecoUnitario(prod.getPreco());
-        pi.setCustoUnitario(custoOuZero(prod.getCusto()));
+        pi.setVendaUnidade(vendaUnidade);
+        if (vendaUnidade) {
+            pi.setDescricao(prod.getNome() + " (unidade)");
+            pi.setPrecoUnitario(prod.getPrecoUnidade());
+            pi.setCustoUnitario(custoPorUnidade(prod));
+        } else {
+            pi.setPrecoUnitario(prod.getPreco());
+            pi.setCustoUnitario(custoOuZero(prod.getCusto()));
+        }
         return pi;
     }
 
@@ -287,6 +299,15 @@ public class PedidoService {
 
     private static BigDecimal custoOuZero(BigDecimal custo) {
         return custo != null ? custo : BigDecimal.ZERO;
+    }
+
+    private static BigDecimal custoPorUnidade(Produto prod) {
+        BigDecimal custoPack = custoOuZero(prod.getCusto());
+        int upe = prod.getUnidadesPorEmbalagem() != null ? prod.getUnidadesPorEmbalagem() : 1;
+        if (upe <= 1) {
+            return custoPack;
+        }
+        return custoPack.divide(BigDecimal.valueOf(upe), 2, java.math.RoundingMode.HALF_UP);
     }
 
     private void aplicarClienteNoPedido(Pedido p, PedidoRequest dto) {

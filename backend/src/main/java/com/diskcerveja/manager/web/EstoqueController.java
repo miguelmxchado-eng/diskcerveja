@@ -65,6 +65,8 @@ public class EstoqueController {
                 p.getCodigoInterno(),
                 p.getCategoria(),
                 p.getPreco(),
+                p.getPrecoUnidade(),
+                p.getUnidadesPorEmbalagem(),
                 p.getCusto(),
                 p.getEstoqueAtual(),
                 p.getEstoqueMinimo(),

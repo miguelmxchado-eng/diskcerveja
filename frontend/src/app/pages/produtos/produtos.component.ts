@@ -170,6 +170,8 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   novoCodigoQr = '';
   novoCat = 'CERVEJAS';
   novoPreco: number | null = null;
+  novoPrecoUnidade: number | null = null;
+  novoUnidadesPorEmbalagem: number | null = null;
   novoCusto: number | null = null;
   novoMin = 0;
   novoEst = 0;
@@ -206,12 +208,37 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   podeAvancarPreco(): boolean {
     const venda = Number(this.novoPreco);
     const compra = Number(this.novoCusto);
-    return this.novoPreco != null
-      && this.novoCusto != null
-      && Number.isFinite(venda)
-      && Number.isFinite(compra)
-      && venda > 0
-      && compra >= 0;
+    if (
+      this.novoPreco == null
+      || this.novoCusto == null
+      || !Number.isFinite(venda)
+      || !Number.isFinite(compra)
+      || venda <= 0
+      || compra < 0
+    ) {
+      return false;
+    }
+    return this.precoUnidadeCadastroValido();
+  }
+
+  /** Ambos preenchidos ou ambos vazios. */
+  private precoUnidadeCadastroValido(): boolean {
+    const temPreco =
+      this.novoPrecoUnidade != null && Number.isFinite(Number(this.novoPrecoUnidade)) && Number(this.novoPrecoUnidade) > 0;
+    const temUnidades =
+      this.novoUnidadesPorEmbalagem != null
+      && Number.isFinite(Number(this.novoUnidadesPorEmbalagem))
+      && Number(this.novoUnidadesPorEmbalagem) > 1;
+    return temPreco === temUnidades;
+  }
+
+  podeVenderUnidade(p: Produto): boolean {
+    return (
+      p.precoUnidade != null
+      && Number(p.precoUnidade) > 0
+      && p.unidadesPorEmbalagem != null
+      && Number(p.unidadesPorEmbalagem) > 1
+    );
   }
 
   lucroCadastro(): number | null {
@@ -376,8 +403,18 @@ export class ProdutosComponent implements OnInit, OnDestroy {
         style: 'currency',
         currency: 'BRL',
       });
+      let nome = this.escapeHtml(p.nome);
+      let precoTxt = preco;
+      if (this.podeVenderUnidade(p)) {
+        const precoUn = Number(p.precoUnidade).toLocaleString('pt-BR', {
+          style: 'currency',
+          currency: 'BRL',
+        });
+        nome += ` <span class="detalhe">(pacote c/${p.unidadesPorEmbalagem})</span>`;
+        precoTxt = `${preco}<div class="un">un. ${precoUn}</div>`;
+      }
       linhas.push(
-        `<tr><td class="nome">${this.escapeHtml(p.nome)}</td><td class="preco">${preco}</td></tr>`,
+        `<tr><td class="nome">${nome}</td><td class="preco">${precoTxt}</td></tr>`,
       );
     }
 
@@ -439,6 +476,18 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       font-weight: 700;
       font-size: 16pt;
       white-space: nowrap;
+    }
+    td.preco .un {
+      display: block;
+      margin-top: 2px;
+      font-size: 11pt;
+      font-weight: 600;
+      color: #444;
+    }
+    td.nome .detalhe {
+      font-size: 10pt;
+      font-weight: 400;
+      color: #666;
     }
     .rodape {
       margin-top: 20px;
@@ -715,6 +764,8 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.novoCodigoQr = '';
     this.novoCat = 'CERVEJAS';
     this.novoPreco = null;
+    this.novoPrecoUnidade = null;
+    this.novoUnidadesPorEmbalagem = null;
     this.novoCusto = null;
     this.novoMin = 0;
     this.novoEst = 0;
@@ -745,6 +796,8 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.novoCodigoQr = p.codigoQr ?? '';
     this.novoCat = p.categoria;
     this.novoPreco = Number(p.preco);
+    this.novoPrecoUnidade = p.precoUnidade != null ? Number(p.precoUnidade) : null;
+    this.novoUnidadesPorEmbalagem = p.unidadesPorEmbalagem != null ? Number(p.unidadesPorEmbalagem) : null;
     this.novoCusto = Number(p.custo ?? 0);
     this.novoMin = p.estoqueMinimo;
     this.novoEst = p.estoqueAtual;
@@ -792,10 +845,17 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       return;
     }
     if (!this.podeAvancarPreco()) {
-      this.snack.open('Informe preço de compra e preço de venda.', 'OK', { duration: 3000 });
+      this.snack.open('Informe os preços. Se vender unidade, preencha preço da unidade e unidades no pacote.', 'OK', {
+        duration: 4000,
+      });
       return;
     }
     const editando = this.produtoEmEdicao();
+    const temUnidade =
+      this.novoPrecoUnidade != null
+      && Number(this.novoPrecoUnidade) > 0
+      && this.novoUnidadesPorEmbalagem != null
+      && Number(this.novoUnidadesPorEmbalagem) > 1;
     const body = {
       id: editando?.id ?? null,
       nome: this.novoNome.trim(),
@@ -804,6 +864,8 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       codigoInterno: this.codigoInternoEdicao,
       categoria: this.novoCat,
       preco: this.toMoney(this.novoPreco),
+      precoUnidade: temUnidade ? this.toMoney(this.novoPrecoUnidade) : null,
+      unidadesPorEmbalagem: temUnidade ? this.toInt(this.novoUnidadesPorEmbalagem, 0) : null,
       custo: this.toMoney(this.novoCusto),
       estoqueAtual: this.toInt(this.novoEst, 0),
       estoqueMinimo: this.toInt(this.novoMin, 0),
@@ -870,7 +932,12 @@ export class ProdutosComponent implements OnInit, OnDestroy {
         width: '400px',
       })
       .afterClosed()
-      .subscribe((result: { custo: number; preco: number } | undefined) => {
+      .subscribe((result: {
+        custo: number;
+        preco: number;
+        precoUnidade: number | null;
+        unidadesPorEmbalagem: number | null;
+      } | undefined) => {
         if (!result) {
           return;
         }
@@ -879,6 +946,8 @@ export class ProdutosComponent implements OnInit, OnDestroy {
             ...p,
             preco: this.toMoney(result.preco),
             custo: this.toMoney(result.custo),
+            precoUnidade: result.precoUnidade != null ? this.toMoney(result.precoUnidade) : null,
+            unidadesPorEmbalagem: result.unidadesPorEmbalagem,
           })
           .subscribe({
             next: () => {
@@ -899,14 +968,40 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     <h2 mat-dialog-title>Preços — {{ data.nome }}</h2>
     <mat-dialog-content>
       <mat-form-field appearance="outline" class="wide">
-        <mat-label>Preço de compra</mat-label>
+        <mat-label>Preço de compra (pacote)</mat-label>
         <span matTextPrefix>R$&nbsp;</span>
         <input matInput type="number" [(ngModel)]="custo" name="custo" min="0" step="0.01" />
       </mat-form-field>
       <mat-form-field appearance="outline" class="wide">
-        <mat-label>Preço de venda</mat-label>
+        <mat-label>Preço de venda (pacote)</mat-label>
         <span matTextPrefix>R$&nbsp;</span>
         <input matInput type="number" [(ngModel)]="preco" name="preco" min="0.01" step="0.01" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="wide">
+        <mat-label>Unidades no pacote</mat-label>
+        <input
+          matInput
+          type="number"
+          [(ngModel)]="unidadesPorEmbalagem"
+          name="unidades"
+          min="2"
+          step="1"
+          placeholder="Ex.: 6"
+        />
+        <mat-hint>Deixe vazio se não vende unidade</mat-hint>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="wide">
+        <mat-label>Preço da unidade</mat-label>
+        <span matTextPrefix>R$&nbsp;</span>
+        <input
+          matInput
+          type="number"
+          [(ngModel)]="precoUnidade"
+          name="precoUnidade"
+          min="0.01"
+          step="0.01"
+          placeholder="Ex.: 12,00"
+        />
       </mat-form-field>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
@@ -926,15 +1021,29 @@ export class EditarPrecosDialogComponent {
   private readonly dialogRef = inject(MatDialogRef<EditarPrecosDialogComponent>);
   custo = this.data.custo ?? 0;
   preco = this.data.preco;
+  precoUnidade: number | null = this.data.precoUnidade != null ? Number(this.data.precoUnidade) : null;
+  unidadesPorEmbalagem: number | null =
+    this.data.unidadesPorEmbalagem != null ? Number(this.data.unidadesPorEmbalagem) : null;
 
   valido(): boolean {
-    return Number(this.preco) > 0 && Number(this.custo) >= 0;
+    if (!(Number(this.preco) > 0 && Number(this.custo) >= 0)) {
+      return false;
+    }
+    const temPreco = this.precoUnidade != null && Number(this.precoUnidade) > 0;
+    const temUnidades = this.unidadesPorEmbalagem != null && Number(this.unidadesPorEmbalagem) > 1;
+    return temPreco === temUnidades;
   }
 
   salvar(): void {
     if (!this.valido()) {
       return;
     }
-    this.dialogRef.close({ custo: Number(this.custo), preco: Number(this.preco) });
+    const temUnidade = this.precoUnidade != null && Number(this.precoUnidade) > 0;
+    this.dialogRef.close({
+      custo: Number(this.custo),
+      preco: Number(this.preco),
+      precoUnidade: temUnidade ? Number(this.precoUnidade) : null,
+      unidadesPorEmbalagem: temUnidade ? Number(this.unidadesPorEmbalagem) : null,
+    });
   }
 }

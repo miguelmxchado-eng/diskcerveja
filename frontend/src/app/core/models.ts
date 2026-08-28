@@ -16,6 +16,10 @@ export interface Produto {
   codigoInterno?: string | null;
   categoria: string;
   preco: number;
+  /** Preço da unidade avulsa (opcional). */
+  precoUnidade?: number | null;
+  /** Ex.: 6 para pack c/6. */
+  unidadesPorEmbalagem?: number | null;
   custo: number;
   estoqueAtual: number;
   estoqueMinimo: number;

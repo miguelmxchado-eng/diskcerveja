@@ -37,10 +37,11 @@ public final class PedidoMapper {
                     i.getPrecoUnitario(),
                     i.getCustoUnitario());
         }
+        String nome = i.getDescricao() != null ? i.getDescricao() : i.getProduto().getNome();
         return new PedidoItemResponse(
                 i.getProduto().getId(),
                 null,
-                i.getProduto().getNome(),
+                nome,
                 i.getQuantidade(),
                 i.getPrecoUnitario(),
                 i.getCustoUnitario());
