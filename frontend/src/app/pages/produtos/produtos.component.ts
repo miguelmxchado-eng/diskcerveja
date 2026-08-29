@@ -172,6 +172,8 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   novoPreco: number | null = null;
   novoPrecoUnidade: number | null = null;
   novoUnidadesPorEmbalagem: number | null = null;
+  /** Produto comprado/vendido em caixa com opção de unidade avulsa (ex.: cerveja). */
+  vendeEmCaixa = false;
   /**
    * Valor pago na compra: da caixa (se tem unidades na caixa) ou do item avulso.
    * Na API gravamos sempre o custo por unidade (compra ÷ unidades).
@@ -227,15 +229,17 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     return this.precoUnidadeCadastroValido();
   }
 
-  /** Ambos preenchidos ou ambos vazios. */
+  /** Com “vende caixa”: exige unidades e preço da unidade. Sem isso: só preço único. */
   private precoUnidadeCadastroValido(): boolean {
-    const temPreco =
-      this.novoPrecoUnidade != null && Number.isFinite(Number(this.novoPrecoUnidade)) && Number(this.novoPrecoUnidade) > 0;
-    const temUnidades =
-      this.novoUnidadesPorEmbalagem != null
-      && Number.isFinite(Number(this.novoUnidadesPorEmbalagem))
-      && Number(this.novoUnidadesPorEmbalagem) > 1;
-    return temPreco === temUnidades;
+    if (!this.vendeEmCaixa) {
+      return true;
+    }
+    return (
+      this.unidadesNaCaixa() != null
+      && this.novoPrecoUnidade != null
+      && Number.isFinite(Number(this.novoPrecoUnidade))
+      && Number(this.novoPrecoUnidade) > 0
+    );
   }
 
   unidadesNaCaixa(): number | null {
@@ -254,9 +258,20 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   }
 
   labelCustoCompra(): string {
-    return this.unidadesNaCaixa() != null
-      ? 'Preço de compra (caixa)'
-      : 'Preço de compra';
+    return this.vendeEmCaixa ? 'Preço de compra (caixa)' : 'Preço de compra';
+  }
+
+  labelPrecoVenda(): string {
+    return this.vendeEmCaixa ? 'Preço de venda (caixa)' : 'Preço de venda';
+  }
+
+  onToggleVendeEmCaixa(ligado: boolean): void {
+    this.vendeEmCaixa = ligado;
+    if (!ligado) {
+      this.novoUnidadesPorEmbalagem = null;
+      this.novoPrecoUnidade = null;
+      this.onCustoOuMargemChange();
+    }
   }
 
   podeVenderUnidade(p: Produto): boolean {
@@ -885,6 +900,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.novoPreco = null;
     this.novoPrecoUnidade = null;
     this.novoUnidadesPorEmbalagem = null;
+    this.vendeEmCaixa = false;
     this.novoCustoCompra = null;
     this.novoMargemDesejada = null;
     this.novoMin = 0;
@@ -917,12 +933,13 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.novoCat = p.categoria;
     this.novoPreco = Number(p.preco);
     this.novoPrecoUnidade = p.precoUnidade != null ? Number(p.precoUnidade) : null;
-    this.novoUnidadesPorEmbalagem = p.unidadesPorEmbalagem != null ? Number(p.unidadesPorEmbalagem) : null;
-    const custoUn = Number(p.custo ?? 0);
     const upe =
       p.unidadesPorEmbalagem != null && Number(p.unidadesPorEmbalagem) > 1
         ? Number(p.unidadesPorEmbalagem)
         : null;
+    this.novoUnidadesPorEmbalagem = upe;
+    this.vendeEmCaixa = upe != null;
+    const custoUn = Number(p.custo ?? 0);
     // API guarda custo unitário; na tela mostramos o que pagou na caixa.
     this.novoCustoCompra = upe != null ? Math.round(custoUn * upe * 100) / 100 : custoUn;
     const margemAtual = this.margemPercent(p);
@@ -1091,7 +1108,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
 @Component({
   selector: 'app-editar-precos-dialog',
   standalone: true,
-  imports: [FormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule],
+  imports: [FormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatCheckboxModule],
   template: `
     <h2 mat-dialog-title>Preços — {{ data.nome }}</h2>
     <mat-dialog-content>
@@ -1124,36 +1141,46 @@ export class ProdutosComponent implements OnInit, OnDestroy {
         <span matTextSuffix>%&nbsp;</span>
       </mat-form-field>
       <mat-form-field appearance="outline" class="wide">
-        <mat-label>Unidades na caixa</mat-label>
-        <input
-          matInput
-          type="number"
-          [(ngModel)]="unidadesPorEmbalagem"
-          (ngModelChange)="aplicarMargem()"
-          name="unidades"
-          min="2"
-          step="1"
-          placeholder="Ex.: 12"
-        />
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="wide">
-        <mat-label>Preço de venda (unidade)</mat-label>
-        <span matTextPrefix>R$&nbsp;</span>
-        <input
-          matInput
-          type="number"
-          [(ngModel)]="precoUnidade"
-          name="precoUnidade"
-          min="0.01"
-          step="0.01"
-          placeholder="Ex.: 3,50"
-        />
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="wide">
-        <mat-label>Preço de venda (caixa)</mat-label>
+        <mat-label>{{ labelPreco() }}</mat-label>
         <span matTextPrefix>R$&nbsp;</span>
         <input matInput type="number" [(ngModel)]="preco" name="preco" min="0.01" step="0.01" />
       </mat-form-field>
+      <mat-checkbox
+        class="wide-check"
+        [ngModel]="vendeEmCaixa"
+        (ngModelChange)="onToggleVendeEmCaixa($event)"
+        name="vendeEmCaixa"
+      >
+        Vende caixa e unidade (ex.: cerveja)
+      </mat-checkbox>
+      @if (vendeEmCaixa) {
+        <mat-form-field appearance="outline" class="wide">
+          <mat-label>Unidades na caixa</mat-label>
+          <input
+            matInput
+            type="number"
+            [(ngModel)]="unidadesPorEmbalagem"
+            (ngModelChange)="aplicarMargem()"
+            name="unidades"
+            min="2"
+            step="1"
+            placeholder="Ex.: 12"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="wide">
+          <mat-label>Preço de venda (unidade)</mat-label>
+          <span matTextPrefix>R$&nbsp;</span>
+          <input
+            matInput
+            type="number"
+            [(ngModel)]="precoUnidade"
+            name="precoUnidade"
+            min="0.01"
+            step="0.01"
+            placeholder="Ex.: 3,50"
+          />
+        </mat-form-field>
+      }
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-stroked-button type="button" [mat-dialog-close]="undefined">Cancelar</button>
@@ -1164,6 +1191,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   `,
   styles: `
     .wide { width: 100%; display: block; }
+    .wide-check { display: block; margin: 0.25rem 0 0.75rem; }
     mat-dialog-content { padding-top: 8px; }
   `,
 })
@@ -1173,7 +1201,14 @@ export class EditarPrecosDialogComponent {
   preco = this.data.preco;
   precoUnidade: number | null = this.data.precoUnidade != null ? Number(this.data.precoUnidade) : null;
   unidadesPorEmbalagem: number | null =
-    this.data.unidadesPorEmbalagem != null ? Number(this.data.unidadesPorEmbalagem) : null;
+    this.data.unidadesPorEmbalagem != null && Number(this.data.unidadesPorEmbalagem) > 1
+      ? Number(this.data.unidadesPorEmbalagem)
+      : null;
+  vendeEmCaixa =
+    this.data.unidadesPorEmbalagem != null
+    && Number(this.data.unidadesPorEmbalagem) > 1
+    && this.data.precoUnidade != null
+    && Number(this.data.precoUnidade) > 0;
   custoCompra = this.inicializarCustoCompra();
   margemDesejada: number | null = this.calcularMargemAtual();
 
@@ -1192,7 +1227,20 @@ export class EditarPrecosDialogComponent {
   }
 
   labelCusto(): string {
-    return this.upe() != null ? 'Preço de compra (caixa)' : 'Preço de compra';
+    return this.vendeEmCaixa ? 'Preço de compra (caixa)' : 'Preço de compra';
+  }
+
+  labelPreco(): string {
+    return this.vendeEmCaixa ? 'Preço de venda (caixa)' : 'Preço de venda';
+  }
+
+  onToggleVendeEmCaixa(ligado: boolean): void {
+    this.vendeEmCaixa = ligado;
+    if (!ligado) {
+      this.unidadesPorEmbalagem = null;
+      this.precoUnidade = null;
+      this.aplicarMargem();
+    }
   }
 
   private custoUnitario(): number {
@@ -1221,7 +1269,7 @@ export class EditarPrecosDialogComponent {
     }
     const fator = 1 - margem / 100;
     if (fator <= 0) return;
-    const upe = this.upe();
+    const upe = this.vendeEmCaixa ? this.upe() : null;
     const custoUn = upe != null ? compra / upe : compra;
     const precoUn = Math.round((custoUn / fator) * 100) / 100;
     if (upe != null) {
@@ -1229,7 +1277,9 @@ export class EditarPrecosDialogComponent {
       this.preco = Math.round(precoUn * upe * 100) / 100;
     } else {
       this.preco = precoUn;
-      this.precoUnidade = null;
+      if (!this.vendeEmCaixa) {
+        this.precoUnidade = null;
+      }
     }
   }
 
@@ -1237,16 +1287,17 @@ export class EditarPrecosDialogComponent {
     if (!(Number(this.preco) > 0 && Number(this.custoCompra) >= 0)) {
       return false;
     }
-    const temPreco = this.precoUnidade != null && Number(this.precoUnidade) > 0;
-    const temUnidades = this.upe() != null;
-    return temPreco === temUnidades;
+    if (!this.vendeEmCaixa) {
+      return true;
+    }
+    return this.upe() != null && this.precoUnidade != null && Number(this.precoUnidade) > 0;
   }
 
   salvar(): void {
     if (!this.valido()) {
       return;
     }
-    const temUnidade = this.precoUnidade != null && Number(this.precoUnidade) > 0;
+    const temUnidade = this.vendeEmCaixa && this.precoUnidade != null && Number(this.precoUnidade) > 0;
     this.dialogRef.close({
       custo: this.custoUnitario(),
       preco: Number(this.preco),

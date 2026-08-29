@@ -409,6 +409,16 @@
   @media (min-width: 600px) {
     grid-template-columns: 1fr 1fr;
   }
+
+  &--caixa {
+    margin-top: 0.5rem;
+  }
+}
+
+.produtos-vende-caixa {
+  display: block;
+  margin: 0.35rem 0 0.25rem;
+  max-width: 560px;
 }
 
 .produtos-lucro-preview {
