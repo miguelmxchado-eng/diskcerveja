@@ -173,6 +173,8 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   novoPrecoUnidade: number | null = null;
   novoUnidadesPorEmbalagem: number | null = null;
   novoCusto: number | null = null;
+  /** Margem sobre o preço de venda (ex.: 30 → venda = custo / 0,70). */
+  novoMargemDesejada: number | null = null;
   novoMin = 0;
   novoEst = 0;
   novoMarca = '';
@@ -239,6 +241,58 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       && p.unidadesPorEmbalagem != null
       && Number(p.unidadesPorEmbalagem) > 1
     );
+  }
+
+  /**
+   * Margem sobre o preço de venda: preço = custo / (1 − margem/100).
+   * Ex.: custo 4,64 e 30% → 4,64 / 0,70 ≈ 6,63.
+   */
+  private precoComMargem(custo: number, margemPercent: number): number | null {
+    if (!Number.isFinite(custo) || custo < 0) return null;
+    if (!Number.isFinite(margemPercent) || margemPercent < 0 || margemPercent >= 100) return null;
+    const fator = 1 - margemPercent / 100;
+    if (fator <= 0) return null;
+    return Math.round((custo / fator) * 100) / 100;
+  }
+
+  /** Recalcula preços de venda a partir do custo e da margem desejada. */
+  aplicarMargemDesejada(): void {
+    const custo = Number(this.novoCusto);
+    const margem = Number(this.novoMargemDesejada);
+    const precoUn = this.precoComMargem(custo, margem);
+    if (precoUn == null) {
+      return;
+    }
+    const upe =
+      this.novoUnidadesPorEmbalagem != null && Number(this.novoUnidadesPorEmbalagem) > 1
+        ? Number(this.novoUnidadesPorEmbalagem)
+        : null;
+    if (upe != null) {
+      this.novoPrecoUnidade = precoUn;
+      this.novoPreco = Math.round(precoUn * upe * 100) / 100;
+    } else {
+      this.novoPreco = precoUn;
+      this.novoPrecoUnidade = null;
+    }
+  }
+
+  onCustoOuMargemChange(): void {
+    if (this.novoMargemDesejada != null && Number(this.novoMargemDesejada) >= 0) {
+      this.aplicarMargemDesejada();
+    }
+  }
+
+  onUnidadesCaixaChange(): void {
+    if (this.novoMargemDesejada != null && Number(this.novoMargemDesejada) >= 0) {
+      this.aplicarMargemDesejada();
+      return;
+    }
+    // Sem margem: se já há preço unitário, sugere caixa = un. × qtd
+    const upe = Number(this.novoUnidadesPorEmbalagem);
+    const un = Number(this.novoPrecoUnidade);
+    if (upe > 1 && Number.isFinite(un) && un > 0) {
+      this.novoPreco = Math.round(un * upe * 100) / 100;
+    }
   }
 
   /** Lucro por unidade: venda un. − compra un. (ou venda caixa − compra se não vende avulso). */
@@ -820,6 +874,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.novoPrecoUnidade = null;
     this.novoUnidadesPorEmbalagem = null;
     this.novoCusto = null;
+    this.novoMargemDesejada = null;
     this.novoMin = 0;
     this.novoEst = 0;
     this.novoMarca = '';
@@ -852,6 +907,8 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.novoPrecoUnidade = p.precoUnidade != null ? Number(p.precoUnidade) : null;
     this.novoUnidadesPorEmbalagem = p.unidadesPorEmbalagem != null ? Number(p.unidadesPorEmbalagem) : null;
     this.novoCusto = Number(p.custo ?? 0);
+    const margemAtual = this.margemPercent(p);
+    this.novoMargemDesejada = margemAtual != null ? Math.round(margemAtual * 10) / 10 : null;
     this.novoMin = p.estoqueMinimo;
     this.novoEst = p.estoqueAtual;
     this.novoMarca = '';
@@ -1023,12 +1080,31 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       <mat-form-field appearance="outline" class="wide">
         <mat-label>Preço de compra (por unidade)</mat-label>
         <span matTextPrefix>R$&nbsp;</span>
-        <input matInput type="number" [(ngModel)]="custo" name="custo" min="0" step="0.01" />
+        <input
+          matInput
+          type="number"
+          [(ngModel)]="custo"
+          (ngModelChange)="aplicarMargem()"
+          name="custo"
+          min="0"
+          step="0.01"
+        />
       </mat-form-field>
       <mat-form-field appearance="outline" class="wide">
-        <mat-label>Preço de venda (caixa/pacote)</mat-label>
-        <span matTextPrefix>R$&nbsp;</span>
-        <input matInput type="number" [(ngModel)]="preco" name="preco" min="0.01" step="0.01" />
+        <mat-label>Margem desejada</mat-label>
+        <input
+          matInput
+          type="number"
+          [(ngModel)]="margemDesejada"
+          (ngModelChange)="aplicarMargem()"
+          name="margem"
+          min="0"
+          max="99.9"
+          step="0.1"
+          placeholder="Ex.: 30"
+        />
+        <span matTextSuffix>%&nbsp;</span>
+        <mat-hint>Calcula o preço de venda automaticamente</mat-hint>
       </mat-form-field>
       <mat-form-field appearance="outline" class="wide">
         <mat-label>Unidades na caixa</mat-label>
@@ -1036,6 +1112,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
           matInput
           type="number"
           [(ngModel)]="unidadesPorEmbalagem"
+          (ngModelChange)="aplicarMargem()"
           name="unidades"
           min="2"
           step="1"
@@ -1055,6 +1132,11 @@ export class ProdutosComponent implements OnInit, OnDestroy {
           step="0.01"
           placeholder="Ex.: 12,00"
         />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="wide">
+        <mat-label>Preço de venda (caixa/pacote)</mat-label>
+        <span matTextPrefix>R$&nbsp;</span>
+        <input matInput type="number" [(ngModel)]="preco" name="preco" min="0.01" step="0.01" />
       </mat-form-field>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
@@ -1077,6 +1159,41 @@ export class EditarPrecosDialogComponent {
   precoUnidade: number | null = this.data.precoUnidade != null ? Number(this.data.precoUnidade) : null;
   unidadesPorEmbalagem: number | null =
     this.data.unidadesPorEmbalagem != null ? Number(this.data.unidadesPorEmbalagem) : null;
+  margemDesejada: number | null = this.calcularMargemAtual();
+
+  private calcularMargemAtual(): number | null {
+    const custo = Number(this.data.custo ?? 0);
+    const temUn =
+      this.data.precoUnidade != null
+      && Number(this.data.precoUnidade) > 0
+      && this.data.unidadesPorEmbalagem != null
+      && Number(this.data.unidadesPorEmbalagem) > 1;
+    const venda = temUn ? Number(this.data.precoUnidade) : Number(this.data.preco);
+    if (!(venda > 0)) return null;
+    return Math.round(((venda - custo) / venda) * 1000) / 10;
+  }
+
+  aplicarMargem(): void {
+    const custo = Number(this.custo);
+    const margem = Number(this.margemDesejada);
+    if (!Number.isFinite(custo) || custo < 0 || !Number.isFinite(margem) || margem < 0 || margem >= 100) {
+      return;
+    }
+    const fator = 1 - margem / 100;
+    if (fator <= 0) return;
+    const precoUn = Math.round((custo / fator) * 100) / 100;
+    const upe =
+      this.unidadesPorEmbalagem != null && Number(this.unidadesPorEmbalagem) > 1
+        ? Number(this.unidadesPorEmbalagem)
+        : null;
+    if (upe != null) {
+      this.precoUnidade = precoUn;
+      this.preco = Math.round(precoUn * upe * 100) / 100;
+    } else {
+      this.preco = precoUn;
+      this.precoUnidade = null;
+    }
+  }
 
   valido(): boolean {
     if (!(Number(this.preco) > 0 && Number(this.custo) >= 0)) {

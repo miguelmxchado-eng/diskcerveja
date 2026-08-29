@@ -263,14 +263,33 @@
               <mat-form-field appearance="outline" class="produtos-field">
                 <mat-label>Preço de compra (por unidade)</mat-label>
                 <span matTextPrefix>R$&nbsp;</span>
-                <input matInput type="number" [(ngModel)]="novoCusto" name="custo" min="0" step="0.01" required />
+                <input
+                  matInput
+                  type="number"
+                  [(ngModel)]="novoCusto"
+                  (ngModelChange)="onCustoOuMargemChange()"
+                  name="custo"
+                  min="0"
+                  step="0.01"
+                  required
+                />
                 <mat-hint>Quanto você paga em cada unidade</mat-hint>
               </mat-form-field>
               <mat-form-field appearance="outline" class="produtos-field">
-                <mat-label>Preço de venda (caixa/pacote)</mat-label>
-                <span matTextPrefix>R$&nbsp;</span>
-                <input matInput type="number" [(ngModel)]="novoPreco" name="preco" min="0.01" step="0.01" required />
-                <mat-hint>Valor da caixa completa</mat-hint>
+                <mat-label>Margem desejada</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  [(ngModel)]="novoMargemDesejada"
+                  (ngModelChange)="onCustoOuMargemChange()"
+                  name="margemDesejada"
+                  min="0"
+                  max="99.9"
+                  step="0.1"
+                  placeholder="Ex.: 30"
+                />
+                <span matTextSuffix>%&nbsp;</span>
+                <mat-hint>Calcula o preço de venda automaticamente</mat-hint>
               </mat-form-field>
               <mat-form-field appearance="outline" class="produtos-field">
                 <mat-label>Unidades na caixa</mat-label>
@@ -278,6 +297,7 @@
                   matInput
                   type="number"
                   [(ngModel)]="novoUnidadesPorEmbalagem"
+                  (ngModelChange)="onUnidadesCaixaChange()"
                   name="unidadesPacote"
                   min="2"
                   step="1"
@@ -297,7 +317,21 @@
                   step="0.01"
                   placeholder="Ex.: 6,00"
                 />
-                <mat-hint>Valor de 1 unidade avulsa</mat-hint>
+                <mat-hint>Pode ajustar manualmente depois da margem</mat-hint>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="produtos-field">
+                <mat-label>Preço de venda (caixa/pacote)</mat-label>
+                <span matTextPrefix>R$&nbsp;</span>
+                <input
+                  matInput
+                  type="number"
+                  [(ngModel)]="novoPreco"
+                  name="preco"
+                  min="0.01"
+                  step="0.01"
+                  required
+                />
+                <mat-hint>Valor da caixa completa</mat-hint>
               </mat-form-field>
               <mat-form-field appearance="outline" class="produtos-field">
                 <mat-label>Estoque mínimo</mat-label>
@@ -376,6 +410,12 @@
                 <dt>Preço de compra (un.)</dt>
                 <dd>R$ {{ novoCusto | number: '1.2-2' }}</dd>
               </div>
+              @if (novoMargemDesejada != null) {
+                <div class="produtos-resumo__row">
+                  <dt>Margem desejada</dt>
+                  <dd>{{ novoMargemDesejada | number: '1.0-1' }}%</dd>
+                </div>
+              }
               <div class="produtos-resumo__row">
                 <dt>Preço de venda (caixa)</dt>
                 <dd>R$ {{ novoPreco | number: '1.2-2' }}</dd>
