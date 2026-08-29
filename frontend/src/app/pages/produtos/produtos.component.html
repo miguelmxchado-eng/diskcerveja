@@ -6,7 +6,7 @@
       <p class="em-page__subtitle">Cadastre, organize e acompanhe seu catálogo</p>
     </div>
     <div class="em-page__actions">
-      <button type="button" class="em-btn em-btn--ghost" (click)="imprimirListaPrecos()">
+      <button type="button" class="em-btn em-btn--ghost" (click)="abrirImpressaoPrecos()">
         <mat-icon>print</mat-icon>
         Imprimir preços
       </button>
@@ -107,12 +107,9 @@
                   <mat-form-field appearance="outline" class="produtos-field produtos-field--grow">
                     <mat-label>Categoria</mat-label>
                     <mat-select [(ngModel)]="novoCat" name="cat">
-                      <mat-option value="CERVEJAS">Cervejas</mat-option>
-                      <mat-option value="DESTILADOS">Destilados</mat-option>
-                      <mat-option value="REFRIGERANTES">Refrigerantes</mat-option>
-                      <mat-option value="ENERGETICOS">Energéticos</mat-option>
-                      <mat-option value="PETISCOS">Petiscos</mat-option>
-                      <mat-option value="COMBOS">Combos</mat-option>
+                      @for (cat of categorias; track cat) {
+                        <mat-option [value]="cat">{{ cat | statusLabel }}</mat-option>
+                      }
                     </mat-select>
                   </mat-form-field>
                 </div>

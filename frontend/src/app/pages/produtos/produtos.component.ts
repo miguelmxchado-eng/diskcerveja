@@ -37,6 +37,7 @@ const CATEGORIAS = [
   'ENERGETICOS',
   'PETISCOS',
   'COMBOS',
+  'OUTROS',
 ] as const;
 
 type ProdutoComImagem = Produto & { imagemUrl?: string | null };
@@ -561,10 +562,37 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.snack.open('Importação em breve.', 'OK', { duration: 2500 });
   }
 
+  /** Escolhe categorias e imprime lista de preços. */
+  abrirImpressaoPrecos(): void {
+    const presentes = new Set(
+      this.produtos()
+        .filter((p) => p.ativo)
+        .map((p) => p.categoria),
+    );
+    const opcoes = this.categorias.filter((c) => presentes.has(c));
+    if (!opcoes.length) {
+      this.snack.open('Não há produtos ativos para imprimir.', 'OK', { duration: 2500 });
+      return;
+    }
+    this.dialog
+      .open(ImprimirPrecosDialogComponent, {
+        data: { categorias: opcoes },
+        width: '380px',
+      })
+      .afterClosed()
+      .subscribe((selecionadas: string[] | undefined) => {
+        if (!selecionadas?.length) {
+          return;
+        }
+        this.imprimirListaPrecos(selecionadas);
+      });
+  }
+
   /** Lista em papel: nome + preço de venda (para quem não usa o sistema). */
-  imprimirListaPrecos(): void {
+  imprimirListaPrecos(categoriasFiltro: string[]): void {
+    const filtro = new Set(categoriasFiltro);
     const ativos = this.produtos()
-      .filter((p) => p.ativo)
+      .filter((p) => p.ativo && filtro.has(p.categoria))
       .sort((a, b) => {
         const ca = (a.categoria || '').localeCompare(b.categoria || '', 'pt-BR');
         if (ca !== 0) return ca;
@@ -572,7 +600,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       });
 
     if (!ativos.length) {
-      this.snack.open('Não há produtos ativos para imprimir.', 'OK', { duration: 2500 });
+      this.snack.open('Nenhum produto ativo nas categorias escolhidas.', 'OK', { duration: 2500 });
       return;
     }
 
@@ -589,6 +617,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       ENERGETICOS: 'Energéticos',
       PETISCOS: 'Petiscos',
       COMBOS: 'Combos',
+      OUTROS: 'Outros',
     };
 
     let ultimaCat = '';
@@ -1387,5 +1416,85 @@ export class EditarPrecosDialogComponent {
       precoUnidade: temUnidade ? Number(this.precoUnidade) : null,
       unidadesPorEmbalagem: temUnidade ? this.upe() : null,
     });
+  }
+}
+
+@Component({
+  selector: 'app-imprimir-precos-dialog',
+  standalone: true,
+  imports: [FormsModule, MatDialogModule, MatButtonModule, MatCheckboxModule, StatusLabelPipe],
+  template: `
+    <h2 mat-dialog-title>Imprimir preços</h2>
+    <mat-dialog-content>
+      <p class="hint">Marque as categorias que entram na lista.</p>
+      <mat-checkbox
+        [checked]="todasSelecionadas()"
+        [indeterminate]="algumaSelecionada() && !todasSelecionadas()"
+        (change)="toggleTodas($event.checked)"
+      >
+        Todas
+      </mat-checkbox>
+      <div class="lista">
+        @for (cat of data.categorias; track cat) {
+          <mat-checkbox [(ngModel)]="selecionadas[cat]" [name]="'cat-' + cat">
+            {{ cat | statusLabel }}
+          </mat-checkbox>
+        }
+      </div>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button mat-stroked-button type="button" [mat-dialog-close]="undefined">Cancelar</button>
+      <button
+        mat-flat-button
+        type="button"
+        color="primary"
+        [disabled]="!algumaSelecionada()"
+        (click)="imprimir()"
+      >
+        Imprimir
+      </button>
+    </mat-dialog-actions>
+  `,
+  styles: `
+    .hint {
+      margin: 0 0 12px;
+      color: #6f6a60;
+      font-size: 0.9rem;
+    }
+    .lista {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 8px;
+    }
+    mat-dialog-content {
+      padding-top: 4px;
+    }
+  `,
+})
+export class ImprimirPrecosDialogComponent {
+  readonly data = inject<{ categorias: string[] }>(MAT_DIALOG_DATA);
+  private readonly dialogRef = inject(MatDialogRef<ImprimirPrecosDialogComponent>);
+  selecionadas: Record<string, boolean> = Object.fromEntries(
+    this.data.categorias.map((c) => [c, true]),
+  );
+
+  todasSelecionadas(): boolean {
+    return this.data.categorias.every((c) => this.selecionadas[c]);
+  }
+
+  algumaSelecionada(): boolean {
+    return this.data.categorias.some((c) => this.selecionadas[c]);
+  }
+
+  toggleTodas(ligado: boolean): void {
+    for (const cat of this.data.categorias) {
+      this.selecionadas[cat] = ligado;
+    }
+  }
+
+  imprimir(): void {
+    const escolhidas = this.data.categorias.filter((c) => this.selecionadas[c]);
+    this.dialogRef.close(escolhidas);
   }
 }

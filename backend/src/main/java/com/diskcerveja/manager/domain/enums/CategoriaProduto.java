@@ -6,5 +6,6 @@ public enum CategoriaProduto {
     REFRIGERANTES,
     ENERGETICOS,
     PETISCOS,
-    COMBOS
+    COMBOS,
+    OUTROS
 }

@@ -37,6 +37,7 @@ const LABELS: Record<string, string> = {
   ENERGETICOS:   'Energéticos',
   PETISCOS:      'Petiscos',
   COMBOS:        'Combos',
+  OUTROS:        'Outros',
 };
 
 @Pipe({ name: 'statusLabel', standalone: true, pure: true })
