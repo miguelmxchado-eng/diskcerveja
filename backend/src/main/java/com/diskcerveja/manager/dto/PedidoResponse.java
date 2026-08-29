@@ -15,6 +15,7 @@ public record PedidoResponse(
         TipoPedido tipo,
         StatusPedido status,
         BigDecimal total,
+        BigDecimal desconto,
         FormaPagamento formaPagamento,
         String enderecoEntrega,
         boolean estoqueBaixado,

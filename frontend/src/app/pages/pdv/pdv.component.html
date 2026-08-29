@@ -397,9 +397,14 @@
             <mat-icon>delete_outline</mat-icon>
             Limpar
           </button>
-          <button type="button" class="pdv-btn pdv-btn--ghost" (click)="salvarPedido()">
+          <button
+            type="button"
+            class="pdv-btn pdv-btn--ghost"
+            (click)="salvarPedido()"
+            [disabled]="salvandoPedido() || confirmando() || !carrinho().length"
+          >
             <mat-icon>save</mat-icon>
-            Salvar pedido
+            {{ salvandoPedido() ? 'Salvando…' : 'Salvar pedido' }}
           </button>
         </div>
       </div>
@@ -415,16 +420,21 @@
       <button
         type="button"
         class="pdv-confirm"
-        [disabled]="precisaAbrirCaixa() || confirmando() || (!carrinho().length && pedidoPendenteConfirmacao() == null)"
+        [disabled]="
+          precisaAbrirCaixa()
+            || confirmando()
+            || salvandoPedido()
+            || (!carrinho().length && pedidoPendenteConfirmacao() == null)
+        "
         (click)="acaoConfirmar()"
       >
-        <mat-icon>{{ confirmando() ? 'hourglass_empty' : 'check_circle' }}</mat-icon>
-        @if (confirmando()) {
-          Confirmando…
+        <mat-icon>{{ confirmando() || salvandoPedido() ? 'hourglass_empty' : 'check_circle' }}</mat-icon>
+        @if (confirmando() || salvandoPedido()) {
+          {{ salvandoPedido() ? 'Salvando…' : 'Confirmando…' }}
         } @else if (pedidoPendenteConfirmacao()) {
-          Confirmar venda · R$ {{ totalPedido() | number: '1.2-2' }}
+          Confirmar venda · R$ {{ totalConfirmacaoExibido() | number: '1.2-2' }}
         } @else {
-          Confirmar venda · R$ {{ totalPedido() | number: '1.2-2' }}
+          Confirmar venda · R$ {{ totalConfirmacaoExibido() | number: '1.2-2' }}
         }
       </button>
       <p class="pdv-pay-hint">Pagamento via {{ formaPagamentoLabel() }}</p>

@@ -3,6 +3,7 @@ package com.diskcerveja.manager.dto;
 import com.diskcerveja.manager.domain.enums.FormaPagamento;
 import com.diskcerveja.manager.domain.enums.TipoPedido;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
@@ -16,5 +17,6 @@ public record PedidoRequest(
         @NotNull FormaPagamento formaPagamento,
         String enderecoEntrega,
         BigDecimal taxaEntrega,
+        @DecimalMin(value = "0.00", message = "Desconto não pode ser negativo") BigDecimal desconto,
         String entregadorNome,
         @NotEmpty @Valid List<PedidoItemRequest> itens) {}

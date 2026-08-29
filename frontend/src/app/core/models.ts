@@ -101,6 +101,7 @@ export interface PedidoResponse {
   tipo: 'ENTREGA' | 'RETIRADA' | 'BALCAO';
   status: string;
   total: number;
+  desconto?: number;
   formaPagamento: 'PIX' | 'DINHEIRO' | 'CARTAO';
   enderecoEntrega?: string;
   estoqueBaixado: boolean;

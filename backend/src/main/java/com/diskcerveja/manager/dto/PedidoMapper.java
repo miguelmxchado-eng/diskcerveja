@@ -20,6 +20,7 @@ public final class PedidoMapper {
                 p.getTipo(),
                 p.getStatus(),
                 p.getTotal(),
+                p.getDesconto() != null ? p.getDesconto() : java.math.BigDecimal.ZERO,
                 p.getFormaPagamento(),
                 p.getEnderecoEntrega(),
                 p.isEstoqueBaixado(),

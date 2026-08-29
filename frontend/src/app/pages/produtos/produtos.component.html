@@ -14,7 +14,7 @@
         <mat-icon>upload</mat-icon>
         Importar
       </button>
-      @if (auth.isAdmin()) {
+      @if (auth.isAdmin() && !formularioAberto()) {
         <button type="button" class="em-btn em-btn--gold" (click)="abrirNovoCadastro()">
           <mat-icon>add</mat-icon>
           Novo produto
@@ -23,6 +23,7 @@
     </div>
   </header>
 
+  @if (!formularioAberto()) {
   <div class="em-kpi-row">
     <div class="em-kpi">
       <span class="em-kpi__ico"><mat-icon>inventory_2</mat-icon></span>
@@ -53,6 +54,7 @@
       </div>
     </div>
   </div>
+  }
 
   @if (loading()) {
     <mat-progress-bar mode="indeterminate" class="produtos-loading"></mat-progress-bar>
@@ -73,7 +75,7 @@
               <span class="produtos-edit-banner__code">· {{ codigoInternoEdicao }}</span>
             }
           </div>
-          <button mat-stroked-button type="button" (click)="cancelarCadastro()">Cancelar edição</button>
+          <button mat-stroked-button type="button" (click)="cancelarCadastro()">Voltar</button>
         </div>
       } @else {
         <div class="produtos-edit-banner produtos-edit-banner--new" role="status">
@@ -82,7 +84,7 @@
             <strong>Novo produto</strong>
             <span class="produtos-edit-banner__code">Preencha os dados e avance até a revisão</span>
           </div>
-          <button mat-stroked-button type="button" (click)="cancelarCadastro()">Fechar</button>
+          <button mat-stroked-button type="button" (click)="cancelarCadastro()">Voltar</button>
         </div>
       }
       <mat-horizontal-stepper #cadastroStepper class="produtos-stepper" [linear]="false" animationDuration="200">
@@ -240,7 +242,7 @@
 
           <div class="produtos-wizard__footer">
             <button mat-stroked-button type="button" (click)="cancelarCadastro()">
-              {{ editando() ? 'Descartar edição' : 'Cancelar' }}
+              {{ editando() ? 'Voltar' : 'Cancelar' }}
             </button>
             <button mat-flat-button type="button" class="produtos-btn-primary" matStepperNext [disabled]="!podeAvancarDados()">
               Próximo
@@ -415,6 +417,7 @@
     </div>
   }
 
+  @if (!formularioAberto()) {
   @if (selectedIds().size > 0) {
     <div class="produtos-bulk-bar" (click)="$event.stopPropagation()">
       <span class="produtos-bulk-bar__count">{{ selectedIds().size }} selecionado(s)</span>
@@ -514,7 +517,6 @@
             />
           </th>
           <th>Produto</th>
-          <th>Código</th>
           <th>Categoria</th>
           <th>Preço compra</th>
           <th>Preço pacote</th>
@@ -549,18 +551,6 @@
                 />
                 <span class="em-product-cell__name">{{ p.nome }}</span>
               </div>
-            </td>
-            <td>
-              @if (codigoExibicao(p); as cod) {
-                <div class="produtos-code-cell">
-                  <code class="em-code">{{ cod }}</code>
-                  <button type="button" class="em-link produtos-code-cell__copy" (click)="copiarCodigo(p, $event)">
-                    Copiar
-                  </button>
-                </div>
-              } @else {
-                <span class="produtos-muted">—</span>
-              }
             </td>
             <td>
               <span class="em-badge em-badge--gold">{{ p.categoria | statusLabel }}</span>
@@ -636,7 +626,7 @@
           </tr>
         } @empty {
           <tr>
-            <td colspan="11" class="produtos-empty">
+            <td colspan="10" class="produtos-empty">
               <mat-icon>inventory_2</mat-icon>
               <span>Nenhum produto encontrado.</span>
             </td>
@@ -656,4 +646,5 @@
       </div>
     </div>
   </div>
+  }
 </div>

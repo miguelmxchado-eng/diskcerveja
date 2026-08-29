@@ -95,7 +95,10 @@ public class PedidoService {
                 throw new IllegalArgumentException("Endereço de entrega é obrigatório para pedidos de entrega.");
             }
         }
-        p.setTotal(calcularTotalItens(p).add(taxa));
+        BigDecimal subtotal = calcularTotalItens(p);
+        BigDecimal desconto = normalizarDesconto(dto.desconto(), subtotal);
+        p.setDesconto(desconto);
+        p.setTotal(subtotal.subtract(desconto).add(taxa));
         Pedido salvo = pedidoRepository.save(p);
         if (dto.tipo() == TipoPedido.ENTREGA) {
             Entrega e = new Entrega();
@@ -164,11 +167,19 @@ public class PedidoService {
         if (atual == StatusPedido.CANCELADO) {
             throw new IllegalStateException("Pedido cancelado não pode ser alterado.");
         }
-        if (novo == StatusPedido.CANCELADO && p.isEstoqueBaixado()) {
-            estoqueService.estornarPorPedido(p, usuario);
-            p.setEstoqueBaixado(false);
+        if (atual == StatusPedido.ENTREGUE && novo != StatusPedido.CANCELADO) {
+            throw new IllegalStateException("Pedido entregue só pode ser cancelado.");
         }
-        if (novo == StatusPedido.ENTREGUE) {
+        if (novo == StatusPedido.CANCELADO) {
+            if (p.isEstoqueBaixado()) {
+                estoqueService.estornarPorPedido(p, usuario);
+                p.setEstoqueBaixado(false);
+            }
+            if (atual == StatusPedido.ENTREGUE) {
+                caixaSessaoService.estornarVendaPedido(p);
+            }
+            p.setStatus(StatusPedido.CANCELADO);
+        } else if (novo == StatusPedido.ENTREGUE) {
             if (!p.isEstoqueBaixado()) {
                 estoqueService.baixarPorPedido(p, usuario);
                 p.setEstoqueBaixado(true);
@@ -203,7 +214,9 @@ public class PedidoService {
                     Entrega n = new Entrega();
                     n.setPedido(p);
                     n.setStatus(StatusEntrega.PENDENTE);
-                    BigDecimal taxa = p.getTotal().subtract(calcularTotalItens(p));
+                    BigDecimal subtotal = calcularTotalItens(p);
+                    BigDecimal desc = p.getDesconto() != null ? p.getDesconto() : BigDecimal.ZERO;
+                    BigDecimal taxa = p.getTotal().subtract(subtotal.subtract(desc));
                     if (taxa.compareTo(BigDecimal.ZERO) < 0) {
                         taxa = BigDecimal.ZERO;
                     }
@@ -336,5 +349,16 @@ public class PedidoService {
         return p.getItens().stream()
                 .map(i -> i.getPrecoUnitario().multiply(BigDecimal.valueOf(i.getQuantidade())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static BigDecimal normalizarDesconto(BigDecimal desconto, BigDecimal subtotal) {
+        BigDecimal d = desconto != null ? desconto : BigDecimal.ZERO;
+        if (d.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Desconto não pode ser negativo.");
+        }
+        if (d.compareTo(subtotal) > 0) {
+            throw new IllegalArgumentException("Desconto não pode ser maior que o subtotal dos itens.");
+        }
+        return d;
     }
 }

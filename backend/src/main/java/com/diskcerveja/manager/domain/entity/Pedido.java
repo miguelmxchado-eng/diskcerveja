@@ -54,6 +54,10 @@ public class Pedido {
     @Column(nullable = false, precision = 14, scale = 2)
     private BigDecimal total = BigDecimal.ZERO;
 
+    /** Desconto em R$ aplicado sobre o subtotal dos itens (antes da taxa de entrega). */
+    @Column(nullable = false, precision = 14, scale = 2)
+    private BigDecimal desconto = BigDecimal.ZERO;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "forma_pagamento", nullable = false, length = 20)
     private FormaPagamento formaPagamento;
@@ -139,6 +143,14 @@ public class Pedido {
 
     public void setTotal(BigDecimal total) {
         this.total = total;
+    }
+
+    public BigDecimal getDesconto() {
+        return desconto;
+    }
+
+    public void setDesconto(BigDecimal desconto) {
+        this.desconto = desconto != null ? desconto : BigDecimal.ZERO;
     }
 
     public FormaPagamento getFormaPagamento() {

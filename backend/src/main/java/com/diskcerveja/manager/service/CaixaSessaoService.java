@@ -150,6 +150,16 @@ public class CaixaSessaoService {
     }
 
     /**
+     * Remove a ENTRADA_VENDA do pedido no caixa (ex.: cancelamento após ENTREGUE).
+     */
+    @Transactional
+    public void estornarVendaPedido(Pedido pedido) {
+        movimentoCaixaRepository
+                .findByPedido_IdAndTipo(pedido.getId(), TipoMovimentoCaixa.ENTRADA_VENDA)
+                .ifPresent(movimentoCaixaRepository::delete);
+    }
+
+    /**
      * Para pedidos ENTREGUE no intervalo, garante movimento de caixa (dia = data local do pedido) e alinha valor.
      */
     @Transactional

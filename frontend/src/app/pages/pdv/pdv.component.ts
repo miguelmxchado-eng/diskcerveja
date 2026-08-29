@@ -264,6 +264,9 @@ export class PdvComponent implements OnInit, OnDestroy {
   ultimoPedidoId = signal<number | null>(null);
   readonly pedidoPendenteConfirmacao = signal<number | null>(null);
   readonly confirmando = signal(false);
+  readonly salvandoPedido = signal(false);
+  /** Total do pedido pendente de confirmação (após limpar o carrinho). */
+  readonly totalConfirmacao = signal<number | null>(null);
   readonly caixaObrigatorio = signal(false);
   readonly caixaAberto = signal(true);
   readonly caixaVerificando = signal(false);
@@ -623,19 +626,38 @@ export class PdvComponent implements OnInit, OnDestroy {
   }
 
   private registrarSucesso(produto: Produto, codigo: string, bip: boolean): void {
-    this.add(produto, codigo);
-    this.codigoBarras = '';
-    this.piscarScanOk();
-    if (bip) this.feedback.success();
-    this.scanHistory.push(codigo, true, produto.nome);
-    this.historicoScans.set(this.scanHistory.list());
-    const linha = this.carrinho().find((l) => l.produtoId === produto.id && !l.vendaUnidade);
-    this.ultimoScan.set({
-      code: codigo,
-      nome: produto.nome,
-      qtd: linha?.qtd ?? 1,
-      preco: Number(produto.preco),
-    });
+    const finalizar = (vendaUnidade: boolean): void => {
+      this.add(produto, codigo, vendaUnidade);
+      this.codigoBarras = '';
+      this.piscarScanOk();
+      if (bip) this.feedback.success();
+      this.scanHistory.push(codigo, true, produto.nome);
+      this.historicoScans.set(this.scanHistory.list());
+      const linha = this.carrinho().find(
+        (l) => l.produtoId === produto.id && !!l.vendaUnidade === vendaUnidade,
+      );
+      this.ultimoScan.set({
+        code: codigo,
+        nome: vendaUnidade ? `${produto.nome} (unidade)` : produto.nome,
+        qtd: linha?.qtd ?? 1,
+        preco: vendaUnidade ? Number(produto.precoUnidade) : Number(produto.preco),
+      });
+    };
+
+    if (this.podeVenderUnidade(produto)) {
+      this.dialog
+        .open(EscolherVendaDialogComponent, {
+          data: produto,
+          width: '360px',
+        })
+        .afterClosed()
+        .subscribe((modo: 'pacote' | 'unidade' | undefined) => {
+          if (modo === 'pacote') finalizar(false);
+          if (modo === 'unidade') finalizar(true);
+        });
+      return;
+    }
+    finalizar(false);
   }
 
   private piscarScanOk(): void {
@@ -874,6 +896,14 @@ export class PdvComponent implements OnInit, OnDestroy {
     this.clienteAberto.set(false);
   }
 
+  /** Total exibido no botão confirmar (carrinho ou pedido pendente). */
+  totalConfirmacaoExibido(): number {
+    if (this.pedidoPendenteConfirmacao() != null && this.totalConfirmacao() != null) {
+      return this.totalConfirmacao()!;
+    }
+    return this.totalPedido();
+  }
+
   abrirDesconto(): void {
     this.descontoInput = this.descontoModo() === 'valor' ? this.descontoValor() : 0;
     this.descontoAberto.set(true);
@@ -901,6 +931,9 @@ export class PdvComponent implements OnInit, OnDestroy {
       });
       return;
     }
+    if (this.salvandoPedido() || this.confirmando()) {
+      return;
+    }
     if (this.pedidoPendenteConfirmacao() != null) {
       this.confirmarVenda();
       return;
@@ -909,10 +942,15 @@ export class PdvComponent implements OnInit, OnDestroy {
   }
 
   salvarPedido(confirmarDepois = false) {
+    if (this.salvandoPedido() || this.confirmando()) {
+      return;
+    }
     if (!this.carrinho().length) {
       this.snack.open('Adicione itens ao pedido.', 'OK', { duration: 2500 });
       return;
     }
+    const totalAtual = this.totalPedido();
+    const descontoAtual = this.desconto();
     const body = {
       clienteId: this.clienteId(),
       clienteNome: this.clienteNome || null,
@@ -921,6 +959,7 @@ export class PdvComponent implements OnInit, OnDestroy {
       formaPagamento: this.formaPagamento,
       enderecoEntrega: this.tipo() === 'ENTREGA' ? this.enderecoEntrega : null,
       taxaEntrega: this.tipo() === 'ENTREGA' ? Number(this.taxaEntrega() || 0) : 0,
+      desconto: descontoAtual,
       entregadorNome: this.entregadorNome || null,
       itens: this.carrinho().map((l) =>
         l.isCombo
@@ -928,10 +967,13 @@ export class PdvComponent implements OnInit, OnDestroy {
           : { produtoId: l.produtoId, quantidade: l.qtd, vendaUnidade: !!l.vendaUnidade },
       ),
     };
+    this.salvandoPedido.set(true);
     this.http.post<PedidoResponse>(`${environment.apiUrl}/api/pedidos`, body).subscribe({
       next: (p) => {
+        this.salvandoPedido.set(false);
         this.ultimoPedidoId.set(p.id);
         this.pedidoPendenteConfirmacao.set(p.id);
+        this.totalConfirmacao.set(Number(p.total ?? totalAtual));
         localStorage.setItem(LAST_KEY, JSON.stringify(body));
         this.snack.open(
           confirmarDepois
@@ -946,6 +988,7 @@ export class PdvComponent implements OnInit, OnDestroy {
         }
       },
       error: (e) => {
+        this.salvandoPedido.set(false);
         const msg = e?.error?.erro ?? e?.error?.detail ?? 'Erro ao salvar pedido';
         const sobreCaixa = /caixa/i.test(String(msg));
         if (sobreCaixa) {
@@ -964,6 +1007,9 @@ export class PdvComponent implements OnInit, OnDestroy {
       this.snack.open('Salve um pedido antes de confirmar.', 'OK', { duration: 3000 });
       return;
     }
+    if (this.confirmando()) {
+      return;
+    }
     this.confirmando.set(true);
     this.http
       .patch<PedidoResponse>(`${environment.apiUrl}/api/pedidos/${id}/status`, { status: 'ENTREGUE' })
@@ -971,6 +1017,7 @@ export class PdvComponent implements OnInit, OnDestroy {
         next: () => {
           this.confirmando.set(false);
           this.pedidoPendenteConfirmacao.set(null);
+          this.totalConfirmacao.set(null);
           this.snack.open(`Pedido #${id} confirmado.`, 'OK', { duration: 4000 });
         },
         error: (e) => {

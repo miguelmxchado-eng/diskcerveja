@@ -1,14 +1,11 @@
 import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
-
-const TOKEN_KEY = 'dcm_token';
-const USER_KEY = 'dcm_user';
+import { AuthService } from './auth.service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const router = inject(Router);
-  const token = localStorage.getItem(TOKEN_KEY);
+  const auth = inject(AuthService);
+  const token = auth.token() ?? localStorage.getItem('dcm_token');
 
   if (token) {
     req = req.clone({ setHeaders: { Authorization: `Bearer ${token}` } });
@@ -16,10 +13,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((err: HttpErrorResponse) => {
-      if (err.status === 401) {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(USER_KEY);
-        void router.navigateByUrl('/login');
+      if (err.status === 401 && !req.url.includes('/api/auth/login')) {
+        auth.logout();
       }
       return throwError(() => err);
     }),

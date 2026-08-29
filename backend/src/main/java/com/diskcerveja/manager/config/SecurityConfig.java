@@ -40,6 +40,7 @@ public class SecurityConfig {
                             "/dashboard",
                             "/pdv",
                             "/relatorio-pedidos",
+                            "/clientes",
                             "/produtos",
                             "/estoque",
                             "/caixa",

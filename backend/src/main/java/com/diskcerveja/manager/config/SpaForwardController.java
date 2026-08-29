@@ -18,6 +18,7 @@ public class SpaForwardController {
         "/dashboard",
         "/pdv",
         "/relatorio-pedidos",
+        "/clientes",
         "/produtos",
         "/estoque",
         "/caixa",
