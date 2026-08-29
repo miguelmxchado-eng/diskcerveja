@@ -209,9 +209,6 @@
                 <mat-form-field appearance="outline" class="produtos-field produtos-field--estoque">
                   <mat-label>{{ editando() ? 'Estoque atual' : 'Estoque inicial' }}</mat-label>
                   <input matInput type="number" [(ngModel)]="novoEst" name="estInicial" />
-                  @if (editando()) {
-                    <mat-hint>Altera o saldo direto. Entrada/saída fica em Estoque.</mat-hint>
-                  }
                 </mat-form-field>
               </div>
 
