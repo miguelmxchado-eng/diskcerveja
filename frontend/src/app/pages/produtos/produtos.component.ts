@@ -1104,7 +1104,6 @@ export class ProdutosComponent implements OnInit, OnDestroy {
           placeholder="Ex.: 30"
         />
         <span matTextSuffix>%&nbsp;</span>
-        <mat-hint>Calcula o preço de venda automaticamente</mat-hint>
       </mat-form-field>
       <mat-form-field appearance="outline" class="wide">
         <mat-label>Unidades na caixa</mat-label>
@@ -1118,7 +1117,6 @@ export class ProdutosComponent implements OnInit, OnDestroy {
           step="1"
           placeholder="Ex.: 6"
         />
-        <mat-hint>Quantidade que vem na caixa</mat-hint>
       </mat-form-field>
       <mat-form-field appearance="outline" class="wide">
         <mat-label>Preço de venda (unidade)</mat-label>
