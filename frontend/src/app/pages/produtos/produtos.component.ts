@@ -284,6 +284,55 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Antes do “compra da caixa”, o valor pago na caixa era gravado em `custo`.
+   * Detecta esse legado: custo maior que o preço da unidade (ou ≥ preço da caixa).
+   */
+  private custoLegadoComoCaixa(p: Produto): boolean {
+    const upe =
+      p.unidadesPorEmbalagem != null && Number(p.unidadesPorEmbalagem) > 1
+        ? Number(p.unidadesPorEmbalagem)
+        : null;
+    if (upe == null) {
+      return false;
+    }
+    const custo = this.toMoney(p.custo ?? 0);
+    const precoUn = p.precoUnidade != null ? this.toMoney(p.precoUnidade) : 0;
+    if (precoUn > 0 && custo > precoUn) {
+      return true;
+    }
+    return custo >= this.toMoney(p.preco);
+  }
+
+  /** Custo unitário real para listagem / margem (corrige legado). */
+  custoUnitarioProduto(p: Produto): number {
+    const custo = this.toMoney(p.custo ?? 0);
+    const upe =
+      p.unidadesPorEmbalagem != null && Number(p.unidadesPorEmbalagem) > 1
+        ? Number(p.unidadesPorEmbalagem)
+        : null;
+    if (upe != null && this.custoLegadoComoCaixa(p)) {
+      return Math.round((custo / upe) * 100) / 100;
+    }
+    return custo;
+  }
+
+  /** Valor de compra da caixa (ou do item) para o formulário. */
+  custoCompraExibido(p: Produto): number {
+    const custo = this.toMoney(p.custo ?? 0);
+    const upe =
+      p.unidadesPorEmbalagem != null && Number(p.unidadesPorEmbalagem) > 1
+        ? Number(p.unidadesPorEmbalagem)
+        : null;
+    if (upe == null) {
+      return custo;
+    }
+    if (this.custoLegadoComoCaixa(p)) {
+      return custo;
+    }
+    return Math.round(custo * upe * 100) / 100;
+  }
+
+  /**
    * Margem sobre o preço de venda: preço = custo / (1 − margem/100).
    */
   private precoComMargem(custo: number, margemPercent: number): number | null {
@@ -386,17 +435,34 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     return (lucro / venda) * 100;
   }
 
-  /** Margem da listagem: sempre sobre venda unitária vs custo unitário (API). */
+  /** Margem da listagem: venda vs custo unitário efetivo. */
   lucroUnitario(p: Produto): number {
-    const custo = this.toMoney(p.custo ?? 0);
+    const custo = this.custoUnitarioProduto(p);
     if (this.podeVenderUnidade(p)) {
-      return this.toMoney(p.precoUnidade) - custo;
+      const upe = Number(p.unidadesPorEmbalagem);
+      const vendaUn = this.toMoney(p.precoUnidade);
+      // Preço unidade inconsistente com a caixa → usa margem da caixa.
+      if (Math.abs(vendaUn * upe - this.toMoney(p.preco)) > 0.5) {
+        return this.toMoney(p.preco) - this.custoCompraExibido(p);
+      }
+      return vendaUn - custo;
     }
     return this.toMoney(p.preco) - custo;
   }
 
   margemPercent(p: Produto): number | null {
-    const venda = this.podeVenderUnidade(p) ? this.toMoney(p.precoUnidade) : this.toMoney(p.preco);
+    if (this.podeVenderUnidade(p)) {
+      const upe = Number(p.unidadesPorEmbalagem);
+      const vendaUn = this.toMoney(p.precoUnidade);
+      if (Math.abs(vendaUn * upe - this.toMoney(p.preco)) > 0.5) {
+        const vendaCaixa = this.toMoney(p.preco);
+        if (vendaCaixa <= 0) return null;
+        return ((vendaCaixa - this.custoCompraExibido(p)) / vendaCaixa) * 100;
+      }
+      if (vendaUn <= 0) return null;
+      return ((vendaUn - this.custoUnitarioProduto(p)) / vendaUn) * 100;
+    }
+    const venda = this.toMoney(p.preco);
     if (venda <= 0) {
       return null;
     }
@@ -939,11 +1005,13 @@ export class ProdutosComponent implements OnInit, OnDestroy {
         : null;
     this.novoUnidadesPorEmbalagem = upe;
     this.vendeEmCaixa = upe != null;
-    const custoUn = Number(p.custo ?? 0);
-    // API guarda custo unitário; na tela mostramos o que pagou na caixa.
-    this.novoCustoCompra = upe != null ? Math.round(custoUn * upe * 100) / 100 : custoUn;
+    // Compra da caixa na tela; se o `custo` legado já era da caixa, não multiplica.
+    this.novoCustoCompra = this.custoCompraExibido(p);
     const margemAtual = this.margemPercent(p);
-    this.novoMargemDesejada = margemAtual != null ? Math.round(margemAtual * 10) / 10 : null;
+    this.novoMargemDesejada =
+      margemAtual != null && margemAtual >= 0 && margemAtual < 100
+        ? Math.round(margemAtual * 10) / 10
+        : null;
     this.novoMin = p.estoqueMinimo;
     this.novoEst = p.estoqueAtual;
     this.novoMarca = '';
@@ -1213,12 +1281,18 @@ export class EditarPrecosDialogComponent {
   margemDesejada: number | null = this.calcularMargemAtual();
 
   private inicializarCustoCompra(): number {
-    const custoUn = Number(this.data.custo ?? 0);
+    const custo = Number(this.data.custo ?? 0);
     const upe =
       this.data.unidadesPorEmbalagem != null && Number(this.data.unidadesPorEmbalagem) > 1
         ? Number(this.data.unidadesPorEmbalagem)
         : null;
-    return upe != null ? Math.round(custoUn * upe * 100) / 100 : custoUn;
+    if (upe == null) {
+      return custo;
+    }
+    const precoUn = this.data.precoUnidade != null ? Number(this.data.precoUnidade) : 0;
+    const legadoCaixa =
+      (precoUn > 0 && custo > precoUn) || custo >= Number(this.data.preco);
+    return legadoCaixa ? Math.round(custo * 100) / 100 : Math.round(custo * upe * 100) / 100;
   }
 
   private upe(): number | null {
@@ -1250,15 +1324,24 @@ export class EditarPrecosDialogComponent {
   }
 
   private calcularMargemAtual(): number | null {
-    const custoUn = Number(this.data.custo ?? 0);
-    const temUn =
-      this.data.precoUnidade != null
-      && Number(this.data.precoUnidade) > 0
-      && this.data.unidadesPorEmbalagem != null
-      && Number(this.data.unidadesPorEmbalagem) > 1;
-    const venda = temUn ? Number(this.data.precoUnidade) : Number(this.data.preco);
+    const custo = Number(this.data.custo ?? 0);
+    const upe =
+      this.data.unidadesPorEmbalagem != null && Number(this.data.unidadesPorEmbalagem) > 1
+        ? Number(this.data.unidadesPorEmbalagem)
+        : null;
+    if (upe != null) {
+      const compraCaixa = this.inicializarCustoCompra();
+      const vendaCaixa = Number(this.data.preco);
+      if (!(vendaCaixa > 0)) return null;
+      const m = ((vendaCaixa - compraCaixa) / vendaCaixa) * 100;
+      if (!(m >= 0 && m < 100)) return null;
+      return Math.round(m * 10) / 10;
+    }
+    const venda = Number(this.data.preco);
     if (!(venda > 0)) return null;
-    return Math.round(((venda - custoUn) / venda) * 1000) / 10;
+    const m = ((venda - custo) / venda) * 100;
+    if (!(m >= 0 && m < 100)) return null;
+    return Math.round(m * 10) / 10;
   }
 
   aplicarMargem(): void {

@@ -578,10 +578,10 @@
           </th>
           <th>Produto</th>
           <th>Categoria</th>
-          <th>Custo un.</th>
-          <th>Preço caixa</th>
-          <th>Preço unidade</th>
-          <th>Margem un.</th>
+          <th>Custo</th>
+          <th>Preço</th>
+          <th>Unidade</th>
+          <th>Margem</th>
           <th>Estoque</th>
           <th>Status</th>
           <th>Ações</th>
@@ -615,8 +615,18 @@
             <td>
               <span class="em-badge em-badge--gold">{{ p.categoria | statusLabel }}</span>
             </td>
-            <td>R$ {{ p.custo | number: '1.2-2' }}</td>
-            <td>R$ {{ p.preco | number: '1.2-2' }}</td>
+            <td>
+              R$ {{ custoUnitarioProduto(p) | number: '1.2-2' }}
+              @if (podeVenderUnidade(p)) {
+                <span class="produtos-estoque-min">/ un.</span>
+              }
+            </td>
+            <td>
+              R$ {{ p.preco | number: '1.2-2' }}
+              @if (podeVenderUnidade(p)) {
+                <span class="produtos-estoque-min">caixa</span>
+              }
+            </td>
             <td>
               @if (podeVenderUnidade(p)) {
                 R$ {{ p.precoUnidade | number: '1.2-2' }}
