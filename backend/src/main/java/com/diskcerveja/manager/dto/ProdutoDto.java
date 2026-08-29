@@ -22,7 +22,7 @@ public record ProdutoDto(
         BigDecimal precoUnidade,
         /** Ex.: 6 para pack c/6. Obrigatório se informar preço da unidade. */
         Integer unidadesPorEmbalagem,
-        @NotNull(message = "Preço de compra é obrigatório")
+        @NotNull(message = "Preço de compra (por unidade) é obrigatório")
         @DecimalMin(value = "0.00", message = "Preço de compra não pode ser negativo")
         BigDecimal custo,
         @NotNull Integer estoqueAtual,

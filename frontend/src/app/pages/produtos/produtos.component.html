@@ -264,19 +264,19 @@
             }
             <div class="produtos-step2-grid">
               <mat-form-field appearance="outline" class="produtos-field">
-                <mat-label>Preço de compra</mat-label>
+                <mat-label>Preço de compra (por unidade)</mat-label>
                 <span matTextPrefix>R$&nbsp;</span>
                 <input matInput type="number" [(ngModel)]="novoCusto" name="custo" min="0" step="0.01" required />
-                <mat-hint>Quanto você paga no fornecedor (pacote)</mat-hint>
+                <mat-hint>Quanto você paga em cada unidade</mat-hint>
               </mat-form-field>
               <mat-form-field appearance="outline" class="produtos-field">
-                <mat-label>Preço de venda (pacote)</mat-label>
+                <mat-label>Preço de venda (caixa/pacote)</mat-label>
                 <span matTextPrefix>R$&nbsp;</span>
                 <input matInput type="number" [(ngModel)]="novoPreco" name="preco" min="0.01" step="0.01" required />
-                <mat-hint>Preço do pacote / caixa</mat-hint>
+                <mat-hint>Valor da caixa completa</mat-hint>
               </mat-form-field>
               <mat-form-field appearance="outline" class="produtos-field">
-                <mat-label>Unidades no pacote</mat-label>
+                <mat-label>Unidades na caixa</mat-label>
                 <input
                   matInput
                   type="number"
@@ -286,10 +286,10 @@
                   step="1"
                   placeholder="Ex.: 6"
                 />
-                <mat-hint>Só se também vende unidade avulsa</mat-hint>
+                <mat-hint>Quantidade que vem na caixa</mat-hint>
               </mat-form-field>
               <mat-form-field appearance="outline" class="produtos-field">
-                <mat-label>Preço da unidade</mat-label>
+                <mat-label>Preço de venda (unidade)</mat-label>
                 <span matTextPrefix>R$&nbsp;</span>
                 <input
                   matInput
@@ -298,27 +298,36 @@
                   name="precoUnidade"
                   min="0.01"
                   step="0.01"
-                  placeholder="Ex.: 12,00"
+                  placeholder="Ex.: 6,00"
                 />
-                <mat-hint>Preço de 1 unidade avulsa</mat-hint>
+                <mat-hint>Valor de 1 unidade avulsa</mat-hint>
               </mat-form-field>
               <mat-form-field appearance="outline" class="produtos-field">
                 <mat-label>Estoque mínimo</mat-label>
                 <input matInput type="number" [(ngModel)]="novoMin" name="estMin" min="0" />
-                <mat-hint>Em unidades, se o produto vende avulso</mat-hint>
+                <mat-hint>Em unidades (ex.: 12 = 2 caixas de 6)</mat-hint>
               </mat-form-field>
             </div>
             @if (novoUnidadesPorEmbalagem != null && +novoUnidadesPorEmbalagem > 1) {
               <p class="produtos-lucro-preview">
-                Com pacote de {{ novoUnidadesPorEmbalagem }}: estoque deve ser em
-                <strong>unidades</strong> (ex.: 2 pacotes = estoque {{ 2 * (+novoUnidadesPorEmbalagem) }}).
+                Estoque em <strong>unidades</strong> (ex.: 2 caixas de {{ novoUnidadesPorEmbalagem }} =
+                estoque {{ 2 * (+novoUnidadesPorEmbalagem) }}).
+                Custo da caixa: R$ {{ custoCaixaCadastro() | number: '1.2-2' }}.
               </p>
             }
             @if (lucroCadastro() !== null) {
               <p class="produtos-lucro-preview" [class.produtos-lucro-preview--negativo]="lucroCadastro()! < 0">
-                Lucro unitário: R$ {{ lucroCadastro() | number: '1.2-2' }}
+                Lucro por unidade: R$ {{ lucroCadastro() | number: '1.2-2' }}
                 @if (margemCadastro() !== null) {
                   <span>(margem {{ margemCadastro() | number: '1.0-0' }}%)</span>
+                }
+              </p>
+            }
+            @if (lucroCaixaCadastro() !== null) {
+              <p class="produtos-lucro-preview" [class.produtos-lucro-preview--negativo]="lucroCaixaCadastro()! < 0">
+                Lucro por caixa: R$ {{ lucroCaixaCadastro() | number: '1.2-2' }}
+                @if (margemCaixaCadastro() !== null) {
+                  <span>(margem {{ margemCaixaCadastro() | number: '1.0-0' }}%)</span>
                 }
               </p>
             }
@@ -367,11 +376,11 @@
                 <dd>{{ novoEst }}</dd>
               </div>
               <div class="produtos-resumo__row">
-                <dt>Preço de compra</dt>
+                <dt>Preço de compra (un.)</dt>
                 <dd>R$ {{ novoCusto | number: '1.2-2' }}</dd>
               </div>
               <div class="produtos-resumo__row">
-                <dt>Preço de venda (pacote)</dt>
+                <dt>Preço de venda (caixa)</dt>
                 <dd>R$ {{ novoPreco | number: '1.2-2' }}</dd>
               </div>
               @if (novoPrecoUnidade != null && +novoPrecoUnidade > 0) {
@@ -380,13 +389,13 @@
                   <dd>
                     R$ {{ novoPrecoUnidade | number: '1.2-2' }}
                     @if (novoUnidadesPorEmbalagem) {
-                      <span class="produtos-muted">({{ novoUnidadesPorEmbalagem }} un./pacote)</span>
+                      <span class="produtos-muted">({{ novoUnidadesPorEmbalagem }} un./caixa)</span>
                     }
                   </dd>
                 </div>
               }
               <div class="produtos-resumo__row">
-                <dt>Lucro unitário</dt>
+                <dt>Lucro por unidade</dt>
                 <dd>R$ {{ lucroCadastro() | number: '1.2-2' }}</dd>
               </div>
               <div class="produtos-resumo__row">
@@ -518,10 +527,10 @@
           </th>
           <th>Produto</th>
           <th>Categoria</th>
-          <th>Preço compra</th>
-          <th>Preço pacote</th>
+          <th>Custo un.</th>
+          <th>Preço caixa</th>
           <th>Preço unidade</th>
-          <th>Margem</th>
+          <th>Margem un.</th>
           <th>Estoque</th>
           <th>Status</th>
           <th>Ações</th>

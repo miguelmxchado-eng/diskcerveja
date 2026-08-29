@@ -275,10 +275,12 @@ public class PedidoService {
         if (vendaUnidade) {
             pi.setDescricao(prod.getNome() + " (unidade)");
             pi.setPrecoUnitario(prod.getPrecoUnidade());
-            pi.setCustoUnitario(custoPorUnidade(prod));
+            // custo cadastrado é por unidade
+            pi.setCustoUnitario(custoOuZero(prod.getCusto()));
         } else {
             pi.setPrecoUnitario(prod.getPreco());
-            pi.setCustoUnitario(custoOuZero(prod.getCusto()));
+            // venda da caixa: custo = custo unitário × unidades na caixa
+            pi.setCustoUnitario(custoDaEmbalagem(prod));
         }
         return pi;
     }
@@ -314,13 +316,14 @@ public class PedidoService {
         return custo != null ? custo : BigDecimal.ZERO;
     }
 
-    private static BigDecimal custoPorUnidade(Produto prod) {
-        BigDecimal custoPack = custoOuZero(prod.getCusto());
-        int upe = prod.getUnidadesPorEmbalagem() != null ? prod.getUnidadesPorEmbalagem() : 1;
-        if (upe <= 1) {
-            return custoPack;
+    /** Custo de uma caixa/pacote: custo unitário × unidades na embalagem. */
+    private static BigDecimal custoDaEmbalagem(Produto prod) {
+        BigDecimal custoUn = custoOuZero(prod.getCusto());
+        Integer upe = prod.getUnidadesPorEmbalagem();
+        if (upe != null && upe > 1) {
+            return custoUn.multiply(BigDecimal.valueOf(upe));
         }
-        return custoPack.divide(BigDecimal.valueOf(upe), 2, java.math.RoundingMode.HALF_UP);
+        return custoUn;
     }
 
     private void aplicarClienteNoPedido(Pedido p, PedidoRequest dto) {

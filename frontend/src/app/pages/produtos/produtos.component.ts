@@ -241,15 +241,63 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     );
   }
 
+  /** Lucro por unidade: venda un. − compra un. (ou venda caixa − compra se não vende avulso). */
   lucroCadastro(): number | null {
     if (!this.podeAvancarPreco()) {
       return null;
     }
-    return this.toMoney(this.novoPreco) - this.toMoney(this.novoCusto);
+    const custo = this.toMoney(this.novoCusto);
+    const temUnidade =
+      this.novoPrecoUnidade != null
+      && Number(this.novoPrecoUnidade) > 0
+      && this.novoUnidadesPorEmbalagem != null
+      && Number(this.novoUnidadesPorEmbalagem) > 1;
+    if (temUnidade) {
+      return this.toMoney(this.novoPrecoUnidade) - custo;
+    }
+    return this.toMoney(this.novoPreco) - custo;
   }
 
   margemCadastro(): number | null {
     const lucro = this.lucroCadastro();
+    if (lucro === null) {
+      return null;
+    }
+    const temUnidade =
+      this.novoPrecoUnidade != null
+      && Number(this.novoPrecoUnidade) > 0
+      && this.novoUnidadesPorEmbalagem != null
+      && Number(this.novoUnidadesPorEmbalagem) > 1;
+    const venda = temUnidade ? this.toMoney(this.novoPrecoUnidade) : this.toMoney(this.novoPreco);
+    if (venda <= 0) {
+      return null;
+    }
+    return (lucro / venda) * 100;
+  }
+
+  custoCaixaCadastro(): number {
+    const upe =
+      this.novoUnidadesPorEmbalagem != null && Number(this.novoUnidadesPorEmbalagem) > 1
+        ? Number(this.novoUnidadesPorEmbalagem)
+        : 1;
+    return this.toMoney(this.novoCusto) * upe;
+  }
+
+  lucroCaixaCadastro(): number | null {
+    if (!this.podeAvancarPreco()) {
+      return null;
+    }
+    if (
+      this.novoUnidadesPorEmbalagem == null
+      || Number(this.novoUnidadesPorEmbalagem) <= 1
+    ) {
+      return null;
+    }
+    return this.toMoney(this.novoPreco) - this.custoCaixaCadastro();
+  }
+
+  margemCaixaCadastro(): number | null {
+    const lucro = this.lucroCaixaCadastro();
     const venda = this.toMoney(this.novoPreco);
     if (lucro === null || venda <= 0) {
       return null;
@@ -257,12 +305,17 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     return (lucro / venda) * 100;
   }
 
+  /** Margem da listagem: sempre sobre venda unitária vs custo unitário. */
   lucroUnitario(p: Produto): number {
-    return this.toMoney(p.preco) - this.toMoney(p.custo ?? 0);
+    const custo = this.toMoney(p.custo ?? 0);
+    if (this.podeVenderUnidade(p)) {
+      return this.toMoney(p.precoUnidade) - custo;
+    }
+    return this.toMoney(p.preco) - custo;
   }
 
   margemPercent(p: Produto): number | null {
-    const venda = this.toMoney(p.preco);
+    const venda = this.podeVenderUnidade(p) ? this.toMoney(p.precoUnidade) : this.toMoney(p.preco);
     if (venda <= 0) {
       return null;
     }
@@ -968,17 +1021,17 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     <h2 mat-dialog-title>Preços — {{ data.nome }}</h2>
     <mat-dialog-content>
       <mat-form-field appearance="outline" class="wide">
-        <mat-label>Preço de compra (pacote)</mat-label>
+        <mat-label>Preço de compra (por unidade)</mat-label>
         <span matTextPrefix>R$&nbsp;</span>
         <input matInput type="number" [(ngModel)]="custo" name="custo" min="0" step="0.01" />
       </mat-form-field>
       <mat-form-field appearance="outline" class="wide">
-        <mat-label>Preço de venda (pacote)</mat-label>
+        <mat-label>Preço de venda (caixa/pacote)</mat-label>
         <span matTextPrefix>R$&nbsp;</span>
         <input matInput type="number" [(ngModel)]="preco" name="preco" min="0.01" step="0.01" />
       </mat-form-field>
       <mat-form-field appearance="outline" class="wide">
-        <mat-label>Unidades no pacote</mat-label>
+        <mat-label>Unidades na caixa</mat-label>
         <input
           matInput
           type="number"
@@ -988,10 +1041,10 @@ export class ProdutosComponent implements OnInit, OnDestroy {
           step="1"
           placeholder="Ex.: 6"
         />
-        <mat-hint>Deixe vazio se não vende unidade</mat-hint>
+        <mat-hint>Quantidade que vem na caixa</mat-hint>
       </mat-form-field>
       <mat-form-field appearance="outline" class="wide">
-        <mat-label>Preço da unidade</mat-label>
+        <mat-label>Preço de venda (unidade)</mat-label>
         <span matTextPrefix>R$&nbsp;</span>
         <input
           matInput
