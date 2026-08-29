@@ -261,12 +261,12 @@
             }
             <div class="produtos-step2-grid">
               <mat-form-field appearance="outline" class="produtos-field">
-                <mat-label>Preço de compra (por unidade)</mat-label>
+                <mat-label>{{ labelCustoCompra() }}</mat-label>
                 <span matTextPrefix>R$&nbsp;</span>
                 <input
                   matInput
                   type="number"
-                  [(ngModel)]="novoCusto"
+                  [(ngModel)]="novoCustoCompra"
                   (ngModelChange)="onCustoOuMargemChange()"
                   name="custo"
                   min="0"
@@ -299,7 +299,7 @@
                   name="unidadesPacote"
                   min="2"
                   step="1"
-                  placeholder="Ex.: 6"
+                  placeholder="Ex.: 12"
                 />
               </mat-form-field>
               <mat-form-field appearance="outline" class="produtos-field">
@@ -312,11 +312,11 @@
                   name="precoUnidade"
                   min="0.01"
                   step="0.01"
-                  placeholder="Ex.: 6,00"
+                  placeholder="Ex.: 3,50"
                 />
               </mat-form-field>
               <mat-form-field appearance="outline" class="produtos-field">
-                <mat-label>Preço de venda (caixa/pacote)</mat-label>
+                <mat-label>Preço de venda (caixa)</mat-label>
                 <span matTextPrefix>R$&nbsp;</span>
                 <input
                   matInput
@@ -333,11 +333,11 @@
                 <input matInput type="number" [(ngModel)]="novoMin" name="estMin" min="0" />
               </mat-form-field>
             </div>
-            @if (novoUnidadesPorEmbalagem != null && +novoUnidadesPorEmbalagem > 1) {
+            @if (unidadesNaCaixa(); as upe) {
               <p class="produtos-lucro-preview">
-                Estoque em <strong>unidades</strong> (ex.: 2 caixas de {{ novoUnidadesPorEmbalagem }} =
-                estoque {{ 2 * (+novoUnidadesPorEmbalagem) }}).
-                Custo da caixa: R$ {{ custoCaixaCadastro() | number: '1.2-2' }}.
+                Custo por unidade: R$ {{ custoUnitarioCadastro() | number: '1.2-2' }}
+                (caixa R$ {{ custoCaixaCadastro() | number: '1.2-2' }} ÷ {{ upe }}).
+                Estoque em unidades (2 caixas = {{ 2 * upe }}).
               </p>
             }
             @if (lucroCadastro() !== null) {
@@ -401,9 +401,15 @@
                 <dd>{{ novoEst }}</dd>
               </div>
               <div class="produtos-resumo__row">
-                <dt>Preço de compra (un.)</dt>
-                <dd>R$ {{ novoCusto | number: '1.2-2' }}</dd>
+                <dt>{{ labelCustoCompra() }}</dt>
+                <dd>R$ {{ novoCustoCompra | number: '1.2-2' }}</dd>
               </div>
+              @if (unidadesNaCaixa(); as upe) {
+                <div class="produtos-resumo__row">
+                  <dt>Custo por unidade</dt>
+                  <dd>R$ {{ custoUnitarioCadastro() | number: '1.2-2' }} (÷ {{ upe }})</dd>
+                </div>
+              }
               @if (novoMargemDesejada != null) {
                 <div class="produtos-resumo__row">
                   <dt>Margem desejada</dt>

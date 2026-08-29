@@ -172,7 +172,11 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   novoPreco: number | null = null;
   novoPrecoUnidade: number | null = null;
   novoUnidadesPorEmbalagem: number | null = null;
-  novoCusto: number | null = null;
+  /**
+   * Valor pago na compra: da caixa (se tem unidades na caixa) ou do item avulso.
+   * Na API gravamos sempre o custo por unidade (compra ÷ unidades).
+   */
+  novoCustoCompra: number | null = null;
   /** Margem sobre o preço de venda (ex.: 30 → venda = custo / 0,70). */
   novoMargemDesejada: number | null = null;
   novoMin = 0;
@@ -209,10 +213,10 @@ export class ProdutosComponent implements OnInit, OnDestroy {
 
   podeAvancarPreco(): boolean {
     const venda = Number(this.novoPreco);
-    const compra = Number(this.novoCusto);
+    const compra = Number(this.novoCustoCompra);
     if (
       this.novoPreco == null
-      || this.novoCusto == null
+      || this.novoCustoCompra == null
       || !Number.isFinite(venda)
       || !Number.isFinite(compra)
       || venda <= 0
@@ -234,6 +238,27 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     return temPreco === temUnidades;
   }
 
+  unidadesNaCaixa(): number | null {
+    const upe = Number(this.novoUnidadesPorEmbalagem);
+    return Number.isFinite(upe) && upe > 1 ? upe : null;
+  }
+
+  /** Custo unitário derivado (o que vai para a API). */
+  custoUnitarioCadastro(): number {
+    const compra = this.toMoney(this.novoCustoCompra);
+    const upe = this.unidadesNaCaixa();
+    if (upe != null) {
+      return Math.round((compra / upe) * 100) / 100;
+    }
+    return compra;
+  }
+
+  labelCustoCompra(): string {
+    return this.unidadesNaCaixa() != null
+      ? 'Preço de compra (caixa)'
+      : 'Preço de compra';
+  }
+
   podeVenderUnidade(p: Produto): boolean {
     return (
       p.precoUnidade != null
@@ -245,7 +270,6 @@ export class ProdutosComponent implements OnInit, OnDestroy {
 
   /**
    * Margem sobre o preço de venda: preço = custo / (1 − margem/100).
-   * Ex.: custo 4,64 e 30% → 4,64 / 0,70 ≈ 6,63.
    */
   private precoComMargem(custo: number, margemPercent: number): number | null {
     if (!Number.isFinite(custo) || custo < 0) return null;
@@ -255,18 +279,22 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     return Math.round((custo / fator) * 100) / 100;
   }
 
-  /** Recalcula preços de venda a partir do custo e da margem desejada. */
+  /**
+   * Compra = valor da caixa (ou do item). Com N unidades, custo un. = compra/N;
+   * venda un. e venda caixa saem da margem.
+   */
   aplicarMargemDesejada(): void {
-    const custo = Number(this.novoCusto);
+    const compra = Number(this.novoCustoCompra);
     const margem = Number(this.novoMargemDesejada);
-    const precoUn = this.precoComMargem(custo, margem);
+    if (!Number.isFinite(compra) || compra < 0) {
+      return;
+    }
+    const upe = this.unidadesNaCaixa();
+    const custoUn = upe != null ? compra / upe : compra;
+    const precoUn = this.precoComMargem(custoUn, margem);
     if (precoUn == null) {
       return;
     }
-    const upe =
-      this.novoUnidadesPorEmbalagem != null && Number(this.novoUnidadesPorEmbalagem) > 1
-        ? Number(this.novoUnidadesPorEmbalagem)
-        : null;
     if (upe != null) {
       this.novoPrecoUnidade = precoUn;
       this.novoPreco = Math.round(precoUn * upe * 100) / 100;
@@ -287,29 +315,24 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       this.aplicarMargemDesejada();
       return;
     }
-    // Sem margem: se já há preço unitário, sugere caixa = un. × qtd
-    const upe = Number(this.novoUnidadesPorEmbalagem);
+    const upe = this.unidadesNaCaixa();
     const un = Number(this.novoPrecoUnidade);
-    if (upe > 1 && Number.isFinite(un) && un > 0) {
+    if (upe != null && Number.isFinite(un) && un > 0) {
       this.novoPreco = Math.round(un * upe * 100) / 100;
     }
   }
 
-  /** Lucro por unidade: venda un. − compra un. (ou venda caixa − compra se não vende avulso). */
+  /** Lucro por unidade: venda un. − custo un. (compra÷N). */
   lucroCadastro(): number | null {
     if (!this.podeAvancarPreco()) {
       return null;
     }
-    const custo = this.toMoney(this.novoCusto);
-    const temUnidade =
-      this.novoPrecoUnidade != null
-      && Number(this.novoPrecoUnidade) > 0
-      && this.novoUnidadesPorEmbalagem != null
-      && Number(this.novoUnidadesPorEmbalagem) > 1;
-    if (temUnidade) {
-      return this.toMoney(this.novoPrecoUnidade) - custo;
+    const custoUn = this.custoUnitarioCadastro();
+    const upe = this.unidadesNaCaixa();
+    if (upe != null && this.novoPrecoUnidade != null) {
+      return this.toMoney(this.novoPrecoUnidade) - custoUn;
     }
-    return this.toMoney(this.novoPreco) - custo;
+    return this.toMoney(this.novoPreco) - custoUn;
   }
 
   margemCadastro(): number | null {
@@ -317,12 +340,11 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     if (lucro === null) {
       return null;
     }
-    const temUnidade =
-      this.novoPrecoUnidade != null
-      && Number(this.novoPrecoUnidade) > 0
-      && this.novoUnidadesPorEmbalagem != null
-      && Number(this.novoUnidadesPorEmbalagem) > 1;
-    const venda = temUnidade ? this.toMoney(this.novoPrecoUnidade) : this.toMoney(this.novoPreco);
+    const upe = this.unidadesNaCaixa();
+    const venda =
+      upe != null && this.novoPrecoUnidade != null
+        ? this.toMoney(this.novoPrecoUnidade)
+        : this.toMoney(this.novoPreco);
     if (venda <= 0) {
       return null;
     }
@@ -330,21 +352,11 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   }
 
   custoCaixaCadastro(): number {
-    const upe =
-      this.novoUnidadesPorEmbalagem != null && Number(this.novoUnidadesPorEmbalagem) > 1
-        ? Number(this.novoUnidadesPorEmbalagem)
-        : 1;
-    return this.toMoney(this.novoCusto) * upe;
+    return this.toMoney(this.novoCustoCompra);
   }
 
   lucroCaixaCadastro(): number | null {
-    if (!this.podeAvancarPreco()) {
-      return null;
-    }
-    if (
-      this.novoUnidadesPorEmbalagem == null
-      || Number(this.novoUnidadesPorEmbalagem) <= 1
-    ) {
+    if (!this.podeAvancarPreco() || this.unidadesNaCaixa() == null) {
       return null;
     }
     return this.toMoney(this.novoPreco) - this.custoCaixaCadastro();
@@ -359,7 +371,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     return (lucro / venda) * 100;
   }
 
-  /** Margem da listagem: sempre sobre venda unitária vs custo unitário. */
+  /** Margem da listagem: sempre sobre venda unitária vs custo unitário (API). */
   lucroUnitario(p: Produto): number {
     const custo = this.toMoney(p.custo ?? 0);
     if (this.podeVenderUnidade(p)) {
@@ -873,7 +885,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.novoPreco = null;
     this.novoPrecoUnidade = null;
     this.novoUnidadesPorEmbalagem = null;
-    this.novoCusto = null;
+    this.novoCustoCompra = null;
     this.novoMargemDesejada = null;
     this.novoMin = 0;
     this.novoEst = 0;
@@ -906,7 +918,13 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.novoPreco = Number(p.preco);
     this.novoPrecoUnidade = p.precoUnidade != null ? Number(p.precoUnidade) : null;
     this.novoUnidadesPorEmbalagem = p.unidadesPorEmbalagem != null ? Number(p.unidadesPorEmbalagem) : null;
-    this.novoCusto = Number(p.custo ?? 0);
+    const custoUn = Number(p.custo ?? 0);
+    const upe =
+      p.unidadesPorEmbalagem != null && Number(p.unidadesPorEmbalagem) > 1
+        ? Number(p.unidadesPorEmbalagem)
+        : null;
+    // API guarda custo unitário; na tela mostramos o que pagou na caixa.
+    this.novoCustoCompra = upe != null ? Math.round(custoUn * upe * 100) / 100 : custoUn;
     const margemAtual = this.margemPercent(p);
     this.novoMargemDesejada = margemAtual != null ? Math.round(margemAtual * 10) / 10 : null;
     this.novoMin = p.estoqueMinimo;
@@ -976,7 +994,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       preco: this.toMoney(this.novoPreco),
       precoUnidade: temUnidade ? this.toMoney(this.novoPrecoUnidade) : null,
       unidadesPorEmbalagem: temUnidade ? this.toInt(this.novoUnidadesPorEmbalagem, 0) : null,
-      custo: this.toMoney(this.novoCusto),
+      custo: this.custoUnitarioCadastro(),
       estoqueAtual: this.toInt(this.novoEst, 0),
       estoqueMinimo: this.toInt(this.novoMin, 0),
       ativo: editando?.ativo ?? true,
@@ -1078,12 +1096,12 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     <h2 mat-dialog-title>Preços — {{ data.nome }}</h2>
     <mat-dialog-content>
       <mat-form-field appearance="outline" class="wide">
-        <mat-label>Preço de compra (por unidade)</mat-label>
+        <mat-label>{{ labelCusto() }}</mat-label>
         <span matTextPrefix>R$&nbsp;</span>
         <input
           matInput
           type="number"
-          [(ngModel)]="custo"
+          [(ngModel)]="custoCompra"
           (ngModelChange)="aplicarMargem()"
           name="custo"
           min="0"
@@ -1115,7 +1133,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
           name="unidades"
           min="2"
           step="1"
-          placeholder="Ex.: 6"
+          placeholder="Ex.: 12"
         />
       </mat-form-field>
       <mat-form-field appearance="outline" class="wide">
@@ -1128,11 +1146,11 @@ export class ProdutosComponent implements OnInit, OnDestroy {
           name="precoUnidade"
           min="0.01"
           step="0.01"
-          placeholder="Ex.: 12,00"
+          placeholder="Ex.: 3,50"
         />
       </mat-form-field>
       <mat-form-field appearance="outline" class="wide">
-        <mat-label>Preço de venda (caixa/pacote)</mat-label>
+        <mat-label>Preço de venda (caixa)</mat-label>
         <span matTextPrefix>R$&nbsp;</span>
         <input matInput type="number" [(ngModel)]="preco" name="preco" min="0.01" step="0.01" />
       </mat-form-field>
@@ -1152,15 +1170,39 @@ export class ProdutosComponent implements OnInit, OnDestroy {
 export class EditarPrecosDialogComponent {
   readonly data = inject<Produto>(MAT_DIALOG_DATA);
   private readonly dialogRef = inject(MatDialogRef<EditarPrecosDialogComponent>);
-  custo = this.data.custo ?? 0;
   preco = this.data.preco;
   precoUnidade: number | null = this.data.precoUnidade != null ? Number(this.data.precoUnidade) : null;
   unidadesPorEmbalagem: number | null =
     this.data.unidadesPorEmbalagem != null ? Number(this.data.unidadesPorEmbalagem) : null;
+  custoCompra = this.inicializarCustoCompra();
   margemDesejada: number | null = this.calcularMargemAtual();
 
+  private inicializarCustoCompra(): number {
+    const custoUn = Number(this.data.custo ?? 0);
+    const upe =
+      this.data.unidadesPorEmbalagem != null && Number(this.data.unidadesPorEmbalagem) > 1
+        ? Number(this.data.unidadesPorEmbalagem)
+        : null;
+    return upe != null ? Math.round(custoUn * upe * 100) / 100 : custoUn;
+  }
+
+  private upe(): number | null {
+    const n = Number(this.unidadesPorEmbalagem);
+    return Number.isFinite(n) && n > 1 ? n : null;
+  }
+
+  labelCusto(): string {
+    return this.upe() != null ? 'Preço de compra (caixa)' : 'Preço de compra';
+  }
+
+  private custoUnitario(): number {
+    const compra = Number(this.custoCompra) || 0;
+    const upe = this.upe();
+    return upe != null ? Math.round((compra / upe) * 100) / 100 : compra;
+  }
+
   private calcularMargemAtual(): number | null {
-    const custo = Number(this.data.custo ?? 0);
+    const custoUn = Number(this.data.custo ?? 0);
     const temUn =
       this.data.precoUnidade != null
       && Number(this.data.precoUnidade) > 0
@@ -1168,22 +1210,20 @@ export class EditarPrecosDialogComponent {
       && Number(this.data.unidadesPorEmbalagem) > 1;
     const venda = temUn ? Number(this.data.precoUnidade) : Number(this.data.preco);
     if (!(venda > 0)) return null;
-    return Math.round(((venda - custo) / venda) * 1000) / 10;
+    return Math.round(((venda - custoUn) / venda) * 1000) / 10;
   }
 
   aplicarMargem(): void {
-    const custo = Number(this.custo);
+    const compra = Number(this.custoCompra);
     const margem = Number(this.margemDesejada);
-    if (!Number.isFinite(custo) || custo < 0 || !Number.isFinite(margem) || margem < 0 || margem >= 100) {
+    if (!Number.isFinite(compra) || compra < 0 || !Number.isFinite(margem) || margem < 0 || margem >= 100) {
       return;
     }
     const fator = 1 - margem / 100;
     if (fator <= 0) return;
-    const precoUn = Math.round((custo / fator) * 100) / 100;
-    const upe =
-      this.unidadesPorEmbalagem != null && Number(this.unidadesPorEmbalagem) > 1
-        ? Number(this.unidadesPorEmbalagem)
-        : null;
+    const upe = this.upe();
+    const custoUn = upe != null ? compra / upe : compra;
+    const precoUn = Math.round((custoUn / fator) * 100) / 100;
     if (upe != null) {
       this.precoUnidade = precoUn;
       this.preco = Math.round(precoUn * upe * 100) / 100;
@@ -1194,11 +1234,11 @@ export class EditarPrecosDialogComponent {
   }
 
   valido(): boolean {
-    if (!(Number(this.preco) > 0 && Number(this.custo) >= 0)) {
+    if (!(Number(this.preco) > 0 && Number(this.custoCompra) >= 0)) {
       return false;
     }
     const temPreco = this.precoUnidade != null && Number(this.precoUnidade) > 0;
-    const temUnidades = this.unidadesPorEmbalagem != null && Number(this.unidadesPorEmbalagem) > 1;
+    const temUnidades = this.upe() != null;
     return temPreco === temUnidades;
   }
 
@@ -1208,10 +1248,10 @@ export class EditarPrecosDialogComponent {
     }
     const temUnidade = this.precoUnidade != null && Number(this.precoUnidade) > 0;
     this.dialogRef.close({
-      custo: Number(this.custo),
+      custo: this.custoUnitario(),
       preco: Number(this.preco),
       precoUnidade: temUnidade ? Number(this.precoUnidade) : null,
-      unidadesPorEmbalagem: temUnidade ? Number(this.unidadesPorEmbalagem) : null,
+      unidadesPorEmbalagem: temUnidade ? this.upe() : null,
     });
   }
 }
