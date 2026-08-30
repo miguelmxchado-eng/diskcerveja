@@ -40,10 +40,10 @@
       </div>
     </div>
     <div class="em-kpi">
-      <span class="em-kpi__ico"><mat-icon>pause_circle</mat-icon></span>
+      <span class="em-kpi__ico"><mat-icon>account_balance_wallet</mat-icon></span>
       <div>
-        <p class="em-kpi__value">{{ totalInativos() }}</p>
-        <p class="em-kpi__label">Inativos</p>
+        <p class="em-kpi__value">R$ {{ valorInvestidoEstoque() | number: '1.2-2' }}</p>
+        <p class="em-kpi__label">Investido no estoque</p>
       </div>
     </div>
     <div class="em-kpi">

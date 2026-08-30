@@ -37,6 +37,7 @@ const LABELS: Record<string, string> = {
   ENERGETICOS:   'Energéticos',
   PETISCOS:      'Petiscos',
   COMBOS:        'Combos',
+  CIGARROS:      'Cigarros',
   OUTROS:        'Outros',
 };
 

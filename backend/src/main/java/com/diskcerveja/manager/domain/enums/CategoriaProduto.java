@@ -7,5 +7,6 @@ public enum CategoriaProduto {
     ENERGETICOS,
     PETISCOS,
     COMBOS,
+    CIGARROS,
     OUTROS
 }

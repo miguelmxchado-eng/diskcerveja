@@ -37,6 +37,7 @@ const CATEGORIAS = [
   'ENERGETICOS',
   'PETISCOS',
   'COMBOS',
+  'CIGARROS',
   'OUTROS',
 ] as const;
 
@@ -99,6 +100,12 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   totalInativos = computed(() => this.totalProdutos() - this.totalAtivos());
   totalBaixoEstoque = computed(() =>
     this.produtos().filter((p) => p.ativo && p.estoqueAtual <= p.estoqueMinimo).length,
+  );
+  /** Custo × quantidade em estoque (quanto está parado em mercadoria). */
+  valorInvestidoEstoque = computed(() =>
+    this.produtos()
+      .filter((p) => p.ativo)
+      .reduce((acc, p) => acc + this.custoUnitarioProduto(p) * (p.estoqueAtual || 0), 0),
   );
 
   produtosFiltrados = computed(() => {
@@ -617,6 +624,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       ENERGETICOS: 'Energéticos',
       PETISCOS: 'Petiscos',
       COMBOS: 'Combos',
+      CIGARROS: 'Cigarros',
       OUTROS: 'Outros',
     };
 

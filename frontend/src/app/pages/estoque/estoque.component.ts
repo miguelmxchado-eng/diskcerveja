@@ -165,6 +165,7 @@ export class EstoqueComponent implements OnInit, OnDestroy {
     'ENERGETICOS',
     'PETISCOS',
     'COMBOS',
+    'CIGARROS',
     'OUTROS',
   ];
   combos = signal<ComboResponse[]>([]);

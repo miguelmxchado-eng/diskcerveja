@@ -39,6 +39,8 @@ export function produtoFotoUrl(nome: string, categoria?: string | null): string 
       return IMG.refrigerante;
     case 'ENERGETICOS':
       return IMG.energetico;
+    case 'CIGARROS':
+      return IMG.generico;
     default:
       return IMG.generico;
   }
