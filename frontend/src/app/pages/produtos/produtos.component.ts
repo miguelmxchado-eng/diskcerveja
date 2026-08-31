@@ -255,12 +255,12 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     return Number.isFinite(upe) && upe > 1 ? upe : null;
   }
 
-  /** Custo unitário derivado (o que vai para a API). */
+  /** Custo unitário derivado (o que vai para a API). Até 4 casas para a caixa fechar certinho. */
   custoUnitarioCadastro(): number {
-    const compra = this.toMoney(this.novoCustoCompra);
+    const compra = Math.round(this.toMoney(this.novoCustoCompra) * 100) / 100;
     const upe = this.unidadesNaCaixa();
     if (upe != null) {
-      return Math.round((compra / upe) * 100) / 100;
+      return Math.round((compra / upe) * 10000) / 10000;
     }
     return compra;
   }
@@ -326,16 +326,16 @@ export class ProdutosComponent implements OnInit, OnDestroy {
 
   /** Valor de compra da caixa (ou do item) para o formulário. */
   custoCompraExibido(p: Produto): number {
-    const custo = this.toMoney(p.custo ?? 0);
+    const custo = Number(p.custo ?? 0);
     const upe =
       p.unidadesPorEmbalagem != null && Number(p.unidadesPorEmbalagem) > 1
         ? Number(p.unidadesPorEmbalagem)
         : null;
     if (upe == null) {
-      return custo;
+      return Math.round(custo * 100) / 100;
     }
     if (this.custoLegadoComoCaixa(p)) {
-      return custo;
+      return Math.round(custo * 100) / 100;
     }
     return Math.round(custo * upe * 100) / 100;
   }
@@ -1324,12 +1324,14 @@ export class EditarPrecosDialogComponent {
         ? Number(this.data.unidadesPorEmbalagem)
         : null;
     if (upe == null) {
-      return custo;
+      return Math.round(custo * 100) / 100;
     }
     const precoUn = this.data.precoUnidade != null ? Number(this.data.precoUnidade) : 0;
     const legadoCaixa =
       (precoUn > 0 && custo > precoUn) || custo >= Number(this.data.preco);
-    return legadoCaixa ? Math.round(custo * 100) / 100 : Math.round(custo * upe * 100) / 100;
+    return legadoCaixa
+      ? Math.round(custo * 100) / 100
+      : Math.round(custo * upe * 100) / 100;
   }
 
   private upe(): number | null {
@@ -1355,9 +1357,9 @@ export class EditarPrecosDialogComponent {
   }
 
   private custoUnitario(): number {
-    const compra = Number(this.custoCompra) || 0;
+    const compra = Math.round((Number(this.custoCompra) || 0) * 100) / 100;
     const upe = this.upe();
-    return upe != null ? Math.round((compra / upe) * 100) / 100 : compra;
+    return upe != null ? Math.round((compra / upe) * 10000) / 10000 : compra;
   }
 
   private calcularMargemAtual(): number | null {

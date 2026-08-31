@@ -46,7 +46,7 @@ public class Produto {
     @Column(name = "unidades_por_embalagem")
     private Integer unidadesPorEmbalagem;
 
-    @Column(nullable = false, precision = 12, scale = 2)
+    @Column(nullable = false, precision = 12, scale = 4)
     private BigDecimal custo;
 
     @Column(name = "estoque_atual", nullable = false)
