@@ -82,6 +82,7 @@ public class ProdutoService {
         }
         p.setPreco(dto.preco());
         p.setCusto(dto.custo());
+        p.setCustoEmbalagem(dto.custoEmbalagem());
         aplicarPrecoUnidade(p, dto);
         if (dto.id() == null) {
             p.setEstoqueAtual(dto.estoqueAtual() != null ? dto.estoqueAtual() : 0);
@@ -110,6 +111,7 @@ public class ProdutoService {
         if (!temPreco) {
             p.setPrecoUnidade(null);
             p.setUnidadesPorEmbalagem(null);
+            p.setCustoEmbalagem(null);
             return;
         }
         p.setPrecoUnidade(precoUnidade);

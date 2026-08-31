@@ -326,11 +326,15 @@ export class ProdutosComponent implements OnInit, OnDestroy {
 
   /** Valor de compra da caixa (ou do item) para o formulário. */
   custoCompraExibido(p: Produto): number {
-    const custo = Number(p.custo ?? 0);
     const upe =
       p.unidadesPorEmbalagem != null && Number(p.unidadesPorEmbalagem) > 1
         ? Number(p.unidadesPorEmbalagem)
         : null;
+    // Preferir o valor exato da NF quando existir.
+    if (upe != null && p.custoEmbalagem != null && Number(p.custoEmbalagem) >= 0) {
+      return Math.round(Number(p.custoEmbalagem) * 100) / 100;
+    }
+    const custo = Number(p.custo ?? 0);
     if (upe == null) {
       return Math.round(custo * 100) / 100;
     }
@@ -1117,6 +1121,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       precoUnidade: temUnidade ? this.toMoney(this.novoPrecoUnidade) : null,
       unidadesPorEmbalagem: temUnidade ? this.toInt(this.novoUnidadesPorEmbalagem, 0) : null,
       custo: this.custoUnitarioCadastro(),
+      custoEmbalagem: temUnidade ? Math.round(this.toMoney(this.novoCustoCompra) * 100) / 100 : null,
       estoqueAtual: this.toInt(this.novoEst, 0),
       estoqueMinimo: this.toInt(this.novoMin, 0),
       ativo: editando?.ativo ?? true,
@@ -1184,6 +1189,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       .afterClosed()
       .subscribe((result: {
         custo: number;
+        custoEmbalagem: number | null;
         preco: number;
         precoUnidade: number | null;
         unidadesPorEmbalagem: number | null;
@@ -1195,7 +1201,8 @@ export class ProdutosComponent implements OnInit, OnDestroy {
           .put<Produto>(`${environment.apiUrl}/api/produtos/${p.id}`, {
             ...p,
             preco: this.toMoney(result.preco),
-            custo: this.toMoney(result.custo),
+            custo: result.custo,
+            custoEmbalagem: result.custoEmbalagem,
             precoUnidade: result.precoUnidade != null ? this.toMoney(result.precoUnidade) : null,
             unidadesPorEmbalagem: result.unidadesPorEmbalagem,
           })
@@ -1318,11 +1325,14 @@ export class EditarPrecosDialogComponent {
   margemDesejada: number | null = this.calcularMargemAtual();
 
   private inicializarCustoCompra(): number {
-    const custo = Number(this.data.custo ?? 0);
     const upe =
       this.data.unidadesPorEmbalagem != null && Number(this.data.unidadesPorEmbalagem) > 1
         ? Number(this.data.unidadesPorEmbalagem)
         : null;
+    if (upe != null && this.data.custoEmbalagem != null && Number(this.data.custoEmbalagem) >= 0) {
+      return Math.round(Number(this.data.custoEmbalagem) * 100) / 100;
+    }
+    const custo = Number(this.data.custo ?? 0);
     if (upe == null) {
       return Math.round(custo * 100) / 100;
     }
@@ -1420,8 +1430,10 @@ export class EditarPrecosDialogComponent {
       return;
     }
     const temUnidade = this.vendeEmCaixa && this.precoUnidade != null && Number(this.precoUnidade) > 0;
+    const compraCaixa = Math.round((Number(this.custoCompra) || 0) * 100) / 100;
     this.dialogRef.close({
       custo: this.custoUnitario(),
+      custoEmbalagem: temUnidade ? compraCaixa : null,
       preco: Number(this.preco),
       precoUnidade: temUnidade ? Number(this.precoUnidade) : null,
       unidadesPorEmbalagem: temUnidade ? this.upe() : null,

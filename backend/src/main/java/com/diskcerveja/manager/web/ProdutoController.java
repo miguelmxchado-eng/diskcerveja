@@ -72,6 +72,7 @@ public class ProdutoController {
                 dto.precoUnidade(),
                 dto.unidadesPorEmbalagem(),
                 dto.custo(),
+                dto.custoEmbalagem(),
                 dto.estoqueAtual(),
                 dto.estoqueMinimo(),
                 dto.ativo())));
@@ -95,6 +96,7 @@ public class ProdutoController {
                 p.getPrecoUnidade(),
                 p.getUnidadesPorEmbalagem(),
                 p.getCusto(),
+                p.getCustoEmbalagem(),
                 p.getEstoqueAtual(),
                 p.getEstoqueMinimo(),
                 p.isAtivo());

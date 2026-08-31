@@ -20,7 +20,10 @@ export interface Produto {
   precoUnidade?: number | null;
   /** Ex.: 6 para pack c/6. */
   unidadesPorEmbalagem?: number | null;
+  /** Custo unitário (para lucro / estoque). */
   custo: number;
+  /** Valor pago na caixa/pacote (como na NF), quando vende caixa e unidade. */
+  custoEmbalagem?: number | null;
   estoqueAtual: number;
   estoqueMinimo: number;
   ativo: boolean;

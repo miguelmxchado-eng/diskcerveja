@@ -49,6 +49,13 @@ public class Produto {
     @Column(nullable = false, precision = 12, scale = 4)
     private BigDecimal custo;
 
+    /**
+     * Valor pago na caixa/pacote (como na nota). Opcional; quando preenchido, a tela de edição
+     * mostra este valor em vez de recomputar custo × unidades (evita arredondamento).
+     */
+    @Column(name = "custo_embalagem", precision = 12, scale = 2)
+    private BigDecimal custoEmbalagem;
+
     @Column(name = "estoque_atual", nullable = false)
     private int estoqueAtual;
 
@@ -139,6 +146,14 @@ public class Produto {
 
     public void setCusto(BigDecimal custo) {
         this.custo = custo;
+    }
+
+    public BigDecimal getCustoEmbalagem() {
+        return custoEmbalagem;
+    }
+
+    public void setCustoEmbalagem(BigDecimal custoEmbalagem) {
+        this.custoEmbalagem = custoEmbalagem;
     }
 
     public int getEstoqueAtual() {

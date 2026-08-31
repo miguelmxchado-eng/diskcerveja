@@ -25,6 +25,9 @@ public record ProdutoDto(
         @NotNull(message = "Preço de compra (por unidade) é obrigatório")
         @DecimalMin(value = "0.00", message = "Preço de compra não pode ser negativo")
         BigDecimal custo,
+        /** Valor pago na caixa/pacote (opcional; espelho da NF). */
+        @DecimalMin(value = "0.00", message = "Preço de compra da caixa não pode ser negativo")
+        BigDecimal custoEmbalagem,
         @NotNull Integer estoqueAtual,
         @NotNull Integer estoqueMinimo,
         boolean ativo) {}
