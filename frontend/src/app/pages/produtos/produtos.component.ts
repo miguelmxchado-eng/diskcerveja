@@ -10,7 +10,6 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { MatStepper, MatStepperModule } from '@angular/material/stepper';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { DecimalPipe } from '@angular/common';
@@ -56,7 +55,6 @@ type ProdutoComImagem = Produto & { imagemUrl?: string | null };
     MatProgressBarModule,
     MatDialogModule,
     MatIconModule,
-    MatStepperModule,
     MatCheckboxModule,
     MatTooltipModule,
     DecimalPipe,
@@ -66,7 +64,6 @@ type ProdutoComImagem = Produto & { imagemUrl?: string | null };
   styleUrl: './produtos.component.scss',
 })
 export class ProdutosComponent implements OnInit, OnDestroy {
-  @ViewChild('cadastroStepper') private cadastroStepper?: MatStepper;
   @ViewChild('wizardPanel') private wizardPanel?: ElementRef<HTMLElement>;
 
   readonly categorias = CATEGORIAS;
@@ -235,6 +232,10 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       return false;
     }
     return this.precoUnidadeCadastroValido();
+  }
+
+  podeSalvar(): boolean {
+    return this.podeAvancarDados() && this.podeAvancarPreco() && !this.salvando();
   }
 
   /** Com “vende caixa”: exige unidades e preço da unidade. Sem isso: só preço único. */
@@ -1018,7 +1019,6 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.ultimaLeituraPreview.set(null);
     this.codigoDuplicadoMsg.set(null);
     this.codigoSomenteLeitura = false;
-    this.cadastroStepper?.reset();
   }
 
   private scrollFormulario(): void {
@@ -1062,13 +1062,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.codigoDuplicadoMsg.set(null);
     this.codigoSomenteLeitura = false;
     this.formularioAberto.set(true);
-    this.cadastroStepper?.reset();
-    queueMicrotask(() => {
-      if (this.cadastroStepper) {
-        this.cadastroStepper.selectedIndex = 0;
-      }
-      this.scrollFormulario();
-    });
+    queueMicrotask(() => this.scrollFormulario());
     this.validarCodigoEmTempoReal();
   }
 

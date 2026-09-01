@@ -82,395 +82,292 @@
           <mat-icon>add_box</mat-icon>
           <div class="produtos-edit-banner__text">
             <strong>Novo produto</strong>
-            <span class="produtos-edit-banner__code">Preencha os dados e avance até a revisão</span>
+            <span class="produtos-edit-banner__code">Preencha os dados e salve</span>
           </div>
           <button mat-stroked-button type="button" (click)="cancelarCadastro()">Voltar</button>
         </div>
       }
-      <mat-horizontal-stepper #cadastroStepper class="produtos-stepper" [linear]="false" animationDuration="200">
-        <mat-step>
-          <ng-template matStepLabel>Dados do Produto</ng-template>
+      <div class="produtos-form-unico">
+        <div class="produtos-step__body">
+          <div class="erp-panel__header produtos-step__section-head">
+            <h3 class="erp-panel__title">Informações básicas</h3>
+          </div>
 
-          <div class="produtos-step__body">
-            <div class="erp-panel__header produtos-step__section-head">
-              <h3 class="erp-panel__title">Informações básicas</h3>
-            </div>
+          <div class="produtos-basic-grid">
+            <div class="produtos-basic-grid__fields">
+              <mat-form-field appearance="outline" class="produtos-field produtos-field--full">
+                <mat-label>Nome do Produto</mat-label>
+                <input matInput [(ngModel)]="novoNome" name="nomeProd" placeholder="Ex: Heineken 600ml" />
+              </mat-form-field>
 
-            <div class="produtos-basic-grid">
-              <div class="produtos-basic-grid__fields">
-                <mat-form-field appearance="outline" class="produtos-field produtos-field--full">
-                  <mat-label>Nome do Produto</mat-label>
-                  <input matInput [(ngModel)]="novoNome" name="nomeProd" placeholder="Ex: Comércio Distribuinte de Bebidas Ltda." />
+              <div class="produtos-field-row">
+                <mat-form-field appearance="outline" class="produtos-field produtos-field--grow">
+                  <mat-label>Categoria</mat-label>
+                  <mat-select [(ngModel)]="novoCat" name="cat">
+                    @for (cat of categorias; track cat) {
+                      <mat-option [value]="cat">{{ cat | statusLabel }}</mat-option>
+                    }
+                  </mat-select>
                 </mat-form-field>
+              </div>
 
-                <div class="produtos-field-row">
-                  <mat-form-field appearance="outline" class="produtos-field produtos-field--grow">
-                    <mat-label>Categoria</mat-label>
-                    <mat-select [(ngModel)]="novoCat" name="cat">
-                      @for (cat of categorias; track cat) {
-                        <mat-option [value]="cat">{{ cat | statusLabel }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
-                </div>
-
-                <div class="produtos-codigos-block">
-                  <mat-form-field appearance="outline" class="produtos-field produtos-field--grow">
-                    <mat-label>Código de barras</mat-label>
-                    <mat-icon matPrefix>qr_code_scanner</mat-icon>
-                    <input
-                      matInput
-                      [(ngModel)]="novoCodigoBarras"
-                      name="gtin"
-                      maxlength="80"
-                      autocomplete="off"
-                      placeholder="EAN-13, EAN-8, UPC, Code 128"
-                      [readonly]="codigoSomenteLeitura"
-                      (blur)="validarCodigoEmTempoReal()"
-                    />
-                  </mat-form-field>
-                  <button
-                    mat-stroked-button
-                    type="button"
-                    class="produtos-scan-btn"
-                    (click)="abrirScanner('barras')"
-                  >
-                    <mat-icon>photo_camera</mat-icon>
-                    Escanear
-                  </button>
-                </div>
-
-                <div class="produtos-codigos-block">
-                  <mat-form-field appearance="outline" class="produtos-field produtos-field--grow">
-                    <mat-label>QR Code do produto (opcional)</mat-label>
-                    <mat-icon matPrefix>qr_code_2</mat-icon>
-                    <input
-                      matInput
-                      [(ngModel)]="novoCodigoQr"
-                      name="qrProd"
-                      maxlength="80"
-                      autocomplete="off"
-                      placeholder="QR interno ou etiqueta"
-                      [readonly]="codigoSomenteLeitura"
-                      (blur)="validarCodigoEmTempoReal()"
-                    />
-                  </mat-form-field>
-                  <button
-                    mat-stroked-button
-                    type="button"
-                    class="produtos-scan-btn"
-                    (click)="abrirScanner('qr')"
-                  >
-                    <mat-icon>photo_camera</mat-icon>
-                    Escanear QR
-                  </button>
-                </div>
-
-                <div class="produtos-scan-options">
-                  <mat-checkbox [(ngModel)]="travarCodigoAposScan" name="travarScan">
-                    Travar campos após leitura (somente leitura)
-                  </mat-checkbox>
-                </div>
-
-                @if (ultimaLeituraPreview(); as prev) {
-                  <div class="produtos-scan-preview">
-                    <mat-icon>visibility</mat-icon>
-                    <span>Pré-visualização: <code>{{ prev.code }}</code> · {{ prev.format }}</span>
-                  </div>
-                }
-                @if (codigoDuplicadoMsg(); as dup) {
-                  <p class="produtos-codigo-erro" role="alert">{{ dup }}</p>
-                }
-                <p class="produtos-codigo-hint">
-                  Sem código de barras ou QR, o sistema gera automaticamente um código interno (ex.: DC-…).
-                </p>
-
-                <mat-form-field appearance="outline" class="produtos-field produtos-field--full">
-                  <mat-label>Marca</mat-label>
-                  <input matInput [(ngModel)]="novoMarca" name="marca" placeholder="Ex: Skol." />
-                </mat-form-field>
-
-                <mat-form-field appearance="outline" class="produtos-field produtos-field--full produtos-field--textarea">
-                  <mat-label>Descrição</mat-label>
-                  <textarea
+              <div class="produtos-codigos-block">
+                <mat-form-field appearance="outline" class="produtos-field produtos-field--grow">
+                  <mat-label>Código de barras</mat-label>
+                  <mat-icon matPrefix>qr_code_scanner</mat-icon>
+                  <input
                     matInput
-                    [(ngModel)]="novoDescricao"
-                    name="desc"
-                    rows="5"
-                    maxlength="5000"
-                    placeholder="Ex: Detalhes opcionais (opcional)"
-                  ></textarea>
-                  <span matTextSuffix class="produtos-char-count">{{ novoDescricao.length }}/5000</span>
+                    [(ngModel)]="novoCodigoBarras"
+                    name="gtin"
+                    maxlength="80"
+                    autocomplete="off"
+                    placeholder="EAN-13, EAN-8, UPC, Code 128"
+                    [readonly]="codigoSomenteLeitura"
+                    (blur)="validarCodigoEmTempoReal()"
+                  />
                 </mat-form-field>
-
-                <mat-form-field appearance="outline" class="produtos-field produtos-field--estoque">
-                  <mat-label>{{ editando() ? 'Estoque atual' : 'Estoque inicial' }}</mat-label>
-                  <input matInput type="number" [(ngModel)]="novoEst" name="estInicial" />
-                </mat-form-field>
-              </div>
-
-              <div class="produtos-basic-grid__image">
-                <p class="produtos-image__title">Imagem do Produto</p>
-                <div class="produtos-image__box" [class.produtos-image__box--has-preview]="!!imagemPreview()">
-                  @if (imagemPreview(); as src) {
-                    <img [src]="src" alt="Pré-visualização do produto" class="produtos-image__preview" />
-                  } @else {
-                    <mat-icon class="produtos-image__placeholder-icon">image</mat-icon>
-                    <span class="produtos-image__placeholder-text">Adicione uma imagem.</span>
-                  }
-                </div>
-                <input
-                  #fileInput
-                  type="file"
-                  class="produtos-image__input"
-                  accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
-                  (change)="onImagemSelecionada($event)"
-                />
-                <button mat-flat-button type="button" class="produtos-btn-primary produtos-image__btn" (click)="fileInput.click()">
-                  Adicione uma imagem
+                <button
+                  mat-stroked-button
+                  type="button"
+                  class="produtos-scan-btn"
+                  (click)="abrirScanner('barras')"
+                >
+                  <mat-icon>photo_camera</mat-icon>
+                  Escanear
                 </button>
-                <p class="produtos-image__hint">PNG, JPG ou WEBP até 1MB.</p>
               </div>
-            </div>
-          </div>
 
-          <div class="produtos-wizard__footer">
-            <button mat-stroked-button type="button" (click)="cancelarCadastro()">
-              {{ editando() ? 'Voltar' : 'Cancelar' }}
-            </button>
-            <button mat-flat-button type="button" class="produtos-btn-primary" matStepperNext [disabled]="!podeAvancarDados()">
-              Próximo
-            </button>
-          </div>
-        </mat-step>
+              <div class="produtos-codigos-block">
+                <mat-form-field appearance="outline" class="produtos-field produtos-field--grow">
+                  <mat-label>QR Code do produto (opcional)</mat-label>
+                  <mat-icon matPrefix>qr_code_2</mat-icon>
+                  <input
+                    matInput
+                    [(ngModel)]="novoCodigoQr"
+                    name="qrProd"
+                    maxlength="80"
+                    autocomplete="off"
+                    placeholder="QR interno ou etiqueta"
+                    [readonly]="codigoSomenteLeitura"
+                    (blur)="validarCodigoEmTempoReal()"
+                  />
+                </mat-form-field>
+                <button
+                  mat-stroked-button
+                  type="button"
+                  class="produtos-scan-btn"
+                  (click)="abrirScanner('qr')"
+                >
+                  <mat-icon>photo_camera</mat-icon>
+                  Escanear QR
+                </button>
+              </div>
 
-        <mat-step>
-          <ng-template matStepLabel>Estoque e Preço</ng-template>
+              <div class="produtos-scan-options">
+                <mat-checkbox [(ngModel)]="travarCodigoAposScan" name="travarScan">
+                  Travar campos após leitura (somente leitura)
+                </mat-checkbox>
+              </div>
 
-          <div class="produtos-step__body">
-            <div class="erp-panel__header produtos-step__section-head">
-              <h3 class="erp-panel__title">Preços e alertas de estoque</h3>
-            </div>
-            @if (codigoBarrasResumo(); as cod) {
-              <p class="produtos-step2-codigo">
-                <strong>Código de barras:</strong> <code class="barcode-code">{{ cod }}</code>
+              @if (ultimaLeituraPreview(); as prev) {
+                <div class="produtos-scan-preview">
+                  <mat-icon>visibility</mat-icon>
+                  <span>Pré-visualização: <code>{{ prev.code }}</code> · {{ prev.format }}</span>
+                </div>
+              }
+              @if (codigoDuplicadoMsg(); as dup) {
+                <p class="produtos-codigo-erro" role="alert">{{ dup }}</p>
+              }
+              <p class="produtos-codigo-hint">
+                Sem código de barras ou QR, o sistema gera automaticamente um código interno (ex.: DC-…).
               </p>
-            }
-            <div class="produtos-step2-grid">
+
+              <mat-form-field appearance="outline" class="produtos-field produtos-field--full">
+                <mat-label>Marca</mat-label>
+                <input matInput [(ngModel)]="novoMarca" name="marca" placeholder="Ex: Skol." />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="produtos-field produtos-field--full produtos-field--textarea">
+                <mat-label>Descrição</mat-label>
+                <textarea
+                  matInput
+                  [(ngModel)]="novoDescricao"
+                  name="desc"
+                  rows="3"
+                  maxlength="5000"
+                  placeholder="Detalhes opcionais"
+                ></textarea>
+                <span matTextSuffix class="produtos-char-count">{{ novoDescricao.length }}/5000</span>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="produtos-field produtos-field--estoque">
+                <mat-label>{{ editando() ? 'Estoque atual' : 'Estoque inicial' }}</mat-label>
+                <input matInput type="number" [(ngModel)]="novoEst" name="estInicial" />
+              </mat-form-field>
+            </div>
+
+            <div class="produtos-basic-grid__image">
+              <p class="produtos-image__title">Imagem do Produto</p>
+              <div class="produtos-image__box" [class.produtos-image__box--has-preview]="!!imagemPreview()">
+                @if (imagemPreview(); as src) {
+                  <img [src]="src" alt="Pré-visualização do produto" class="produtos-image__preview" />
+                } @else {
+                  <mat-icon class="produtos-image__placeholder-icon">image</mat-icon>
+                  <span class="produtos-image__placeholder-text">Adicione uma imagem.</span>
+                }
+              </div>
+              <input
+                #fileInput
+                type="file"
+                class="produtos-image__input"
+                accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+                (change)="onImagemSelecionada($event)"
+              />
+              <button mat-flat-button type="button" class="produtos-btn-primary produtos-image__btn" (click)="fileInput.click()">
+                Adicione uma imagem
+              </button>
+              <p class="produtos-image__hint">PNG, JPG ou WEBP até 1MB.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="produtos-step__body produtos-step__body--precos">
+          <div class="erp-panel__header produtos-step__section-head">
+            <h3 class="erp-panel__title">Preços e estoque mínimo</h3>
+          </div>
+          @if (codigoBarrasResumo(); as cod) {
+            <p class="produtos-step2-codigo">
+              <strong>Código de barras:</strong> <code class="barcode-code">{{ cod }}</code>
+            </p>
+          }
+          <div class="produtos-step2-grid">
+            <mat-form-field appearance="outline" class="produtos-field">
+              <mat-label>{{ labelCustoCompra() }}</mat-label>
+              <span matTextPrefix>R$&nbsp;</span>
+              <input
+                matInput
+                type="number"
+                [(ngModel)]="novoCustoCompra"
+                (ngModelChange)="onCustoOuMargemChange()"
+                name="custo"
+                min="0"
+                step="0.01"
+                required
+              />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="produtos-field">
+              <mat-label>Margem desejada</mat-label>
+              <input
+                matInput
+                type="number"
+                [(ngModel)]="novoMargemDesejada"
+                (ngModelChange)="onCustoOuMargemChange()"
+                name="margemDesejada"
+                min="0"
+                max="99.9"
+                step="0.1"
+                placeholder="Ex.: 30"
+              />
+              <span matTextSuffix>%&nbsp;</span>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="produtos-field">
+              <mat-label>{{ labelPrecoVenda() }}</mat-label>
+              <span matTextPrefix>R$&nbsp;</span>
+              <input
+                matInput
+                type="number"
+                [(ngModel)]="novoPreco"
+                name="preco"
+                min="0.01"
+                step="0.01"
+                required
+              />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="produtos-field">
+              <mat-label>Estoque mínimo</mat-label>
+              <input matInput type="number" [(ngModel)]="novoMin" name="estMin" min="0" />
+            </mat-form-field>
+          </div>
+          <mat-checkbox
+            class="produtos-vende-caixa"
+            [ngModel]="vendeEmCaixa"
+            (ngModelChange)="onToggleVendeEmCaixa($event)"
+            name="vendeEmCaixa"
+          >
+            Vende caixa e unidade (ex.: cerveja)
+          </mat-checkbox>
+          @if (vendeEmCaixa) {
+            <div class="produtos-step2-grid produtos-step2-grid--caixa">
               <mat-form-field appearance="outline" class="produtos-field">
-                <mat-label>{{ labelCustoCompra() }}</mat-label>
-                <span matTextPrefix>R$&nbsp;</span>
+                <mat-label>Unidades na caixa</mat-label>
                 <input
                   matInput
                   type="number"
-                  [(ngModel)]="novoCustoCompra"
-                  (ngModelChange)="onCustoOuMargemChange()"
-                  name="custo"
-                  min="0"
-                  step="0.01"
+                  [(ngModel)]="novoUnidadesPorEmbalagem"
+                  (ngModelChange)="onUnidadesCaixaChange()"
+                  name="unidadesPacote"
+                  min="2"
+                  step="1"
+                  placeholder="Ex.: 12"
                   required
                 />
               </mat-form-field>
               <mat-form-field appearance="outline" class="produtos-field">
-                <mat-label>Margem desejada</mat-label>
-                <input
-                  matInput
-                  type="number"
-                  [(ngModel)]="novoMargemDesejada"
-                  (ngModelChange)="onCustoOuMargemChange()"
-                  name="margemDesejada"
-                  min="0"
-                  max="99.9"
-                  step="0.1"
-                  placeholder="Ex.: 30"
-                />
-                <span matTextSuffix>%&nbsp;</span>
-              </mat-form-field>
-              <mat-form-field appearance="outline" class="produtos-field">
-                <mat-label>{{ labelPrecoVenda() }}</mat-label>
+                <mat-label>Preço de venda (unidade)</mat-label>
                 <span matTextPrefix>R$&nbsp;</span>
                 <input
                   matInput
                   type="number"
-                  [(ngModel)]="novoPreco"
-                  name="preco"
+                  [(ngModel)]="novoPrecoUnidade"
+                  name="precoUnidade"
                   min="0.01"
                   step="0.01"
+                  placeholder="Ex.: 3,50"
                   required
                 />
               </mat-form-field>
-              <mat-form-field appearance="outline" class="produtos-field">
-                <mat-label>Estoque mínimo</mat-label>
-                <input matInput type="number" [(ngModel)]="novoMin" name="estMin" min="0" />
-              </mat-form-field>
             </div>
-            <mat-checkbox
-              class="produtos-vende-caixa"
-              [ngModel]="vendeEmCaixa"
-              (ngModelChange)="onToggleVendeEmCaixa($event)"
-              name="vendeEmCaixa"
-            >
-              Vende caixa e unidade (ex.: cerveja)
-            </mat-checkbox>
-            @if (vendeEmCaixa) {
-              <div class="produtos-step2-grid produtos-step2-grid--caixa">
-                <mat-form-field appearance="outline" class="produtos-field">
-                  <mat-label>Unidades na caixa</mat-label>
-                  <input
-                    matInput
-                    type="number"
-                    [(ngModel)]="novoUnidadesPorEmbalagem"
-                    (ngModelChange)="onUnidadesCaixaChange()"
-                    name="unidadesPacote"
-                    min="2"
-                    step="1"
-                    placeholder="Ex.: 12"
-                    required
-                  />
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="produtos-field">
-                  <mat-label>Preço de venda (unidade)</mat-label>
-                  <span matTextPrefix>R$&nbsp;</span>
-                  <input
-                    matInput
-                    type="number"
-                    [(ngModel)]="novoPrecoUnidade"
-                    name="precoUnidade"
-                    min="0.01"
-                    step="0.01"
-                    placeholder="Ex.: 3,50"
-                    required
-                  />
-                </mat-form-field>
-              </div>
-            }
-            @if (unidadesNaCaixa(); as upe) {
-              <p class="produtos-lucro-preview">
-                Custo por unidade: R$ {{ custoUnitarioCadastro() | number: '1.2-2' }}
-                (caixa R$ {{ custoCaixaCadastro() | number: '1.2-2' }} ÷ {{ upe }}).
-                Estoque em unidades (2 caixas = {{ 2 * upe }}).
-              </p>
-            }
-            @if (lucroCadastro() !== null) {
-              <p class="produtos-lucro-preview" [class.produtos-lucro-preview--negativo]="lucroCadastro()! < 0">
-                Lucro{{ vendeEmCaixa ? ' por unidade' : '' }}: R$ {{ lucroCadastro() | number: '1.2-2' }}
-                @if (margemCadastro() !== null) {
-                  <span>(margem {{ margemCadastro() | number: '1.0-0' }}%)</span>
-                }
-              </p>
-            }
-            @if (lucroCaixaCadastro() !== null) {
-              <p class="produtos-lucro-preview" [class.produtos-lucro-preview--negativo]="lucroCaixaCadastro()! < 0">
-                Lucro por caixa: R$ {{ lucroCaixaCadastro() | number: '1.2-2' }}
-                @if (margemCaixaCadastro() !== null) {
-                  <span>(margem {{ margemCaixaCadastro() | number: '1.0-0' }}%)</span>
-                }
-              </p>
-            }
-          </div>
-
-          <div class="produtos-wizard__footer">
-            <button mat-stroked-button type="button" matStepperPrevious>Voltar</button>
-            <button mat-flat-button type="button" class="produtos-btn-primary" matStepperNext [disabled]="!podeAvancarPreco()">Próximo</button>
-          </div>
-        </mat-step>
-
-        <mat-step>
-          <ng-template matStepLabel>Revisão</ng-template>
-
-          <div class="produtos-step__body">
-            <div class="erp-panel__header produtos-step__section-head">
-              <h3 class="erp-panel__title">Confira antes de salvar</h3>
-            </div>
-            <dl class="produtos-resumo">
-              <div class="produtos-resumo__row">
-                <dt>Nome</dt>
-                <dd>{{ novoNome || '—' }}</dd>
-              </div>
-              <div class="produtos-resumo__row">
-                <dt>Categoria</dt>
-                <dd>{{ novoCat | statusLabel }}</dd>
-              </div>
-              <div class="produtos-resumo__row">
-                <dt>Código de barras</dt>
-                <dd>{{ codigoBarrasResumo() ?? '—' }}</dd>
-              </div>
-              <div class="produtos-resumo__row">
-                <dt>QR Code</dt>
-                <dd>{{ codigoQrResumo() ?? '—' }}</dd>
-              </div>
-              <div class="produtos-resumo__row">
-                <dt>Marca</dt>
-                <dd>{{ novoMarca || '—' }}</dd>
-              </div>
-              <div class="produtos-resumo__row produtos-resumo__row--block">
-                <dt>Descrição</dt>
-                <dd>{{ novoDescricao || '—' }}</dd>
-              </div>
-              <div class="produtos-resumo__row">
-                <dt>{{ editando() ? 'Estoque atual' : 'Estoque inicial' }}</dt>
-                <dd>{{ novoEst }}</dd>
-              </div>
-              <div class="produtos-resumo__row">
-                <dt>{{ labelCustoCompra() }}</dt>
-                <dd>R$ {{ novoCustoCompra | number: '1.2-2' }}</dd>
-              </div>
-              @if (unidadesNaCaixa(); as upe) {
-                <div class="produtos-resumo__row">
-                  <dt>Custo por unidade</dt>
-                  <dd>R$ {{ custoUnitarioCadastro() | number: '1.2-2' }} (÷ {{ upe }})</dd>
-                </div>
+          }
+          @if (unidadesNaCaixa(); as upe) {
+            <p class="produtos-lucro-preview">
+              Custo por unidade: R$ {{ custoUnitarioCadastro() | number: '1.2-4' }}
+              (caixa R$ {{ custoCaixaCadastro() | number: '1.2-2' }} ÷ {{ upe }}).
+              Estoque em unidades (2 caixas = {{ 2 * upe }}).
+            </p>
+          }
+          @if (lucroCadastro() !== null) {
+            <p class="produtos-lucro-preview" [class.produtos-lucro-preview--negativo]="lucroCadastro()! < 0">
+              Lucro{{ vendeEmCaixa ? ' por unidade' : '' }}: R$ {{ lucroCadastro() | number: '1.2-2' }}
+              @if (margemCadastro() !== null) {
+                <span>(margem {{ margemCadastro() | number: '1.0-0' }}%)</span>
               }
-              @if (novoMargemDesejada != null) {
-                <div class="produtos-resumo__row">
-                  <dt>Margem desejada</dt>
-                  <dd>{{ novoMargemDesejada | number: '1.0-1' }}%</dd>
-                </div>
+            </p>
+          }
+          @if (lucroCaixaCadastro() !== null) {
+            <p class="produtos-lucro-preview" [class.produtos-lucro-preview--negativo]="lucroCaixaCadastro()! < 0">
+              Lucro por caixa: R$ {{ lucroCaixaCadastro() | number: '1.2-2' }}
+              @if (margemCaixaCadastro() !== null) {
+                <span>(margem {{ margemCaixaCadastro() | number: '1.0-0' }}%)</span>
               }
-              <div class="produtos-resumo__row">
-                <dt>{{ labelPrecoVenda() }}</dt>
-                <dd>R$ {{ novoPreco | number: '1.2-2' }}</dd>
-              </div>
-              @if (vendeEmCaixa && novoPrecoUnidade != null && +novoPrecoUnidade > 0) {
-                <div class="produtos-resumo__row">
-                  <dt>Preço da unidade</dt>
-                  <dd>
-                    R$ {{ novoPrecoUnidade | number: '1.2-2' }}
-                    @if (unidadesNaCaixa(); as upe) {
-                      <span class="produtos-muted">({{ upe }} un./caixa)</span>
-                    }
-                  </dd>
-                </div>
-              }
-              <div class="produtos-resumo__row">
-                <dt>Lucro por unidade</dt>
-                <dd>R$ {{ lucroCadastro() | number: '1.2-2' }}</dd>
-              </div>
-              <div class="produtos-resumo__row">
-                <dt>Estoque mínimo</dt>
-                <dd>{{ novoMin }}</dd>
-              </div>
-              <div class="produtos-resumo__row produtos-resumo__row--muted">
-                <dt>Imagem</dt>
-                <dd>{{ imagemPreview() ? 'Anexada (prévia local)' : 'Nenhuma' }}</dd>
-              </div>
-            </dl>
-          </div>
+            </p>
+          }
+        </div>
 
-          <div class="produtos-wizard__footer">
-            <button mat-stroked-button type="button" matStepperPrevious>Voltar</button>
-            <button
-              mat-flat-button
-              type="button"
-              class="produtos-btn-primary"
-              (click)="salvarProduto()"
-              [disabled]="salvando()"
-            >
-              {{ editando() ? 'Salvar alterações' : 'Finalizar cadastro' }}
-            </button>
-          </div>
-        </mat-step>
-      </mat-horizontal-stepper>
+        <div class="produtos-wizard__footer">
+          <button mat-stroked-button type="button" (click)="cancelarCadastro()">
+            {{ editando() ? 'Voltar' : 'Cancelar' }}
+          </button>
+          <button
+            mat-flat-button
+            type="button"
+            class="produtos-btn-primary"
+            (click)="salvarProduto()"
+            [disabled]="!podeSalvar()"
+          >
+            {{ editando() ? 'Salvar alterações' : 'Salvar produto' }}
+          </button>
+        </div>
+      </div>
     </div>
   }
 

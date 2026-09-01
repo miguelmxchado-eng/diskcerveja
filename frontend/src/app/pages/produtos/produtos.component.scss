@@ -210,40 +210,20 @@
   }
 }
 
-/* ----- Wizard (cadastro / edição) ----- */
+/* ----- Formulário (cadastro / edição) ----- */
 
-.produtos-stepper {
-  background: transparent;
-
-  ::ng-deep .mat-horizontal-stepper-header-container {
-    padding: 0.75rem 1rem 0;
-    border-bottom: 1px solid #e7e1d7;
-  }
-
-  ::ng-deep .mat-step-header .mat-step-icon-selected,
-  ::ng-deep .mat-step-header .mat-step-icon-state-done {
-    background-color: #d2a410;
-    color: #fff;
-  }
-
-  ::ng-deep .mat-step-header .mat-step-icon-selected .mat-step-icon-content,
-  ::ng-deep .mat-step-header .mat-step-icon-state-done .mat-step-icon-content {
-    color: #fff;
-  }
-
-  ::ng-deep .mat-step-header .mat-step-label-active .mat-step-text-label {
-    color: #b98d00;
-    font-weight: 700;
-  }
-
-  ::ng-deep .mat-horizontal-content-container,
-  ::ng-deep .mat-horizontal-stepper-content {
-    padding: 0;
-  }
+.produtos-form-unico {
+  padding: 0 0 0.5rem;
 }
 
 .produtos-step__body {
   padding: 0 1rem 0.5rem;
+}
+
+.produtos-step__body--precos {
+  margin-top: 0.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #e7e1d7;
 }
 
 .produtos-step__section-head {
