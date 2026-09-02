@@ -6,7 +6,12 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { DecimalPipe, DatePipe } from '@angular/common';
 import { StatusLabelPipe } from '../../shared/pipes/status-label.pipe';
 import { environment } from '../../../environments/environment';
-import { PedidoPeriodoResponse, PedidoResumoDto, PeriodoPedido } from '../../core/models';
+import {
+  PedidoItemResponse,
+  PedidoPeriodoResponse,
+  PedidoResumoDto,
+  PeriodoPedido,
+} from '../../core/models';
 
 type PeriodChip = 'hoje' | '7dias' | '30dias' | 'mes';
 
@@ -37,12 +42,6 @@ const CHIP_TO_PERIODO: Record<PeriodChip, PeriodoPedido> = {
 
 const PAGE_SIZE = 20;
 
-const TOP_PRODUTOS_PLACEHOLDER: TopProduto[] = [
-  { nome: 'Amstel', unidades: 48, valor: 384 },
-  { nome: 'Bacongzitos', unidades: 32, valor: 256 },
-  { nome: 'Amarula', unidades: 12, valor: 540 },
-];
-
 @Component({
   selector: 'app-relatorio-pedidos',
   standalone: true,
@@ -62,8 +61,8 @@ export class RelatorioPedidosComponent implements OnInit {
   readonly filtroTipo = signal('');
   readonly filtroPagamento = signal('');
   readonly paginaAtual = signal(1);
-
-  readonly topProdutos = TOP_PRODUTOS_PLACEHOLDER;
+  /** Pedido com detalhe de itens aberto. */
+  readonly pedidoAbertoId = signal<number | null>(null);
 
   readonly pedidosPeriodo = computed(() => {
     const d = this.dados();
@@ -122,7 +121,8 @@ export class RelatorioPedidosComponent implements OnInit {
         (p) =>
           String(p.id).includes(q) ||
           (p.clienteNome?.toLowerCase().includes(q) ?? false) ||
-          (p.telefone?.includes(q) ?? false),
+          (p.telefone?.includes(q) ?? false) ||
+          (p.itens ?? []).some((i) => (i.produtoNome ?? '').toLowerCase().includes(q)),
       );
     }
     const status = this.filtroStatus();
@@ -132,6 +132,22 @@ export class RelatorioPedidosComponent implements OnInit {
     const pag = this.filtroPagamento();
     if (pag) list = list.filter((p) => p.formaPagamento === pag);
     return list;
+  });
+
+  readonly topProdutos = computed((): TopProduto[] => {
+    const map = new Map<string, TopProduto>();
+    for (const p of this.pedidosPeriodo()) {
+      if (p.status !== 'ENTREGUE') continue;
+      for (const item of p.itens ?? []) {
+        const nome = (item.produtoNome || 'Item').trim();
+        const key = nome.toLowerCase();
+        const atual = map.get(key) ?? { nome, unidades: 0, valor: 0 };
+        atual.unidades += item.quantidade;
+        atual.valor += Number(item.precoUnitario) * item.quantidade;
+        map.set(key, atual);
+      }
+    }
+    return [...map.values()].sort((a, b) => b.valor - a.valor).slice(0, 8);
   });
 
   readonly totalPaginas = computed(() =>
@@ -252,7 +268,18 @@ export class RelatorioPedidosComponent implements OnInit {
       this.snack.open('Nenhum pedido para exportar.', 'OK', { duration: 2500 });
       return;
     }
-    const header = ['Pedido', 'Data', 'Cliente', 'Tipo', 'Status', 'Pagamento', 'Total', 'Lucro', 'Caixa'];
+    const header = [
+      'Pedido',
+      'Data',
+      'Cliente',
+      'Tipo',
+      'Status',
+      'Pagamento',
+      'Itens',
+      'Total',
+      'Lucro',
+      'Caixa',
+    ];
     const lines = rows.map((p) =>
       [
         p.id,
@@ -261,6 +288,7 @@ export class RelatorioPedidosComponent implements OnInit {
         p.tipo,
         p.status,
         p.formaPagamento,
+        this.itensTexto(p),
         p.total.toFixed(2),
         p.lucro != null ? p.lucro.toFixed(2) : '',
         p.registradoNoCaixa ? 'Sim' : 'Não',
@@ -304,6 +332,36 @@ export class RelatorioPedidosComponent implements OnInit {
 
   fecharMenuPedido(): void {
     this.menuPedidoId.set(null);
+  }
+
+  toggleDetalhePedido(id: number, event?: Event): void {
+    event?.stopPropagation();
+    this.pedidoAbertoId.update((atual) => (atual === id ? null : id));
+    this.menuPedidoId.set(null);
+  }
+
+  itensDoPedido(p: PedidoResumoDto): PedidoItemResponse[] {
+    return p.itens ?? [];
+  }
+
+  itensResumo(p: PedidoResumoDto): string {
+    const itens = this.itensDoPedido(p);
+    if (!itens.length) return 'Sem itens';
+    const partes = itens.slice(0, 2).map((i) => `${i.quantidade}× ${i.produtoNome}`);
+    if (itens.length > 2) {
+      partes.push(`+${itens.length - 2}`);
+    }
+    return partes.join(' · ');
+  }
+
+  itensTexto(p: PedidoResumoDto): string {
+    return this.itensDoPedido(p)
+      .map((i) => `${i.quantidade}x ${i.produtoNome}`)
+      .join('; ');
+  }
+
+  subtotalItem(i: PedidoItemResponse): number {
+    return Number(i.precoUnitario) * i.quantidade;
   }
 
   copiarIdPedido(p: PedidoResumoDto): void {

@@ -27,20 +27,28 @@ public final class PedidoMapper {
                 itens);
     }
 
+    public static PedidoItemResponse toItem(PedidoItem i) {
+        return item(i);
+    }
+
     private static PedidoItemResponse item(PedidoItem i) {
         if (i.isCombo()) {
-            String nome = i.getDescricao() != null ? i.getDescricao() : i.getCombo().getNome();
+            String nome = i.getDescricao() != null
+                    ? i.getDescricao()
+                    : (i.getCombo() != null ? i.getCombo().getNome() : "Combo");
             return new PedidoItemResponse(
                     null,
-                    i.getCombo().getId(),
+                    i.getCombo() != null ? i.getCombo().getId() : null,
                     nome,
                     i.getQuantidade(),
                     i.getPrecoUnitario(),
                     i.getCustoUnitario());
         }
-        String nome = i.getDescricao() != null ? i.getDescricao() : i.getProduto().getNome();
+        String nome = i.getDescricao() != null
+                ? i.getDescricao()
+                : (i.getProduto() != null ? i.getProduto().getNome() : "Produto");
         return new PedidoItemResponse(
-                i.getProduto().getId(),
+                i.getProduto() != null ? i.getProduto().getId() : null,
                 null,
                 nome,
                 i.getQuantidade(),

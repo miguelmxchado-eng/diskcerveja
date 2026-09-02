@@ -4,6 +4,8 @@ import com.diskcerveja.manager.domain.entity.Pedido;
 import com.diskcerveja.manager.domain.entity.PedidoItem;
 import com.diskcerveja.manager.domain.enums.PeriodoPedido;
 import com.diskcerveja.manager.domain.enums.StatusPedido;
+import com.diskcerveja.manager.dto.PedidoItemResponse;
+import com.diskcerveja.manager.dto.PedidoMapper;
 import com.diskcerveja.manager.dto.PedidoPeriodoResponse;
 import com.diskcerveja.manager.dto.PedidoResumoDto;
 import com.diskcerveja.manager.repository.MovimentoCaixaRepository;
@@ -84,6 +86,9 @@ public class PedidoRelatorioService {
                     BigDecimal lucro = p.getStatus() == StatusPedido.ENTREGUE
                             ? nvl(p.getTotal()).subtract(custo)
                             : null;
+                    List<PedidoItemResponse> itens = p.getItens() == null
+                            ? List.of()
+                            : p.getItens().stream().map(PedidoMapper::toItem).toList();
                     return new PedidoResumoDto(
                             p.getId(),
                             p.getDataHora(),
@@ -95,7 +100,8 @@ public class PedidoRelatorioService {
                             custo,
                             lucro,
                             p.getFormaPagamento(),
-                            p.getStatus() == StatusPedido.ENTREGUE && comCaixa.contains(p.getId()));
+                            p.getStatus() == StatusPedido.ENTREGUE && comCaixa.contains(p.getId()),
+                            itens);
                 })
                 .toList();
 

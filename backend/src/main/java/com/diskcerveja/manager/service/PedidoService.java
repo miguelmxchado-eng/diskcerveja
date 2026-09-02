@@ -278,6 +278,12 @@ public class PedidoService {
             // custo cadastrado é por unidade
             pi.setCustoUnitario(custoOuZero(prod.getCusto()));
         } else {
+            Integer upe = prod.getUnidadesPorEmbalagem();
+            if (upe != null && upe > 1) {
+                pi.setDescricao(prod.getNome() + " (caixa)");
+            } else {
+                pi.setDescricao(prod.getNome());
+            }
             pi.setPrecoUnitario(prod.getPreco());
             // venda da caixa: custo = custo unitário × unidades na caixa
             pi.setCustoUnitario(custoDaEmbalagem(prod));

@@ -5,7 +5,7 @@ import { AuthService } from './auth.service';
 export const authGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
-  if (!auth.token()) {
+  if (!auth.isAuthenticated()) {
     void router.navigateByUrl('/login');
     return false;
   }

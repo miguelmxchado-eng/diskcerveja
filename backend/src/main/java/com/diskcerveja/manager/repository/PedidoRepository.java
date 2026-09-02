@@ -40,7 +40,7 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
     List<Pedido> findByDataHoraBetween(@Param("ini") Instant ini, @Param("fim") Instant fim);
 
     @Query(
-            "select distinct p from Pedido p left join fetch p.itens where p.dataHora >= :ini and p.dataHora < :fim")
+            "select distinct p from Pedido p left join fetch p.itens i left join fetch i.produto left join fetch i.combo where p.dataHora >= :ini and p.dataHora < :fim")
     List<Pedido> findByDataHoraBetweenWithItens(@Param("ini") Instant ini, @Param("fim") Instant fim);
 
     /**

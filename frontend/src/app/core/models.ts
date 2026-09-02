@@ -150,6 +150,7 @@ export interface PedidoResumoDto {
   lucro?: number | null;
   formaPagamento: string;
   registradoNoCaixa: boolean;
+  itens?: PedidoItemResponse[];
 }
 
 export interface PedidoPeriodoResponse {

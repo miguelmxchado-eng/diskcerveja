@@ -700,17 +700,26 @@ export class PdvComponent implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * Estoque do produto é sempre em unidades (garrafa/lata).
+   * Venda de caixa reserva N unidades; venda avulsa reserva 1.
+   */
   private unidadesReservadas(produtoId: number): number {
     return this.carrinho()
       .filter((l) => !l.isCombo && l.produtoId === produtoId)
-      .reduce((soma, l) => {
-        const p = this.produtos().find((x) => x.id === produtoId);
-        const upe =
-          p?.unidadesPorEmbalagem != null && Number(p.unidadesPorEmbalagem) > 1
-            ? Number(p.unidadesPorEmbalagem)
-            : 1;
-        return soma + (l.vendaUnidade ? l.qtd : l.qtd * upe);
-      }, 0);
+      .reduce((soma, l) => soma + this.unidadesDaLinha(l), 0);
+  }
+
+  private unidadesDaLinha(l: Linha): number {
+    if (l.vendaUnidade === true) {
+      return l.qtd;
+    }
+    const p = l.produtoId != null ? this.produtos().find((x) => x.id === l.produtoId) : undefined;
+    const upe =
+      p?.unidadesPorEmbalagem != null && Number(p.unidadesPorEmbalagem) > 1
+        ? Number(p.unidadesPorEmbalagem)
+        : 1;
+    return l.qtd * upe;
   }
 
   private unidadesPorVenda(p: Produto, vendaUnidade: boolean): number {
@@ -722,7 +731,27 @@ export class PdvComponent implements OnInit, OnDestroy {
   }
 
   private cabeMaisUma(p: Produto, vendaUnidade: boolean): boolean {
-    return p.estoqueAtual >= this.unidadesReservadas(p.id) + this.unidadesPorVenda(p, vendaUnidade);
+    const reservado = this.unidadesReservadas(p.id);
+    const preciso = this.unidadesPorVenda(p, vendaUnidade);
+    return Number(p.estoqueAtual) >= reservado + preciso;
+  }
+
+  /** Texto de estoque no card: sempre em unidades; se tem caixa, mostra também. */
+  estoqueLabel(p: Produto): string {
+    const est = Number(p.estoqueAtual) || 0;
+    if (!this.podeVenderUnidade(p)) {
+      return `Estoque: ${est}`;
+    }
+    const upe = Number(p.unidadesPorEmbalagem);
+    const caixas = Math.floor(est / upe);
+    const resto = est % upe;
+    if (caixas <= 0) {
+      return `Estoque: ${est} un.`;
+    }
+    if (resto === 0) {
+      return `Estoque: ${est} un. (${caixas} cx)`;
+    }
+    return `Estoque: ${est} un. (${caixas} cx + ${resto})`;
   }
 
   add(p: Produto, codigoLido?: string, vendaUnidade = false) {
@@ -827,14 +856,19 @@ export class PdvComponent implements OnInit, OnDestroy {
   inc(i: number) {
     const atual = [...this.carrinho()];
     const linha = atual[i];
-    if (linha.produtoId != null && !linha.isCombo) {
+    if (linha?.produtoId != null && !linha.isCombo) {
       const p = this.produtos().find((x) => x.id === linha.produtoId);
-      if (p && !this.cabeMaisUma(p, !!linha.vendaUnidade)) {
-        this.snack.open(`Estoque insuficiente para "${p.nome}".`, 'OK', { duration: 2500 });
+      const vendaUnidade = linha.vendaUnidade === true;
+      if (p && !this.cabeMaisUma(p, vendaUnidade)) {
+        const upe = this.unidadesPorVenda(p, false);
+        const msg = vendaUnidade
+          ? `Estoque insuficiente para "${p.nome}". Disponível: ${p.estoqueAtual} unidade(s).`
+          : `Estoque insuficiente para "${p.nome}". Cada caixa usa ${upe} un. (há ${p.estoqueAtual}).`;
+        this.snack.open(msg, 'OK', { duration: 3500 });
         return;
       }
     }
-    atual[i] = { ...atual[i], qtd: atual[i].qtd + 1 };
+    atual[i] = { ...atual[i], qtd: atual[i].qtd + 1, vendaUnidade: linha.vendaUnidade === true };
     this.carrinho.set(atual);
     this.rolarListaItens();
   }

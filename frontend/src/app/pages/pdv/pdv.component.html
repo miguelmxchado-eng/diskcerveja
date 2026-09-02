@@ -169,7 +169,7 @@
                   class="pdv-card__stock"
                   [class.pdv-card__stock--low]="p.estoqueAtual <= p.estoqueMinimo"
                 >
-                  Estoque: {{ p.estoqueAtual }}{{ podeVenderUnidade(p) ? ' un.' : '' }}
+                  {{ estoqueLabel(p) }}
                 </span>
                 @if (p.estoqueAtual > 0 && p.estoqueAtual <= 2) {
                   <span class="pdv-card__alert">Últimas {{ p.estoqueAtual }} un.</span>

@@ -5,6 +5,7 @@ import com.diskcerveja.manager.domain.enums.StatusPedido;
 import com.diskcerveja.manager.domain.enums.TipoPedido;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 
 public record PedidoResumoDto(
         Long id,
@@ -17,4 +18,5 @@ public record PedidoResumoDto(
         BigDecimal custo,
         BigDecimal lucro,
         FormaPagamento formaPagamento,
-        boolean registradoNoCaixa) {}
+        boolean registradoNoCaixa,
+        List<PedidoItemResponse> itens) {}

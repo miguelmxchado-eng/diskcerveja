@@ -95,7 +95,7 @@
         <mat-icon>search</mat-icon>
         <input
           type="search"
-          placeholder="Buscar pedido, cliente ou telefone"
+          placeholder="Buscar pedido, cliente, telefone ou produto"
           [ngModel]="busca()"
           (ngModelChange)="onBuscaChange($event)"
         />
@@ -164,8 +164,10 @@
           <table class="em-table">
             <thead>
               <tr>
+                <th></th>
                 <th>Pedido</th>
                 <th>Data/hora</th>
+                <th>Itens</th>
                 <th>Cliente</th>
                 <th>Tipo</th>
                 <th>Status</th>
@@ -178,9 +180,19 @@
             </thead>
             <tbody>
               @for (p of pedidosPaginados(); track p.id) {
-                <tr>
+                <tr
+                  class="hist-row"
+                  [class.hist-row--open]="pedidoAbertoId() === p.id"
+                  (click)="toggleDetalhePedido(p.id, $event)"
+                >
+                  <td class="hist-expand">
+                    <mat-icon>{{ pedidoAbertoId() === p.id ? 'expand_less' : 'expand_more' }}</mat-icon>
+                  </td>
                   <td><span class="em-code">#{{ p.id }}</span></td>
                   <td>{{ p.dataHora | date: 'dd/MM/yyyy HH:mm' }}</td>
+                  <td class="hist-itens-cell">
+                    <span class="hist-itens-resumo" [title]="itensTexto(p)">{{ itensResumo(p) }}</span>
+                  </td>
                   <td>{{ p.clienteNome || '—' }}</td>
                   <td>
                     <span class="em-badge" [class]="tipoBadge(p.tipo)">{{ p.tipo | statusLabel }}</span>
@@ -212,7 +224,7 @@
                       —
                     }
                   </td>
-                  <td class="hist-actions">
+                  <td class="hist-actions" (click)="$event.stopPropagation()">
                     <div class="hist-actions__wrap">
                       <button
                         type="button"
@@ -224,15 +236,51 @@
                       </button>
                       @if (menuPedidoId() === p.id) {
                         <div class="hist-actions__menu" (click)="$event.stopPropagation()">
+                          <button type="button" (click)="toggleDetalhePedido(p.id)">Ver produtos</button>
                           <button type="button" (click)="copiarIdPedido(p)">Copiar nº do pedido</button>
                         </div>
                       }
                     </div>
                   </td>
                 </tr>
+                @if (pedidoAbertoId() === p.id) {
+                  <tr class="hist-detail-row">
+                    <td colspan="12">
+                      <div class="hist-detail">
+                        <p class="hist-detail__title">Produtos do pedido #{{ p.id }}</p>
+                        @if (itensDoPedido(p).length) {
+                          <table class="hist-detail__table">
+                            <thead>
+                              <tr>
+                                <th>Produto</th>
+                                <th>Qtd</th>
+                                <th>Preço</th>
+                                <th>Subtotal</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              @for (item of itensDoPedido(p); track $index) {
+                                <tr>
+                                  <td>{{ item.produtoNome }}</td>
+                                  <td>{{ item.quantidade }}</td>
+                                  <td>R$ {{ item.precoUnitario | number: '1.2-2' }}</td>
+                                  <td>
+                                    <strong>R$ {{ subtotalItem(item) | number: '1.2-2' }}</strong>
+                                  </td>
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        } @else {
+                          <p class="hist-detail__empty">Nenhum item registrado neste pedido.</p>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
               } @empty {
                 <tr>
-                  <td colspan="10" class="hist-empty">Nenhum pedido encontrado neste período.</td>
+                  <td colspan="12" class="hist-empty">Nenhum pedido encontrado neste período.</td>
                 </tr>
               }
             </tbody>
@@ -306,7 +354,7 @@
           </div>
           <div class="em-card__body">
             <ul class="hist-top">
-              @for (prod of topProdutos; track prod.nome) {
+              @for (prod of topProdutos(); track prod.nome) {
                 <li>
                   <div>
                     <strong>{{ prod.nome }}</strong>
@@ -314,9 +362,10 @@
                   </div>
                   <span>R$ {{ prod.valor | number: '1.2-2' }}</span>
                 </li>
+              } @empty {
+                <li class="hist-top__empty">Nenhuma venda entregue no período.</li>
               }
             </ul>
-            <p class="hist-top__hint">Dados ilustrativos — aguardando endpoint de produtos.</p>
           </div>
         </div>
       </aside>
