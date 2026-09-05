@@ -52,4 +52,4 @@ jobs:
       - name: Rebuild e reiniciar
         run: |
           ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            'cd ~/diskcerveja && sudo docker compose -f docker-compose.prod.yml --env-file .env up -d --build'
+            'sudo timedatectl set-timezone America/Sao_Paulo && cd ~/diskcerveja && sudo docker compose -f docker-compose.prod.yml --env-file .env up -d --build'

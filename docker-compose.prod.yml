@@ -3,6 +3,8 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
+      TZ: America/Sao_Paulo
+      PGTZ: America/Sao_Paulo
       POSTGRES_DB: diskcerveja
       POSTGRES_USER: diskcerveja
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -24,6 +26,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      TZ: America/Sao_Paulo
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: diskcerveja
@@ -34,6 +37,8 @@ services:
   proxy:
     image: nginx:alpine
     restart: unless-stopped
+    environment:
+      TZ: America/Sao_Paulo
     depends_on:
       - backend
     ports:

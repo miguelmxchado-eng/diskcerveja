@@ -66,15 +66,15 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
 
     @Query(
         value = """
-            SELECT 
-                CAST(p.data_hora AS DATE) AS dia, 
-                COALESCE(SUM(CASE WHEN p.status = 'ENTREGUE' THEN p.total ELSE 0 END), 0) AS vendas, 
+            SELECT
+                CAST((p.data_hora AT TIME ZONE 'America/Sao_Paulo') AS DATE) AS dia,
+                COALESCE(SUM(CASE WHEN p.status = 'ENTREGUE' THEN p.total ELSE 0 END), 0) AS vendas,
                 COUNT(CASE WHEN p.status = 'CANCELADO' THEN 1 END) AS cancelamentos
-            FROM pedido p 
-            WHERE p.data_hora >= :ini AND p.data_hora < :fim 
-            GROUP BY CAST(p.data_hora AS DATE) 
-            ORDER BY dia
-        """, 
+            FROM pedido p
+            WHERE p.data_hora >= :ini AND p.data_hora < :fim
+            GROUP BY 1
+            ORDER BY 1
+        """,
         nativeQuery = true)
     List<Object[]> aggregateVendasCancelamentosPorDiaOperacao(
             @Param("ini") java.sql.Timestamp ini, @Param("fim") java.sql.Timestamp fim);
@@ -82,7 +82,7 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
     @Query(
             value =
                     """
-            SELECT CAST(date_trunc('month', (p.data_hora AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')) AS date) AS mes,
+            SELECT CAST(date_trunc('month', p.data_hora AT TIME ZONE 'America/Sao_Paulo') AS date) AS mes,
                    COALESCE(SUM(CASE WHEN p.status = 'ENTREGUE' THEN p.total END), 0) AS vendas,
                    CAST(COALESCE(COUNT(*) FILTER (WHERE p.status = 'CANCELADO'), 0) AS bigint) AS cancelamentos
             FROM pedido p

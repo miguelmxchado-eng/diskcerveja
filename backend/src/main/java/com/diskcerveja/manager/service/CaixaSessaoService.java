@@ -22,7 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class CaixaSessaoService {
 
-    public static final ZoneId ZONA_OPERACAO = ZoneId.of("America/Sao_Paulo");
+    public static final ZoneId ZONA_OPERACAO =
+            ZoneId.of(com.diskcerveja.manager.config.TimeZoneConfig.ZONE);
 
     private final CaixaSessaoRepository caixaSessaoRepository;
     private final MovimentoCaixaRepository movimentoCaixaRepository;

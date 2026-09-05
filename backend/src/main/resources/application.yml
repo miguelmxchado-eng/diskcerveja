@@ -12,7 +12,9 @@ spring:
     properties:
       hibernate:
         jdbc:
-          time_zone: UTC
+          time_zone: America/Sao_Paulo
+  jackson:
+    time-zone: America/Sao_Paulo
   flyway:
     enabled: true
 
