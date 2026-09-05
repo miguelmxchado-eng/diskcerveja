@@ -1,9 +1,9 @@
 <div class="em-page dash">
-  <header class="em-page__head">
+  <header class="em-page__head dash__head">
     <div>
-      <p class="em-page__eyebrow">Operação</p>
-      <h1 class="em-page__title">Como está a operação</h1>
-      <p class="em-page__subtitle">Acompanhe as vendas, pedidos, caixa e estoque de hoje.</p>
+      <p class="em-page__eyebrow">Hoje</p>
+      <h1 class="em-page__title">Painel do dia</h1>
+      <p class="em-page__subtitle">Vendas, caixa e o que precisa de atenção agora.</p>
     </div>
     <div class="dash__date">{{ today }}</div>
   </header>
@@ -40,7 +40,12 @@
         <span class="em-kpi__ico"><mat-icon>payments</mat-icon></span>
         <div>
           <p class="em-kpi__value">R$ {{ d.vendasHoje | number: '1.2-2' }}</p>
-          <p class="em-kpi__label">Vendas de hoje</p>
+          <p class="em-kpi__label">
+            Vendas de hoje
+            @if (variacaoHoje(); as v) {
+              <span class="dash-kpi-delta" [class.is-up]="v.up" [class.is-down]="!v.up">{{ v.label }}</span>
+            }
+          </p>
         </div>
       </div>
       <div class="em-kpi">
@@ -57,11 +62,11 @@
           <p class="em-kpi__label">Em andamento</p>
         </div>
       </div>
-      <div class="em-kpi">
+      <div class="em-kpi" [class.em-kpi--alert]="d.produtosBaixoEstoque > 0">
         <span class="em-kpi__ico"><mat-icon>warning_amber</mat-icon></span>
         <div>
           <p class="em-kpi__value">{{ d.produtosBaixoEstoque }}</p>
-          <p class="em-kpi__label">Produtos com estoque baixo</p>
+          <p class="em-kpi__label">Estoque baixo</p>
         </div>
       </div>
     </div>
@@ -76,12 +81,22 @@
         </div>
         <div class="em-card__body">
           <div class="dash-meta">
-            <div><span>Responsável</span><strong>Administrador</strong></div>
-            <div><span>Abertura</span><strong>{{ d.caixa.caixaAberto ? '08:00' : '—' }}</strong></div>
-            <div><span>Saldo inicial</span><strong>R$ {{ d.caixa.valorAbertura | number: '1.2-2' }}</strong></div>
-            <div><span>Vendas</span><strong>R$ {{ d.vendasHoje | number: '1.2-2' }}</strong></div>
-            <div><span>Sangrias</span><strong>R$ 300,00</strong></div>
-            <div><span>Saldo previsto</span><strong>R$ {{ d.caixa.saldoPrevisto | number: '1.2-2' }}</strong></div>
+            <div>
+              <span>Saldo inicial</span>
+              <strong>R$ {{ d.caixa.valorAbertura | number: '1.2-2' }}</strong>
+            </div>
+            <div>
+              <span>Vendas</span>
+              <strong>R$ {{ d.vendasHoje | number: '1.2-2' }}</strong>
+            </div>
+            <div>
+              <span>Saldo previsto</span>
+              <strong class="dash-meta__highlight">R$ {{ d.caixa.saldoPrevisto | number: '1.2-2' }}</strong>
+            </div>
+            <div>
+              <span>Cancelamentos</span>
+              <strong>{{ d.cancelamentosHoje }}</strong>
+            </div>
           </div>
 
           <p class="dash-section-label">Formas de pagamento</p>
@@ -89,17 +104,22 @@
             @for (p of paymentRows(); track p.nome) {
               <div class="dash-pay__row">
                 <div class="dash-pay__top">
-                  <span>{{ p.nome }}</span>
-                  <span>R$ {{ p.valor | number: '1.2-2' }} · {{ p.pct }}%</span>
+                  <span class="dash-pay__name">
+                    <span class="dash-pay__dot" [attr.data-pay]="p.key"></span>
+                    {{ p.nome }}
+                  </span>
+                  <span class="dash-pay__amt">R$ {{ p.valor | number: '1.2-2' }} · {{ p.pct }}%</span>
                 </div>
-                <div class="em-progress"><span [style.width.%]="p.pct"></span></div>
+                <div class="em-progress em-progress--lg">
+                  <span [style.width.%]="p.pct" [attr.data-pay]="p.key"></span>
+                </div>
               </div>
             } @empty {
               <p class="em-page__subtitle">Sem vendas registradas hoje.</p>
             }
           </div>
 
-          <a routerLink="/caixa" class="em-btn em-btn--gold-outline" style="width:100%;margin-top:14px">Ver caixa</a>
+          <a routerLink="/caixa" class="em-btn em-btn--gold-outline dash__cta">Ver caixa</a>
         </div>
       </div>
 
@@ -109,10 +129,22 @@
         </div>
         <div class="em-card__body">
           <div class="dash-summary">
-            <div><strong>{{ d.pedidosEmAndamento }}</strong><span>Em andamento</span></div>
-            <div><strong class="is-warn">{{ d.pedidosAtrasados }}</strong><span>Atrasado</span></div>
-            <div><strong class="is-ok">{{ entreguesHoje() }}</strong><span>Entregues</span></div>
-            <div><strong>R$ {{ d.vendasHoje | number: '1.2-2' }}</strong><span>Vendas hoje</span></div>
+            <div>
+              <strong>{{ d.pedidosEmAndamento }}</strong>
+              <span>Em andamento</span>
+            </div>
+            <div>
+              <strong class="is-warn">{{ d.pedidosAtrasados }}</strong>
+              <span>Atrasado</span>
+            </div>
+            <div>
+              <strong class="is-ok">{{ entreguesHoje() }}</strong>
+              <span>Entregues</span>
+            </div>
+            <div>
+              <strong>R$ {{ d.vendasHoje | number: '1.2-2' }}</strong>
+              <span>Vendas hoje</span>
+            </div>
           </div>
 
           <p class="dash-section-label">Pedidos recentes</p>
@@ -121,7 +153,7 @@
               <li>
                 <div>
                   <strong>#{{ o.id }}</strong>
-                  <span>{{ o.cliente }} · {{ o.tipo }}</span>
+                  <span>{{ o.linha }}</span>
                 </div>
                 <span class="em-badge" [class]="o.statusClass">{{ o.status }}</span>
               </li>
@@ -140,8 +172,8 @@
         <div class="em-card__body">
           <ul class="dash-crit">
             @for (c of criticos(); track c.nome) {
-              <li>
-                <img [src]="c.foto" [alt]="c.nome" width="40" height="40" />
+              <li [class.is-zero]="c.zerado">
+                <img [src]="c.foto" [alt]="c.nome" width="44" height="44" />
                 <div>
                   <strong>{{ c.nome }}</strong>
                   <span>{{ c.qtd }}</span>
@@ -159,26 +191,74 @@
     </div>
 
     <div class="em-card dash__chart">
-      <div class="em-card__head">
+      <div class="em-card__head dash__chart-head">
         <div>
-          <h2 class="em-card__title">Status de vendas</h2>
-          <p class="em-page__subtitle" style="margin:4px 0 0">Faturamento por período</p>
+          <h2 class="em-card__title">Faturamento</h2>
+          <p class="dash__chart-sub">
+            Total do período:
+            <strong>R$ {{ chartTotal() | number: '1.2-2' }}</strong>
+          </p>
         </div>
-        <div class="dash-chips">
-          <button type="button" class="em-chip" [class.em-chip--active]="chartTab() === 'daily'" (click)="setChartTab('daily')">Diário</button>
-          <button type="button" class="em-chip" [class.em-chip--active]="chartTab() === 'weekly'" (click)="setChartTab('weekly')">Semanal</button>
-          <button type="button" class="em-chip" [class.em-chip--active]="chartTab() === 'monthly'" (click)="setChartTab('monthly')">Mensal</button>
+        <div class="dash-chips" role="tablist" aria-label="Período do gráfico">
+          <button type="button" class="em-chip" [class.em-chip--active]="chartTab() === 'daily'" (click)="setChartTab('daily')" role="tab" [attr.aria-selected]="chartTab() === 'daily'">Diário</button>
+          <button type="button" class="em-chip" [class.em-chip--active]="chartTab() === 'weekly'" (click)="setChartTab('weekly')" role="tab" [attr.aria-selected]="chartTab() === 'weekly'">Semanal</button>
+          <button type="button" class="em-chip" [class.em-chip--active]="chartTab() === 'monthly'" (click)="setChartTab('monthly')" role="tab" [attr.aria-selected]="chartTab() === 'monthly'">Mensal</button>
         </div>
       </div>
-      <div class="em-card__body">
-        <div class="em-bar-chart">
-          @for (p of chartSeries(); track p.rotulo) {
-            <div class="em-bar-chart__col">
-              <div class="em-bar-chart__bar" [style.height.%]="barHeight(p.vendas)" [title]="'R$ ' + (p.vendas | number: '1.2-2')"></div>
-              <span class="em-bar-chart__label">{{ p.rotulo }}</span>
+      <div class="em-card__body dash__chart-body">
+        @if (chartSeries().length === 0) {
+          <p class="em-page__subtitle">Sem dados de faturamento neste período.</p>
+        } @else {
+          <div
+            class="dash-chart"
+            role="img"
+            [attr.aria-label]="'Gráfico de faturamento ' + chartTabLabel()"
+            (mouseleave)="chartHover.set(null)"
+          >
+            <div class="dash-chart__grid" aria-hidden="true">
+              <span></span><span></span><span></span><span></span>
             </div>
-          }
-        </div>
+            <div class="dash-chart__plot">
+              @for (p of chartSeries(); track p.rotulo; let i = $index) {
+                <div
+                  class="dash-chart__col"
+                  [class.is-peak]="isPeak(p.vendas)"
+                  [class.is-active]="chartHover() === i"
+                  [class.is-dim]="chartHover() !== null && chartHover() !== i"
+                  (mouseenter)="chartHover.set(i)"
+                  (focus)="chartHover.set(i)"
+                  tabindex="0"
+                >
+                  @if (chartHover() === i) {
+                    <div class="dash-chart__tip">
+                      <div class="dash-chart__tip-title">{{ p.rotuloCompleto || p.rotulo }}</div>
+                      <div class="dash-chart__tip-val">R$ {{ p.vendas | number: '1.2-2' }}</div>
+                      @if (p.cancelamentos > 0) {
+                        <div class="dash-chart__tip-muted">{{ p.cancelamentos }} cancelamento(s)</div>
+                      }
+                    </div>
+                  }
+
+                  <div class="dash-chart__track">
+                    <span class="dash-chart__val" [class.is-visible]="shouldShowValue(p.vendas, i)">
+                      {{ formatShortMoney(p.vendas) }}
+                    </span>
+                    <div
+                      class="dash-chart__bar"
+                      [style.height.%]="barHeight(p.vendas)"
+                      [style.animation-delay]="i * 40 + 'ms'"
+                    ></div>
+                  </div>
+                  <span class="dash-chart__label">{{ shortLabel(p.rotulo) }}</span>
+                </div>
+              }
+            </div>
+          </div>
+          <div class="dash-chart__legend">
+            <span><i class="dash-chart__legend-swatch"></i> Faturamento (R$)</span>
+            <span class="dash-chart__legend-hint">Passe o mouse na barra para ver o valor</span>
+          </div>
+        }
       </div>
     </div>
   }

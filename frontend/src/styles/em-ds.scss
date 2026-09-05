@@ -463,32 +463,49 @@
 }
 
 .em-progress {
-  height: 6px;
+  height: 8px;
   border-radius: 999px;
-  background: #f5f6f8;
+  background: #efe8dc;
   overflow: hidden;
 
   > span {
     display: block;
     height: 100%;
     border-radius: 999px;
-    background: #d2a410;
+    background: linear-gradient(90deg, #d2a410, #e8c547);
+    transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+
+    &[data-pay='dinheiro'] {
+      background: linear-gradient(90deg, #b98d00, #d2a410);
+    }
+
+    &[data-pay='cartao'] {
+      background: linear-gradient(90deg, #171717, #3d3d3d);
+    }
+
+    &[data-pay='pix'] {
+      background: linear-gradient(90deg, #3d6b4a, #5a9a6c);
+    }
+  }
+
+  &--lg {
+    height: 12px;
   }
 }
 
 .em-bar-chart {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
-  height: 140px;
-  padding-top: 8px;
+  gap: 10px;
+  height: 220px;
+  padding-top: 12px;
 
   &__col {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     min-width: 0;
     height: 100%;
     justify-content: flex-end;
@@ -496,16 +513,17 @@
 
   &__bar {
     width: 100%;
-    max-width: 28px;
-    border-radius: 4px 4px 0 0;
-    background: #d2a410;
-    min-height: 4px;
+    max-width: 40px;
+    border-radius: 8px 8px 3px 3px;
+    background: linear-gradient(180deg, #e8c547 0%, #d2a410 55%, #b98d00 100%);
+    min-height: 6px;
+    box-shadow: 0 4px 12px rgba(185, 141, 0, 0.18);
   }
 
   &__label {
-    font-size: 0.65rem;
+    font-size: 0.72rem;
     color: #667085;
-    font-weight: 600;
+    font-weight: 700;
     white-space: nowrap;
   }
 }
