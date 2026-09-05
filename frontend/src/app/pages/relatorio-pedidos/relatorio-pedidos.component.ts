@@ -13,7 +13,7 @@ import {
   PeriodoPedido,
 } from '../../core/models';
 
-type PeriodChip = 'hoje' | '7dias' | '30dias' | 'mes';
+type PeriodChip = 'hoje' | '7dias' | '30dias' | 'mes' | 'personalizado';
 
 interface PaymentRow {
   nome: string;
@@ -33,14 +33,37 @@ interface TopProduto {
   valor: number;
 }
 
-const CHIP_TO_PERIODO: Record<PeriodChip, PeriodoPedido> = {
+const CHIP_TO_PERIODO: Record<Exclude<PeriodChip, 'personalizado' | '30dias'>, PeriodoPedido> = {
   hoje: 'DIA',
   '7dias': 'SEMANA',
-  '30dias': 'ANO',
   mes: 'MES',
 };
 
 const PAGE_SIZE = 20;
+
+function hojeIso(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function diasAtrasIso(dias: number): string {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - dias);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function formatarDataBr(iso: string): string {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
 
 @Component({
   selector: 'app-relatorio-pedidos',
@@ -64,47 +87,27 @@ export class RelatorioPedidosComponent implements OnInit {
   /** Pedido com detalhe de itens aberto. */
   readonly pedidoAbertoId = signal<number | null>(null);
 
-  readonly pedidosPeriodo = computed(() => {
-    const d = this.dados();
-    if (!d) return [];
-    if (this.periodoChip() !== '30dias') return d.pedidos;
-    const cutoff = new Date();
-    cutoff.setHours(0, 0, 0, 0);
-    cutoff.setDate(cutoff.getDate() - 29);
-    return d.pedidos.filter((p) => new Date(p.dataHora) >= cutoff);
-  });
+  /** Datas do calendário (yyyy-MM-dd). */
+  dataInicio = diasAtrasIso(6);
+  dataFim = hojeIso();
+  readonly hojeMax = hojeIso();
+
+  readonly pedidosPeriodo = computed(() => this.dados()?.pedidos ?? []);
 
   readonly periodoExibicao = computed(() => {
     const d = this.dados();
     if (!d) return '';
-    if (this.periodoChip() === '30dias') {
-      const fim = new Date();
-      const inicio = new Date();
-      inicio.setDate(fim.getDate() - 29);
-      return `${inicio.toLocaleDateString('pt-BR')} — ${fim.toLocaleDateString('pt-BR')}`;
+    if (this.periodoChip() === 'personalizado') {
+      return `${formatarDataBr(this.dataInicio)} — ${formatarDataBr(this.dataFim)}`;
     }
-    return `${d.dataInicio} — ${d.dataFim}`;
+    return d.periodoDescricao || `${d.dataInicio} — ${d.dataFim}`;
   });
 
   readonly kpis = computed(() => {
     const pedidos = this.pedidosPeriodo();
-    const entregues = pedidos.filter((p) => p.status === 'ENTREGUE');
     const faturamentoApi = this.dados()?.somaVendasEntregues ?? this.dados()?.somaTotalPedidos ?? 0;
     const lucroApi = this.dados()?.somaLucroEntregues ?? 0;
     const margemApi = this.dados()?.margemPercentual ?? 0;
-
-    if (this.periodoChip() === '30dias') {
-      const faturamento = entregues.reduce((acc, p) => acc + p.total, 0);
-      const lucro = entregues.reduce((acc, p) => acc + (p.lucro ?? 0), 0);
-      const margem = faturamento > 0 ? (lucro / faturamento) * 100 : 0;
-      return {
-        pedidos: pedidos.length,
-        faturamento,
-        lucro,
-        margem,
-      };
-    }
-
     return {
       pedidos: pedidos.length,
       faturamento: faturamentoApi || this.dados()?.somaTotalPedidos || 0,
@@ -220,8 +223,38 @@ export class RelatorioPedidosComponent implements OnInit {
     this.carregar();
   }
 
-  selecionarPeriodo(chip: PeriodChip): void {
+  selecionarPeriodo(chip: Exclude<PeriodChip, 'personalizado'>): void {
     this.periodoChip.set(chip);
+    this.paginaAtual.set(1);
+    if (chip === 'hoje') {
+      this.dataInicio = hojeIso();
+      this.dataFim = hojeIso();
+    } else if (chip === '7dias') {
+      this.dataInicio = diasAtrasIso(6);
+      this.dataFim = hojeIso();
+    } else if (chip === '30dias') {
+      this.dataInicio = diasAtrasIso(29);
+      this.dataFim = hojeIso();
+    } else if (chip === 'mes') {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      this.dataInicio = `${y}-${m}-01`;
+      this.dataFim = hojeIso();
+    }
+    this.carregar();
+  }
+
+  aplicarCalendario(): void {
+    if (!this.dataInicio || !this.dataFim) {
+      this.snack.open('Escolha a data inicial e a data final.', 'OK', { duration: 2500 });
+      return;
+    }
+    if (this.dataFim < this.dataInicio) {
+      this.snack.open('A data final não pode ser antes da inicial.', 'OK', { duration: 2500 });
+      return;
+    }
+    this.periodoChip.set('personalizado');
     this.paginaAtual.set(1);
     this.carregar();
   }
@@ -229,8 +262,12 @@ export class RelatorioPedidosComponent implements OnInit {
   carregar(): void {
     this.carregando.set(true);
     const chip = this.periodoChip();
-    const periodo = CHIP_TO_PERIODO[chip];
-    const params = new HttpParams().set('periodo', periodo);
+    let params = new HttpParams();
+    if (chip === 'personalizado' || chip === '30dias') {
+      params = params.set('inicio', this.dataInicio).set('fim', this.dataFim);
+    } else {
+      params = params.set('periodo', CHIP_TO_PERIODO[chip]);
+    }
     this.http
       .get<PedidoPeriodoResponse>(`${environment.apiUrl}/api/pedidos/periodo`, { params })
       .subscribe({
@@ -238,9 +275,9 @@ export class RelatorioPedidosComponent implements OnInit {
           this.dados.set(d);
           this.carregando.set(false);
         },
-        error: () => {
+        error: (e) => {
           this.carregando.set(false);
-          this.snack.open('Erro ao carregar pedidos.', 'OK', { duration: 3000 });
+          this.snack.open(e?.error?.erro ?? 'Erro ao carregar pedidos.', 'OK', { duration: 3000 });
         },
       });
   }

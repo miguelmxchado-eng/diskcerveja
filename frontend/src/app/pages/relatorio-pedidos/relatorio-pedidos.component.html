@@ -17,41 +17,57 @@
   </header>
 
   <div class="hist-period">
-    @if (periodoExibicao()) {
-      <span class="hist-period__range">{{ periodoExibicao() }}</span>
-    }
-    <div class="hist-period__chips">
-      <button
-        type="button"
-        class="em-chip"
-        [class.em-chip--active]="periodoChip() === 'hoje'"
-        (click)="selecionarPeriodo('hoje')"
-      >
-        Hoje
-      </button>
-      <button
-        type="button"
-        class="em-chip"
-        [class.em-chip--active]="periodoChip() === '7dias'"
-        (click)="selecionarPeriodo('7dias')"
-      >
-        7 dias
-      </button>
-      <button
-        type="button"
-        class="em-chip"
-        [class.em-chip--active]="periodoChip() === '30dias'"
-        (click)="selecionarPeriodo('30dias')"
-      >
-        30 dias
-      </button>
-      <button
-        type="button"
-        class="em-chip"
-        [class.em-chip--active]="periodoChip() === 'mes'"
-        (click)="selecionarPeriodo('mes')"
-      >
-        Este mês
+    <div class="hist-period__left">
+      @if (periodoExibicao()) {
+        <span class="hist-period__range">{{ periodoExibicao() }}</span>
+      }
+      <div class="hist-period__chips">
+        <button
+          type="button"
+          class="em-chip"
+          [class.em-chip--active]="periodoChip() === 'hoje'"
+          (click)="selecionarPeriodo('hoje')"
+        >
+          Hoje
+        </button>
+        <button
+          type="button"
+          class="em-chip"
+          [class.em-chip--active]="periodoChip() === '7dias'"
+          (click)="selecionarPeriodo('7dias')"
+        >
+          7 dias
+        </button>
+        <button
+          type="button"
+          class="em-chip"
+          [class.em-chip--active]="periodoChip() === '30dias'"
+          (click)="selecionarPeriodo('30dias')"
+        >
+          30 dias
+        </button>
+        <button
+          type="button"
+          class="em-chip"
+          [class.em-chip--active]="periodoChip() === 'mes'"
+          (click)="selecionarPeriodo('mes')"
+        >
+          Este mês
+        </button>
+      </div>
+    </div>
+    <div class="hist-period__calendar" [class.hist-period__calendar--active]="periodoChip() === 'personalizado'">
+      <label class="hist-period__date">
+        <span>De</span>
+        <input type="date" [(ngModel)]="dataInicio" name="dataInicio" [max]="dataFim || hojeMax" />
+      </label>
+      <label class="hist-period__date">
+        <span>Até</span>
+        <input type="date" [(ngModel)]="dataFim" name="dataFim" [min]="dataInicio" [max]="hojeMax" />
+      </label>
+      <button type="button" class="em-btn em-btn--gold-outline" (click)="aplicarCalendario()" [disabled]="carregando()">
+        <mat-icon>calendar_month</mat-icon>
+        Filtrar
       </button>
     </div>
   </div>

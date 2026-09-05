@@ -136,7 +136,7 @@ export interface DashboardResponse {
   graficoMensal: PontoGraficoVendas[];
 }
 
-export type PeriodoPedido = 'DIA' | 'SEMANA' | 'MES' | 'ANO';
+export type PeriodoPedido = 'DIA' | 'SEMANA' | 'MES' | 'ANO' | 'PERSONALIZADO';
 
 export interface PedidoResumoDto {
   id: number;

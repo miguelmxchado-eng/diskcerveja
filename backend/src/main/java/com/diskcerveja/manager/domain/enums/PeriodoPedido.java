@@ -4,5 +4,6 @@ public enum PeriodoPedido {
     DIA,
     SEMANA,
     MES,
-    ANO
+    ANO,
+    PERSONALIZADO
 }

@@ -66,8 +66,29 @@ public class PedidoRelatorioService {
                 inicioD = LocalDate.of(hoje.getYear(), 1, 1);
                 fimD = LocalDate.of(hoje.getYear(), 12, 31);
             }
+            case PERSONALIZADO -> throw new IllegalArgumentException(
+                    "Para período personalizado informe as datas de início e fim.");
         }
+        return montarResposta(periodo, inicioD, fimD);
+    }
 
+    @Transactional(readOnly = true)
+    public PedidoPeriodoResponse listarPorIntervalo(LocalDate inicio, LocalDate fim) {
+        if (inicio == null || fim == null) {
+            throw new IllegalArgumentException("Informe a data inicial e a data final.");
+        }
+        if (fim.isBefore(inicio)) {
+            throw new IllegalArgumentException("A data final não pode ser antes da data inicial.");
+        }
+        long dias = ChronoUnit.DAYS.between(inicio, fim) + 1;
+        if (dias > 366) {
+            throw new IllegalArgumentException("O intervalo máximo é de 366 dias.");
+        }
+        return montarResposta(PeriodoPedido.PERSONALIZADO, inicio, fim);
+    }
+
+    private PedidoPeriodoResponse montarResposta(PeriodoPedido periodo, LocalDate inicioD, LocalDate fimD) {
+        var z = CaixaSessaoService.ZONA_OPERACAO;
         long quantidadeDias = ChronoUnit.DAYS.between(inicioD, fimD) + 1;
         Instant ini = inicioD.atStartOfDay(z).toInstant();
         Instant fim = fimD.plusDays(1).atStartOfDay(z).toInstant();

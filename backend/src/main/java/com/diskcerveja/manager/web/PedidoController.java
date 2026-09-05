@@ -13,8 +13,10 @@ import com.diskcerveja.manager.security.SecurityUtils;
 import com.diskcerveja.manager.service.PedidoRelatorioService;
 import com.diskcerveja.manager.service.PedidoService;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,8 +53,15 @@ public class PedidoController {
     @PreAuthorize("isAuthenticated()")
     @Transactional(readOnly = true)
     public PedidoPeriodoResponse listarPorPeriodo(
-            @RequestParam(value = "periodo", defaultValue = "DIA") String periodoParam) {
-        PeriodoPedido periodo = parsePeriodo(periodoParam);
+            @RequestParam(value = "periodo", required = false) String periodoParam,
+            @RequestParam(value = "inicio", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                    LocalDate inicio,
+            @RequestParam(value = "fim", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                    LocalDate fim) {
+        if (inicio != null || fim != null) {
+            return pedidoRelatorioService.listarPorIntervalo(inicio, fim);
+        }
+        PeriodoPedido periodo = parsePeriodo(periodoParam != null ? periodoParam : "DIA");
         return pedidoRelatorioService.listarPorPeriodo(periodo);
     }
 
@@ -61,8 +70,15 @@ public class PedidoController {
             return PeriodoPedido.DIA;
         }
         try {
-            return PeriodoPedido.valueOf(raw.trim().toUpperCase(Locale.ROOT));
+            PeriodoPedido p = PeriodoPedido.valueOf(raw.trim().toUpperCase(Locale.ROOT));
+            if (p == PeriodoPedido.PERSONALIZADO) {
+                throw new IllegalArgumentException("Para período personalizado informe inicio e fim (yyyy-MM-dd).");
+            }
+            return p;
         } catch (IllegalArgumentException e) {
+            if (e.getMessage() != null && e.getMessage().startsWith("Para período")) {
+                throw e;
+            }
             throw new IllegalArgumentException("Período inválido. Use: DIA, SEMANA, MES ou ANO.");
         }
     }
