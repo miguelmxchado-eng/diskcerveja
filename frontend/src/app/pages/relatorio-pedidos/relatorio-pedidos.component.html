@@ -172,6 +172,7 @@
                 <th>Tipo</th>
                 <th>Status</th>
                 <th>Pagamento</th>
+                <th>Desconto</th>
                 <th>Total</th>
                 <th>Lucro</th>
                 <th>Caixa</th>
@@ -201,6 +202,13 @@
                     <span class="em-badge" [class]="statusBadge(p.status)">{{ p.status | statusLabel }}</span>
                   </td>
                   <td>{{ p.formaPagamento | statusLabel }}</td>
+                  <td>
+                    @if ((p.desconto ?? 0) > 0) {
+                      <span class="hist-desconto">− R$ {{ p.desconto | number: '1.2-2' }}</span>
+                    } @else {
+                      —
+                    }
+                  </td>
                   <td><strong>R$ {{ p.total | number: '1.2-2' }}</strong></td>
                   <td>
                     @if (p.status === 'ENTREGUE' && p.lucro != null) {
@@ -245,7 +253,7 @@
                 </tr>
                 @if (pedidoAbertoId() === p.id) {
                   <tr class="hist-detail-row">
-                    <td colspan="12">
+                    <td colspan="13">
                       <div class="hist-detail">
                         <p class="hist-detail__title">Produtos do pedido #{{ p.id }}</p>
                         @if (itensDoPedido(p).length) {
@@ -271,6 +279,22 @@
                               }
                             </tbody>
                           </table>
+                          <div class="hist-detail__totais">
+                            <div>
+                              <span>Itens</span>
+                              <strong>R$ {{ subtotalItens(p) | number: '1.2-2' }}</strong>
+                            </div>
+                            @if ((p.desconto ?? 0) > 0) {
+                              <div class="hist-detail__totais--desc">
+                                <span>Desconto</span>
+                                <strong>− R$ {{ p.desconto | number: '1.2-2' }}</strong>
+                              </div>
+                            }
+                            <div>
+                              <span>Total pago</span>
+                              <strong>R$ {{ p.total | number: '1.2-2' }}</strong>
+                            </div>
+                          </div>
                         } @else {
                           <p class="hist-detail__empty">Nenhum item registrado neste pedido.</p>
                         }
@@ -280,7 +304,7 @@
                 }
               } @empty {
                 <tr>
-                  <td colspan="12" class="hist-empty">Nenhum pedido encontrado neste período.</td>
+                  <td colspan="13" class="hist-empty">Nenhum pedido encontrado neste período.</td>
                 </tr>
               }
             </tbody>

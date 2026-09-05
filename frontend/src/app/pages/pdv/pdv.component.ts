@@ -700,6 +700,18 @@ export class PdvComponent implements OnInit, OnDestroy {
       });
   }
 
+  private mensagemEstoqueInsuficiente(p: Produto, vendaUnidade: boolean): string {
+    const est = Number(p.estoqueAtual) || 0;
+    const upe = this.unidadesPorVenda(p, false);
+    if (vendaUnidade) {
+      return `Estoque insuficiente para "${p.nome}". Há ${est} unidade(s).`;
+    }
+    if (upe > 1 && est > 0 && est < upe) {
+      return `Para vender 1 caixa de "${p.nome}" precisa de ${upe} un. Há só ${est}. Se você tem caixas inteiras, ajuste o estoque em Movimentar (ex.: 3 caixas = ${3 * upe} un.).`;
+    }
+    return `Estoque insuficiente para "${p.nome}". Cada caixa usa ${upe} un. (há ${est}).`;
+  }
+
   /**
    * Estoque do produto é sempre em unidades (garrafa/lata).
    * Venda de caixa reserva N unidades; venda avulsa reserva 1.
@@ -766,7 +778,7 @@ export class PdvComponent implements OnInit, OnDestroy {
     }
     if (!this.cabeMaisUma(p, vendaUnidade)) {
       this.feedback.warn();
-      this.snack.open(`Estoque insuficiente para "${p.nome}".`, 'OK', { duration: 2500 });
+      this.snack.open(this.mensagemEstoqueInsuficiente(p, vendaUnidade), 'OK', { duration: 4500 });
       return;
     }
     const atual = [...this.carrinho()];
@@ -860,11 +872,7 @@ export class PdvComponent implements OnInit, OnDestroy {
       const p = this.produtos().find((x) => x.id === linha.produtoId);
       const vendaUnidade = linha.vendaUnidade === true;
       if (p && !this.cabeMaisUma(p, vendaUnidade)) {
-        const upe = this.unidadesPorVenda(p, false);
-        const msg = vendaUnidade
-          ? `Estoque insuficiente para "${p.nome}". Disponível: ${p.estoqueAtual} unidade(s).`
-          : `Estoque insuficiente para "${p.nome}". Cada caixa usa ${upe} un. (há ${p.estoqueAtual}).`;
-        this.snack.open(msg, 'OK', { duration: 3500 });
+        this.snack.open(this.mensagemEstoqueInsuficiente(p, vendaUnidade), 'OK', { duration: 4500 });
         return;
       }
     }

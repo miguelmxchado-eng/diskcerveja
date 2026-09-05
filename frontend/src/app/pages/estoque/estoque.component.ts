@@ -157,6 +157,38 @@ export class EstoqueComponent implements OnInit, OnDestroy {
   entradaQtd = 0;
   entradaMotivo = '';
 
+  produtoPorId(id: number | null): Produto | undefined {
+    if (id == null) return undefined;
+    return this.todosProdutos().find((p) => p.id === id);
+  }
+
+  unidadesPorEmbalagem(p: Produto | undefined): number | null {
+    if (!p?.unidadesPorEmbalagem || Number(p.unidadesPorEmbalagem) <= 1) return null;
+    return Number(p.unidadesPorEmbalagem);
+  }
+
+  /** Texto auxiliar: estoque em unidades e equivalente em caixas. */
+  estoqueHint(p: Produto | undefined, qtd: number): string | null {
+    const upe = this.unidadesPorEmbalagem(p);
+    if (!upe) return null;
+    const n = Math.max(0, Math.trunc(Number(qtd) || 0));
+    const cx = Math.floor(n / upe);
+    const resto = n % upe;
+    if (resto === 0) {
+      return `${n} unidades = ${cx} caixa(s) (c/${upe})`;
+    }
+    return `${n} unidades = ${cx} caixa(s) + ${resto} un. (c/${upe})`;
+  }
+
+  labelEstoqueSelect(p: Produto): string {
+    const upe = this.unidadesPorEmbalagem(p);
+    if (!upe) return `${p.nome} (est: ${p.estoqueAtual} un.)`;
+    const cx = Math.floor(p.estoqueAtual / upe);
+    const resto = p.estoqueAtual % upe;
+    if (resto === 0) return `${p.nome} (est: ${p.estoqueAtual} un. · ${cx} cx)`;
+    return `${p.nome} (est: ${p.estoqueAtual} un. · ${cx} cx + ${resto})`;
+  }
+
   // ----- Combos -----
   readonly categorias = [
     'CERVEJAS',

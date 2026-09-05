@@ -15,6 +15,7 @@ public record PedidoResumoDto(
         TipoPedido tipo,
         StatusPedido status,
         BigDecimal total,
+        BigDecimal desconto,
         BigDecimal custo,
         BigDecimal lucro,
         FormaPagamento formaPagamento,

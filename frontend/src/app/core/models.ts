@@ -146,6 +146,7 @@ export interface PedidoResumoDto {
   tipo: string;
   status: string;
   total: number;
+  desconto?: number | null;
   custo?: number | null;
   lucro?: number | null;
   formaPagamento: string;

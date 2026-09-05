@@ -150,6 +150,45 @@
   }
 }
 
+.hist-desconto {
+  color: #b54708;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.hist-detail__totais {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 28px;
+  margin-top: 12px;
+  max-width: 560px;
+  padding-top: 10px;
+  border-top: 1px solid #eee7db;
+  font-size: 0.85rem;
+
+  div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  span {
+    color: #98a2b3;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  strong {
+    color: #171717;
+  }
+
+  &--desc strong {
+    color: #b54708;
+  }
+}
+
 .hist-lucro {
   display: inline-block;
   padding: 2px 8px;

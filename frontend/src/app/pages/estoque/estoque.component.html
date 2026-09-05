@@ -376,20 +376,26 @@
             <h2 class="em-card__title">Ajuste manual de quantidade</h2>
           </div>
           <div class="em-card__body">
-            <p class="est-form-desc">Define a quantidade exata em estoque (admin).</p>
+            <p class="est-form-desc">
+              Define a quantidade <strong>em unidades</strong> (garrafa/lata). Para produto de caixa,
+              3 caixas de 15 = <strong>45</strong> unidades.
+            </p>
             <div class="est-form">
               <div class="est-field est-field--grow">
                 <label for="ajuste-prod">Produto</label>
                 <select id="ajuste-prod" class="em-select est-field__full" [(ngModel)]="ajusteId" name="ajuste-prod">
                   <option [ngValue]="null">Selecione…</option>
                   @for (p of todosProdutos(); track p.id) {
-                    <option [ngValue]="p.id">{{ p.nome }} (est: {{ p.estoqueAtual }})</option>
+                    <option [ngValue]="p.id">{{ labelEstoqueSelect(p) }}</option>
                   }
                 </select>
               </div>
               <div class="est-field">
-                <label for="ajuste-qtd">Nova quantidade</label>
-                <input id="ajuste-qtd" class="est-input" type="number" [(ngModel)]="ajusteQtd" name="ajusteQtd" />
+                <label for="ajuste-qtd">Nova quantidade (unidades)</label>
+                <input id="ajuste-qtd" class="est-input" type="number" min="0" [(ngModel)]="ajusteQtd" name="ajusteQtd" />
+                @if (estoqueHint(produtoPorId(ajusteId), ajusteQtd); as hint) {
+                  <p class="est-field-hint">{{ hint }}</p>
+                }
               </div>
               <div class="est-field est-field--grow">
                 <label for="ajuste-motivo">Motivo</label>
@@ -412,20 +418,26 @@
           <h2 class="em-card__title">Registrar entrada (compra)</h2>
         </div>
         <div class="em-card__body">
-          <p class="est-form-desc">Adiciona unidades ao estoque existente.</p>
+          <p class="est-form-desc">
+            Adiciona <strong>unidades</strong> ao estoque. Se comprou caixas, multiplique
+            (ex.: 2 caixas c/15 = informe <strong>30</strong>).
+          </p>
           <div class="est-form">
             <div class="est-field est-field--grow">
               <label for="entrada-prod">Produto</label>
               <select id="entrada-prod" class="em-select est-field__full" [(ngModel)]="entradaId" name="entrada-prod">
                 <option [ngValue]="null">Selecione…</option>
                 @for (p of todosProdutos(); track p.id) {
-                  <option [ngValue]="p.id">{{ p.nome }} (est: {{ p.estoqueAtual }})</option>
+                  <option [ngValue]="p.id">{{ labelEstoqueSelect(p) }}</option>
                 }
               </select>
             </div>
             <div class="est-field">
-              <label for="entrada-qtd">Quantidade</label>
+              <label for="entrada-qtd">Quantidade (unidades)</label>
               <input id="entrada-qtd" class="est-input" type="number" min="1" [(ngModel)]="entradaQtd" name="entradaQtd" />
+              @if (estoqueHint(produtoPorId(entradaId), entradaQtd); as hint) {
+                <p class="est-field-hint">Vai entrar: {{ hint }}</p>
+              }
             </div>
             <div class="est-field est-field--grow">
               <label for="entrada-motivo">Motivo</label>

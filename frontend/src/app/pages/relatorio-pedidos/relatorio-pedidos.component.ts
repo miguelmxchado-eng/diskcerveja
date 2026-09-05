@@ -276,6 +276,7 @@ export class RelatorioPedidosComponent implements OnInit {
       'Status',
       'Pagamento',
       'Itens',
+      'Desconto',
       'Total',
       'Lucro',
       'Caixa',
@@ -289,6 +290,7 @@ export class RelatorioPedidosComponent implements OnInit {
         p.status,
         p.formaPagamento,
         this.itensTexto(p),
+        (p.desconto ?? 0).toFixed(2),
         p.total.toFixed(2),
         p.lucro != null ? p.lucro.toFixed(2) : '',
         p.registradoNoCaixa ? 'Sim' : 'Não',
@@ -362,6 +364,10 @@ export class RelatorioPedidosComponent implements OnInit {
 
   subtotalItem(i: PedidoItemResponse): number {
     return Number(i.precoUnitario) * i.quantidade;
+  }
+
+  subtotalItens(p: PedidoResumoDto): number {
+    return this.itensDoPedido(p).reduce((acc, i) => acc + this.subtotalItem(i), 0);
   }
 
   copiarIdPedido(p: PedidoResumoDto): void {

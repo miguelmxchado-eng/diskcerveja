@@ -97,6 +97,7 @@ public class PedidoRelatorioService {
                             p.getTipo(),
                             p.getStatus(),
                             p.getTotal(),
+                            nvl(p.getDesconto()),
                             custo,
                             lucro,
                             p.getFormaPagamento(),
