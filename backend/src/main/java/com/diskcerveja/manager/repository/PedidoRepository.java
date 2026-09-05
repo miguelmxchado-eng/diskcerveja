@@ -1,12 +1,17 @@
 package com.diskcerveja.manager.repository;
 
 import com.diskcerveja.manager.domain.entity.Pedido;
+import com.diskcerveja.manager.domain.enums.FormaPagamento;
 import com.diskcerveja.manager.domain.enums.StatusPedido;
 import com.diskcerveja.manager.domain.enums.TipoPedido;
 import com.diskcerveja.manager.dto.FormaPagamentoAgg;
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,13 +22,51 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
             "select distinct p from Pedido p left join fetch p.itens i left join fetch i.produto left join fetch p.entrega where p.id = :id")
     Optional<Pedido> findByIdWithItens(@Param("id") Long id);
 
+    @Query(
+            """
+            select distinct p from Pedido p
+            left join fetch p.itens i
+            left join fetch i.produto
+            left join fetch i.combo
+            where p.id in :ids
+            """)
+    List<Pedido> findByIdInWithItens(@Param("ids") Collection<Long> ids);
+
     List<Pedido> findTop200ByOrderByDataHoraDesc();
 
     List<Pedido> findByStatusInAndDataHoraBefore(List<StatusPedido> statuses, Instant before);
 
     @Query(
             "select coalesce(sum(p.total),0) from Pedido p where p.status = 'ENTREGUE' and p.dataHora >= :inicio and p.dataHora < :fim")
-    java.math.BigDecimal sumTotalEntreguesNoPeriodo(@Param("inicio") Instant inicio, @Param("fim") Instant fim);
+    BigDecimal sumTotalEntreguesNoPeriodo(@Param("inicio") Instant inicio, @Param("fim") Instant fim);
+
+    @Query("select coalesce(sum(p.total),0) from Pedido p where p.dataHora >= :inicio and p.dataHora < :fim")
+    BigDecimal sumTotalPedidosNoPeriodo(@Param("inicio") Instant inicio, @Param("fim") Instant fim);
+
+    @Query(
+            """
+            select coalesce(sum(i.custoUnitario * i.quantidade), 0)
+            from PedidoItem i join i.pedido p
+            where p.status = com.diskcerveja.manager.domain.enums.StatusPedido.ENTREGUE
+              and p.dataHora >= :inicio and p.dataHora < :fim
+            """)
+    BigDecimal sumCustoEntreguesNoPeriodo(@Param("inicio") Instant inicio, @Param("fim") Instant fim);
+
+    @Query(
+            """
+            select count(p) from Pedido p
+            where p.status = com.diskcerveja.manager.domain.enums.StatusPedido.ENTREGUE
+              and p.dataHora >= :inicio and p.dataHora < :fim
+              and not exists (
+                select 1 from MovimentoCaixa m
+                where m.pedido = p
+                  and m.tipo = com.diskcerveja.manager.domain.enums.TipoMovimentoCaixa.ENTRADA_VENDA
+              )
+            """)
+    long countEntreguesSemCaixa(@Param("inicio") Instant inicio, @Param("fim") Instant fim);
+
+    @Query("select count(p) from Pedido p where p.dataHora >= :inicio and p.dataHora < :fim")
+    long countPedidosNoPeriodo(@Param("inicio") Instant inicio, @Param("fim") Instant fim);
 
     @Query(
             "select new com.diskcerveja.manager.dto.FormaPagamentoAgg(p.formaPagamento, coalesce(sum(p.total),0)) from Pedido p where p.status = 'ENTREGUE' and p.dataHora >= :inicio and p.dataHora < :fim group by p.formaPagamento")
@@ -31,22 +74,89 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
 
     long countByStatusIn(List<StatusPedido> statuses);
 
-    @Query(
-            "select count(p) from Pedido p where p.status in :statuses and p.dataHora < :limite")
+    @Query("select count(p) from Pedido p where p.status in :statuses and p.dataHora < :limite")
     long countAtrasados(@Param("statuses") List<StatusPedido> statuses, @Param("limite") Instant limite);
 
-    @Query(
-            "select p from Pedido p where p.dataHora >= :ini and p.dataHora < :fim order by p.dataHora desc")
+    @Query("select p from Pedido p where p.dataHora >= :ini and p.dataHora < :fim order by p.dataHora desc")
     List<Pedido> findByDataHoraBetween(@Param("ini") Instant ini, @Param("fim") Instant fim);
 
     @Query(
             "select distinct p from Pedido p left join fetch p.itens i left join fetch i.produto left join fetch i.combo where p.dataHora >= :ini and p.dataHora < :fim")
     List<Pedido> findByDataHoraBetweenWithItens(@Param("ini") Instant ini, @Param("fim") Instant fim);
 
-    /**
-     * Painel de entregas: pedidos do tipo ENTREGA ainda em rota (status do pedido), com ou sem linha na tabela
-     * {@code entrega}.
-     */
+    @Query(
+            value =
+                    """
+            select p from Pedido p
+            where p.dataHora >= :ini and p.dataHora < :fim
+              and (:status is null or p.status = :status)
+              and (:tipo is null or p.tipo = :tipo)
+              and (:pagamento is null or p.formaPagamento = :pagamento)
+              and (
+                :q is null or :q = ''
+                or (:qId is not null and p.id = :qId)
+                or lower(coalesce(p.clienteNome, '')) like lower(concat('%', :q, '%'))
+                or coalesce(p.telefone, '') like concat('%', :q, '%')
+                or exists (
+                  select 1 from PedidoItem i left join i.produto prod
+                  where i.pedido = p and (
+                    lower(coalesce(i.descricao, '')) like lower(concat('%', :q, '%'))
+                    or lower(coalesce(prod.nome, '')) like lower(concat('%', :q, '%'))
+                  )
+                )
+              )
+            """,
+            countQuery =
+                    """
+            select count(p) from Pedido p
+            where p.dataHora >= :ini and p.dataHora < :fim
+              and (:status is null or p.status = :status)
+              and (:tipo is null or p.tipo = :tipo)
+              and (:pagamento is null or p.formaPagamento = :pagamento)
+              and (
+                :q is null or :q = ''
+                or (:qId is not null and p.id = :qId)
+                or lower(coalesce(p.clienteNome, '')) like lower(concat('%', :q, '%'))
+                or coalesce(p.telefone, '') like concat('%', :q, '%')
+                or exists (
+                  select 1 from PedidoItem i left join i.produto prod
+                  where i.pedido = p and (
+                    lower(coalesce(i.descricao, '')) like lower(concat('%', :q, '%'))
+                    or lower(coalesce(prod.nome, '')) like lower(concat('%', :q, '%'))
+                  )
+                )
+              )
+            """)
+    Page<Pedido> searchHistorico(
+            @Param("ini") Instant ini,
+            @Param("fim") Instant fim,
+            @Param("status") StatusPedido status,
+            @Param("tipo") TipoPedido tipo,
+            @Param("pagamento") FormaPagamento pagamento,
+            @Param("q") String q,
+            @Param("qId") Long qId,
+            Pageable pageable);
+
+    @Query(
+            value =
+                    """
+            SELECT COALESCE(NULLIF(TRIM(i.descricao), ''), pr.nome, c.nome, 'Item') AS nome,
+                   CAST(SUM(i.quantidade) AS bigint) AS unidades,
+                   COALESCE(SUM(i.preco_unitario * i.quantidade), 0) AS valor
+            FROM pedido_item i
+            JOIN pedido p ON p.id = i.pedido_id
+            LEFT JOIN produto pr ON pr.id = i.produto_id
+            LEFT JOIN combo c ON c.id = i.combo_id
+            WHERE p.status = 'ENTREGUE'
+              AND p.data_hora >= :ini AND p.data_hora < :fim
+            GROUP BY 1
+            ORDER BY valor DESC
+            LIMIT 8
+            """,
+            nativeQuery = true)
+    List<Object[]> topProdutosEntregues(
+            @Param("ini") java.sql.Timestamp ini, @Param("fim") java.sql.Timestamp fim);
+
     @Query(
             "select distinct p from Pedido p left join fetch p.entrega where p.tipo = :tipo and p.status in (:s1, :s2, :s3) order by p.dataHora desc")
     List<Pedido> findEntregaPainel(
@@ -59,13 +169,13 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
             "select p from Pedido p where p.status = 'ENTREGUE' and p.dataHora >= :ini and p.dataHora < :fim order by p.dataHora desc")
     List<Pedido> findEntreguesNoPeriodo(@Param("ini") Instant ini, @Param("fim") Instant fim);
 
-    @Query(
-            "select count(p) from Pedido p where p.status = :st and p.dataHora >= :i0 and p.dataHora < :i1")
+    @Query("select count(p) from Pedido p where p.status = :st and p.dataHora >= :i0 and p.dataHora < :i1")
     long countStatusNoPeriodo(
             @Param("st") StatusPedido st, @Param("i0") Instant i0, @Param("i1") Instant i1);
 
     @Query(
-        value = """
+            value =
+                    """
             SELECT
                 CAST((p.data_hora AT TIME ZONE 'America/Sao_Paulo') AS DATE) AS dia,
                 COALESCE(SUM(CASE WHEN p.status = 'ENTREGUE' THEN p.total ELSE 0 END), 0) AS vendas,
@@ -74,8 +184,8 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
             WHERE p.data_hora >= :ini AND p.data_hora < :fim
             GROUP BY 1
             ORDER BY 1
-        """,
-        nativeQuery = true)
+            """,
+            nativeQuery = true)
     List<Object[]> aggregateVendasCancelamentosPorDiaOperacao(
             @Param("ini") java.sql.Timestamp ini, @Param("fim") java.sql.Timestamp fim);
 

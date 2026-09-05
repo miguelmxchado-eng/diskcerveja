@@ -1,8 +1,10 @@
 package com.diskcerveja.manager.web;
 
+import com.diskcerveja.manager.domain.enums.FormaPagamento;
 import com.diskcerveja.manager.domain.enums.PerfilUsuario;
 import com.diskcerveja.manager.domain.enums.PeriodoPedido;
 import com.diskcerveja.manager.domain.enums.StatusPedido;
+import com.diskcerveja.manager.domain.enums.TipoPedido;
 import com.diskcerveja.manager.dto.PedidoPeriodoResponse;
 import com.diskcerveja.manager.dto.PedidoMapper;
 import com.diskcerveja.manager.dto.PedidoRequest;
@@ -57,12 +59,34 @@ public class PedidoController {
             @RequestParam(value = "inicio", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
                     LocalDate inicio,
             @RequestParam(value = "fim", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-                    LocalDate fim) {
+                    LocalDate fim,
+            @RequestParam(value = "pagina", defaultValue = "1") int pagina,
+            @RequestParam(value = "tamanho", defaultValue = "10") int tamanho,
+            @RequestParam(value = "q", required = false) String q,
+            @RequestParam(value = "status", required = false) String statusParam,
+            @RequestParam(value = "tipo", required = false) String tipoParam,
+            @RequestParam(value = "pagamento", required = false) String pagamentoParam) {
+        var status = parseEnum(statusParam, StatusPedido.class, "Status");
+        var tipo = parseEnum(tipoParam, TipoPedido.class, "Tipo");
+        var pagamento = parseEnum(pagamentoParam, FormaPagamento.class, "Pagamento");
         if (inicio != null || fim != null) {
-            return pedidoRelatorioService.listarPorIntervalo(inicio, fim);
+            return pedidoRelatorioService.listarPorIntervalo(
+                    inicio, fim, pagina, tamanho, q, status, tipo, pagamento);
         }
         PeriodoPedido periodo = parsePeriodo(periodoParam != null ? periodoParam : "DIA");
-        return pedidoRelatorioService.listarPorPeriodo(periodo);
+        return pedidoRelatorioService.listarPorPeriodo(
+                periodo, pagina, tamanho, q, status, tipo, pagamento);
+    }
+
+    private static <E extends Enum<E>> E parseEnum(String raw, Class<E> type, String label) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return Enum.valueOf(type, raw.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(label + " inválido: " + raw);
+        }
     }
 
     private static PeriodoPedido parsePeriodo(String raw) {

@@ -361,7 +361,7 @@
             </table>
           </div>
 
-          <div class="hist-pagination">
+          <div class="hist-pagination" [class.is-loading]="carregandoPagina()">
             <span>{{ paginationLabel() }}</span>
             <div class="hist-pager">
               <button type="button" [disabled]="paginaAtual() <= 1" (click)="irParaPagina(paginaAtual() - 1)" aria-label="Anterior">

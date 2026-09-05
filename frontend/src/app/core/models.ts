@@ -161,12 +161,24 @@ export interface PedidoPeriodoResponse {
   dataFim: string;
   quantidadeDiasNoPeriodo: number;
   pedidos: PedidoResumoDto[];
+  totalPedidos: number;
+  quantidadePedidosPeriodo?: number;
+  pagina: number;
+  tamanhoPagina: number;
+  totalPaginas: number;
   somaTotalPedidos: number;
   somaVendasEntregues: number;
   somaCustoEntregues: number;
   somaLucroEntregues: number;
   margemPercentual: number;
   quantidadeEntreguesSemCaixa: number;
+  faturamentoDiario?: { rotulo: string; total: number }[];
+  formasPagamento?: { forma: string; valor: number; percentual: number }[];
+  topProdutos?: { nome: string; unidades: number; valor: number }[];
+  pedidosPeriodoAnterior?: number;
+  vendasPeriodoAnterior?: number;
+  lucroPeriodoAnterior?: number;
+  margemPeriodoAnterior?: number;
 }
 
 export interface UsuarioDto {
