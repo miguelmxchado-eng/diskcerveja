@@ -30,6 +30,10 @@
         </div>
 
         <div class="erp-top-actions">
+          <button type="button" class="erp-notification" aria-label="Notificações">
+            <mat-icon>notifications_none</mat-icon>
+            <span aria-hidden="true"></span>
+          </button>
           <div class="header-profile" [class.header-profile--open]="profileOpen">
             <button
               class="erp-profile"
@@ -129,6 +133,16 @@
           </li>
         }
       </ul>
+    </div>
+    <div class="erp-nav-user">
+      <span class="erp-nav-user__avatar">{{ (auth.user()?.nome || 'A').charAt(0) }}</span>
+      <div class="erp-nav-user__meta">
+        <strong>{{ auth.user()?.nome || 'Administrador' }}</strong>
+        <small>
+          <i class="erp-nav-user__dot" aria-hidden="true"></i>
+          Online · {{ perfilLabel() }}
+        </small>
+      </div>
     </div>
   </div>
 

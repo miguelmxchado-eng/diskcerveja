@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { DecimalPipe, DatePipe } from '@angular/common';
+import { of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { StatusLabelPipe } from '../../shared/pipes/status-label.pipe';
 import { environment } from '../../../environments/environment';
 import {
@@ -25,6 +27,7 @@ interface ChartBar {
   label: string;
   total: number;
   heightPct: number;
+  peak: boolean;
 }
 
 interface TopProduto {
@@ -33,13 +36,26 @@ interface TopProduto {
   valor: number;
 }
 
+interface KpiDelta {
+  label: string;
+  up: boolean;
+  available: boolean;
+}
+
+interface PrevKpis {
+  pedidos: number;
+  faturamento: number;
+  lucro: number;
+  margem: number;
+}
+
 const CHIP_TO_PERIODO: Record<Exclude<PeriodChip, 'personalizado' | '30dias'>, PeriodoPedido> = {
   hoje: 'DIA',
   '7dias': 'SEMANA',
   mes: 'MES',
 };
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 function hojeIso(): string {
   const d = new Date();
@@ -59,10 +75,37 @@ function diasAtrasIso(dias: number): string {
   return `${y}-${m}-${day}`;
 }
 
+function parseIsoLocal(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function toIsoLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function formatarDataBr(iso: string): string {
   if (!iso) return '';
   const [y, m, d] = iso.split('-');
   return `${d}/${m}/${y}`;
+}
+
+function diasEntreInclusive(inicio: string, fim: string): number {
+  const a = parseIsoLocal(inicio);
+  const b = parseIsoLocal(fim);
+  return Math.max(1, Math.round((b.getTime() - a.getTime()) / 86400000) + 1);
+}
+
+function periodoAnterior(inicio: string, fim: string): { inicio: string; fim: string } {
+  const dias = diasEntreInclusive(inicio, fim);
+  const fimAnt = parseIsoLocal(inicio);
+  fimAnt.setDate(fimAnt.getDate() - 1);
+  const iniAnt = new Date(fimAnt);
+  iniAnt.setDate(iniAnt.getDate() - (dias - 1));
+  return { inicio: toIsoLocal(iniAnt), fim: toIsoLocal(fimAnt) };
 }
 
 @Component({
@@ -75,6 +118,7 @@ function formatarDataBr(iso: string): string {
 export class RelatorioPedidosComponent implements OnInit {
   readonly periodoChip = signal<PeriodChip>('7dias');
   readonly dados = signal<PedidoPeriodoResponse | null>(null);
+  readonly prevKpis = signal<PrevKpis | null>(null);
   readonly carregando = signal(true);
   readonly filtrosAbertos = signal(false);
   readonly menuPedidoId = signal<number | null>(null);
@@ -84,10 +128,8 @@ export class RelatorioPedidosComponent implements OnInit {
   readonly filtroTipo = signal('');
   readonly filtroPagamento = signal('');
   readonly paginaAtual = signal(1);
-  /** Pedido com detalhe de itens aberto. */
   readonly pedidoAbertoId = signal<number | null>(null);
 
-  /** Datas do calendário (yyyy-MM-dd). */
   dataInicio = diasAtrasIso(6);
   dataFim = hojeIso();
   readonly hojeMax = hojeIso();
@@ -97,10 +139,10 @@ export class RelatorioPedidosComponent implements OnInit {
   readonly periodoExibicao = computed(() => {
     const d = this.dados();
     if (!d) return '';
-    if (this.periodoChip() === 'personalizado') {
-      return `${formatarDataBr(this.dataInicio)} — ${formatarDataBr(this.dataFim)}`;
-    }
-    return d.periodoDescricao || `${d.dataInicio} — ${d.dataFim}`;
+    const ini = d.dataInicio?.includes('-') ? formatarDataBr(d.dataInicio) : d.dataInicio;
+    const fim = d.dataFim?.includes('-') ? formatarDataBr(d.dataFim) : d.dataFim;
+    const dias = d.quantidadeDiasNoPeriodo || diasEntreInclusive(this.dataInicio, this.dataFim);
+    return `${ini} - ${fim} (${dias} ${dias === 1 ? 'dia' : 'dias'})`;
   });
 
   readonly kpis = computed(() => {
@@ -113,6 +155,23 @@ export class RelatorioPedidosComponent implements OnInit {
       faturamento: faturamentoApi || this.dados()?.somaTotalPedidos || 0,
       lucro: lucroApi,
       margem: margemApi,
+    };
+  });
+
+  readonly deltaPedidos = computed(() => this.deltaPct(this.kpis().pedidos, this.prevKpis()?.pedidos));
+  readonly deltaFaturamento = computed(() =>
+    this.deltaPct(this.kpis().faturamento, this.prevKpis()?.faturamento),
+  );
+  readonly deltaLucro = computed(() => this.deltaPct(this.kpis().lucro, this.prevKpis()?.lucro));
+  readonly deltaMargem = computed(() => {
+    const atual = this.kpis().margem;
+    const ant = this.prevKpis()?.margem;
+    if (ant == null) return { label: '—', up: true, available: false } satisfies KpiDelta;
+    const diff = atual - ant;
+    return {
+      label: `${diff >= 0 ? '↑' : '↓'} ${Math.abs(diff).toFixed(1)} p.p.`,
+      up: diff >= 0,
+      available: true,
     };
   });
 
@@ -164,37 +223,83 @@ export class RelatorioPedidosComponent implements OnInit {
 
   readonly paginationLabel = computed(() => {
     const total = this.pedidosFiltrados().length;
-    if (total === 0) return '0 de 0';
+    if (total === 0) return 'Mostrando 0 de 0 pedidos';
     const start = (this.paginaAtual() - 1) * PAGE_SIZE + 1;
     const end = Math.min(this.paginaAtual() * PAGE_SIZE, total);
-    return `${start}–${end} de ${total}`;
+    return `Mostrando ${start} a ${end} de ${total} pedidos`;
   });
 
   readonly paginasVisiveis = computed(() => {
     const total = this.totalPaginas();
     const atual = this.paginaAtual();
-    const pages: number[] = [];
-    const from = Math.max(1, atual - 2);
-    const to = Math.min(total, from + 4);
-    for (let i = from; i <= to; i++) pages.push(i);
-    return pages;
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    const pages = new Set<number>([1, total, atual]);
+    for (let i = atual - 1; i <= atual + 1; i++) {
+      if (i > 1 && i < total) pages.add(i);
+    }
+    if (atual <= 3) {
+      pages.add(2);
+      pages.add(3);
+      pages.add(4);
+    }
+    if (atual >= total - 2) {
+      pages.add(total - 1);
+      pages.add(total - 2);
+      pages.add(total - 3);
+    }
+    return [...pages].sort((a, b) => a - b);
   });
 
   readonly chartBars = computed((): ChartBar[] => {
+    const d = this.dados();
     const pedidos = this.pedidosPeriodo().filter((p) => p.status === 'ENTREGUE');
     const byDay = new Map<string, number>();
     for (const p of pedidos) {
-      const d = new Date(p.dataHora);
-      const key = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      const dt = new Date(p.dataHora);
+      const key = dt.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        timeZone: 'America/Sao_Paulo',
+      });
       byDay.set(key, (byDay.get(key) ?? 0) + p.total);
     }
-    const entries = [...byDay.entries()].slice(-7);
-    const max = Math.max(...entries.map(([, v]) => v), 1);
-    return entries.map(([label, total]) => ({
-      label,
-      total,
-      heightPct: Math.max(4, Math.round((total / max) * 100)),
-    }));
+
+    const labels: string[] = [];
+    if (d?.dataInicio && d?.dataFim) {
+      const cur = parseIsoLocal(d.dataInicio.includes('/') ? this.dataInicio : d.dataInicio);
+      const end = parseIsoLocal(d.dataFim.includes('/') ? this.dataFim : d.dataFim);
+      // API may return BR formatted dates — fall back to local inputs
+      let start = cur;
+      let finish = end;
+      if (Number.isNaN(start.getTime()) || Number.isNaN(finish.getTime())) {
+        start = parseIsoLocal(this.dataInicio);
+        finish = parseIsoLocal(this.dataFim);
+      }
+      const guard = 62;
+      let n = 0;
+      for (let x = new Date(start); x <= finish && n < guard; x.setDate(x.getDate() + 1), n++) {
+        labels.push(
+          x.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+        );
+      }
+    }
+    if (!labels.length) {
+      labels.push(...[...byDay.keys()].slice(-7));
+    }
+
+    const values = labels.map((label) => byDay.get(label) ?? 0);
+    const max = Math.max(...values, 1);
+    return labels.map((label, i) => {
+      const total = values[i];
+      return {
+        label,
+        total,
+        heightPct: total > 0 ? Math.max(8, Math.round((total / max) * 100)) : 3,
+        peak: total > 0 && total >= max * 0.995,
+      };
+    });
   });
 
   readonly paymentRows = computed((): PaymentRow[] => {
@@ -213,6 +318,8 @@ export class RelatorioPedidosComponent implements OnInit {
         pct: Math.round((e.value / total) * 100),
       }));
   });
+
+  readonly variacaoFaturamentoResumo = computed(() => this.deltaFaturamento());
 
   constructor(
     private readonly http: HttpClient,
@@ -263,22 +370,53 @@ export class RelatorioPedidosComponent implements OnInit {
     this.carregando.set(true);
     const chip = this.periodoChip();
     let params = new HttpParams();
+    let inicio = this.dataInicio;
+    let fim = this.dataFim;
     if (chip === 'personalizado' || chip === '30dias') {
-      params = params.set('inicio', this.dataInicio).set('fim', this.dataFim);
+      params = params.set('inicio', inicio).set('fim', fim);
     } else {
       params = params.set('periodo', CHIP_TO_PERIODO[chip]);
     }
+
     this.http
       .get<PedidoPeriodoResponse>(`${environment.apiUrl}/api/pedidos/periodo`, { params })
       .subscribe({
         next: (d) => {
           this.dados.set(d);
+          if (d.dataInicio && d.dataFim && !d.dataInicio.includes('/')) {
+            inicio = d.dataInicio;
+            fim = d.dataFim;
+            this.dataInicio = inicio;
+            this.dataFim = fim;
+          }
           this.carregando.set(false);
+          this.carregarPeriodoAnterior(inicio, fim);
         },
         error: (e) => {
           this.carregando.set(false);
+          this.prevKpis.set(null);
           this.snack.open(e?.error?.erro ?? 'Erro ao carregar pedidos.', 'OK', { duration: 3000 });
         },
+      });
+  }
+
+  private carregarPeriodoAnterior(inicio: string, fim: string): void {
+    const ant = periodoAnterior(inicio, fim);
+    const params = new HttpParams().set('inicio', ant.inicio).set('fim', ant.fim);
+    this.http
+      .get<PedidoPeriodoResponse>(`${environment.apiUrl}/api/pedidos/periodo`, { params })
+      .pipe(catchError(() => of(null)))
+      .subscribe((prev) => {
+        if (!prev) {
+          this.prevKpis.set(null);
+          return;
+        }
+        this.prevKpis.set({
+          pedidos: prev.pedidos?.length ?? 0,
+          faturamento: prev.somaVendasEntregues ?? prev.somaTotalPedidos ?? 0,
+          lucro: prev.somaLucroEntregues ?? 0,
+          margem: prev.margemPercentual ?? 0,
+        });
       });
   }
 
@@ -292,10 +430,13 @@ export class RelatorioPedidosComponent implements OnInit {
       })
       .subscribe({
         next: (r) => {
-          this.snack.open(`${r.pedidosSincronizados} pedido(s) alinhados ao caixa.`, 'OK', { duration: 3500 });
+          this.snack.open(`${r.pedidosSincronizados} pedido(s) alinhados ao caixa.`, 'OK', {
+            duration: 3500,
+          });
           this.carregar();
         },
-        error: (e) => this.snack.open(e?.error?.erro ?? 'Erro ao sincronizar', 'OK', { duration: 4000 }),
+        error: (e) =>
+          this.snack.open(e?.error?.erro ?? 'Erro ao sincronizar', 'OK', { duration: 4000 }),
       });
   }
 
@@ -321,7 +462,7 @@ export class RelatorioPedidosComponent implements OnInit {
     const lines = rows.map((p) =>
       [
         p.id,
-        new Date(p.dataHora).toLocaleString('pt-BR'),
+        new Date(p.dataHora).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
         p.clienteNome ?? '',
         p.tipo,
         p.status,
@@ -362,6 +503,12 @@ export class RelatorioPedidosComponent implements OnInit {
   irParaPagina(page: number): void {
     const clamped = Math.min(Math.max(1, page), this.totalPaginas());
     this.paginaAtual.set(clamped);
+  }
+
+  showEllipsisBefore(pg: number, index: number): boolean {
+    const pages = this.paginasVisiveis();
+    if (index === 0) return false;
+    return pg - pages[index - 1] > 1;
   }
 
   toggleMenuPedido(id: number, event: Event): void {
@@ -415,18 +562,33 @@ export class RelatorioPedidosComponent implements OnInit {
 
   statusBadge(status: string): string {
     const s = (status || '').toUpperCase();
-    if (s === 'ENTREGUE') return 'em-badge--ok';
-    if (s === 'CANCELADO') return 'em-badge--danger';
-    if (s === 'SAIU_ENTREGA' || s === 'EM_PREPARO') return 'em-badge--warn';
-    if (s === 'ABERTO') return 'em-badge--gold';
-    return 'em-badge--neutral';
+    if (s === 'ENTREGUE') return 'hist-badge--ok';
+    if (s === 'CANCELADO') return 'hist-badge--danger';
+    if (s === 'SAIU_ENTREGA' || s === 'EM_PREPARO') return 'hist-badge--warn';
+    if (s === 'ABERTO') return 'hist-badge--gold';
+    return 'hist-badge--neutral';
   }
 
   tipoBadge(tipo: string): string {
     const t = (tipo || '').toUpperCase();
-    if (t === 'ENTREGA') return 'em-badge--gold';
-    if (t === 'RETIRADA') return 'em-badge--warn';
-    return 'em-badge--neutral';
+    if (t === 'ENTREGA') return 'hist-badge--delivery';
+    if (t === 'RETIRADA') return 'hist-badge--warn';
+    return 'hist-badge--balcao';
+  }
+
+  private deltaPct(atual: number, anterior: number | undefined | null): KpiDelta {
+    if (anterior == null || anterior === 0) {
+      if (atual > 0 && anterior === 0) {
+        return { label: '↑ novo', up: true, available: true };
+      }
+      return { label: '—', up: true, available: false };
+    }
+    const p = ((atual - anterior) / Math.abs(anterior)) * 100;
+    return {
+      label: `${p >= 0 ? '↑' : '↓'} ${Math.abs(p).toFixed(0)}%`,
+      up: p >= 0,
+      available: true,
+    };
   }
 
   private labelPagamento(k: string): string {

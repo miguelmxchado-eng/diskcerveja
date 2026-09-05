@@ -1,10 +1,66 @@
 <div class="em-page hist" (click)="fecharMenuPedido()">
-  <header class="em-page__head">
+  <header class="hist-hero">
     <div>
-      <h1 class="em-page__title">Histórico de vendas</h1>
-      <p class="em-page__subtitle">Consulte pedidos, pagamentos e resultados</p>
+      <p class="hist-hero__eyebrow">Vendas</p>
+      <h1 class="hist-hero__title">Histórico de vendas</h1>
+      <p class="hist-hero__sub">Consulte pedidos, pagamentos e resultados</p>
     </div>
-    <div class="em-page__actions">
+  </header>
+
+  <section class="hist-period-card" aria-label="Filtro de período">
+    <div class="hist-period-card__main">
+      <span class="hist-period-card__label">Período</span>
+      <div class="hist-period-card__chips" role="tablist">
+        <button
+          type="button"
+          class="hist-pill"
+          [class.hist-pill--on]="periodoChip() === 'hoje'"
+          (click)="selecionarPeriodo('hoje')"
+        >
+          Hoje
+        </button>
+        <button
+          type="button"
+          class="hist-pill"
+          [class.hist-pill--on]="periodoChip() === '7dias'"
+          (click)="selecionarPeriodo('7dias')"
+        >
+          7 dias
+        </button>
+        <button
+          type="button"
+          class="hist-pill"
+          [class.hist-pill--on]="periodoChip() === '30dias'"
+          (click)="selecionarPeriodo('30dias')"
+        >
+          30 dias
+        </button>
+        <button
+          type="button"
+          class="hist-pill"
+          [class.hist-pill--on]="periodoChip() === 'mes'"
+          (click)="selecionarPeriodo('mes')"
+        >
+          Este mês
+        </button>
+      </div>
+
+      <div class="hist-period-card__dates" [class.is-custom]="periodoChip() === 'personalizado'">
+        <label>
+          <span>De</span>
+          <input type="date" [(ngModel)]="dataInicio" name="dataInicio" [max]="dataFim || hojeMax" />
+        </label>
+        <label>
+          <span>Até</span>
+          <input type="date" [(ngModel)]="dataFim" name="dataFim" [min]="dataInicio" [max]="hojeMax" />
+        </label>
+        <button type="button" class="em-btn em-btn--gold" (click)="aplicarCalendario()" [disabled]="carregando()">
+          Filtrar
+        </button>
+      </div>
+    </div>
+
+    <div class="hist-period-card__actions">
       <button type="button" class="em-btn em-btn--ghost" (click)="exportar()" [disabled]="carregando()">
         <mat-icon>download</mat-icon>
         Exportar
@@ -14,110 +70,85 @@
         Atualizar
       </button>
     </div>
-  </header>
-
-  <div class="hist-period">
-    <div class="hist-period__left">
-      @if (periodoExibicao()) {
-        <span class="hist-period__range">{{ periodoExibicao() }}</span>
-      }
-      <div class="hist-period__chips">
-        <button
-          type="button"
-          class="em-chip"
-          [class.em-chip--active]="periodoChip() === 'hoje'"
-          (click)="selecionarPeriodo('hoje')"
-        >
-          Hoje
-        </button>
-        <button
-          type="button"
-          class="em-chip"
-          [class.em-chip--active]="periodoChip() === '7dias'"
-          (click)="selecionarPeriodo('7dias')"
-        >
-          7 dias
-        </button>
-        <button
-          type="button"
-          class="em-chip"
-          [class.em-chip--active]="periodoChip() === '30dias'"
-          (click)="selecionarPeriodo('30dias')"
-        >
-          30 dias
-        </button>
-        <button
-          type="button"
-          class="em-chip"
-          [class.em-chip--active]="periodoChip() === 'mes'"
-          (click)="selecionarPeriodo('mes')"
-        >
-          Este mês
-        </button>
-      </div>
-    </div>
-    <div class="hist-period__calendar" [class.hist-period__calendar--active]="periodoChip() === 'personalizado'">
-      <label class="hist-period__date">
-        <span>De</span>
-        <input type="date" [(ngModel)]="dataInicio" name="dataInicio" [max]="dataFim || hojeMax" />
-      </label>
-      <label class="hist-period__date">
-        <span>Até</span>
-        <input type="date" [(ngModel)]="dataFim" name="dataFim" [min]="dataInicio" [max]="hojeMax" />
-      </label>
-      <button type="button" class="em-btn em-btn--gold-outline" (click)="aplicarCalendario()" [disabled]="carregando()">
-        <mat-icon>calendar_month</mat-icon>
-        Filtrar
-      </button>
-    </div>
-  </div>
+  </section>
 
   @if (carregando()) {
     <div class="hist-loading">Carregando histórico…</div>
   } @else if (dados()) {
-    <div class="em-kpi-row">
-      <div class="em-kpi">
-        <span class="em-kpi__ico"><mat-icon>receipt_long</mat-icon></span>
-        <div>
-          <p class="em-kpi__value">{{ kpis().pedidos }}</p>
-          <p class="em-kpi__label">Pedidos</p>
+    <div class="hist-kpi-row">
+      <article class="hist-kpi">
+        <div class="hist-kpi__top">
+          <span class="hist-kpi__ico"><mat-icon>receipt_long</mat-icon></span>
+          @if (deltaPedidos().available) {
+            <span class="hist-kpi__delta" [class.is-up]="deltaPedidos().up" [class.is-down]="!deltaPedidos().up">
+              {{ deltaPedidos().label }}
+            </span>
+          }
         </div>
-      </div>
-      <div class="em-kpi">
-        <span class="em-kpi__ico"><mat-icon>payments</mat-icon></span>
-        <div>
-          <p class="em-kpi__value">R$ {{ kpis().faturamento | number: '1.2-2' }}</p>
-          <p class="em-kpi__label">Faturamento</p>
+        <p class="hist-kpi__value">{{ kpis().pedidos }}</p>
+        <p class="hist-kpi__label">Pedidos</p>
+        <p class="hist-kpi__hint">vs. período anterior</p>
+      </article>
+
+      <article class="hist-kpi">
+        <div class="hist-kpi__top">
+          <span class="hist-kpi__ico"><mat-icon>payments</mat-icon></span>
+          @if (deltaFaturamento().available) {
+            <span
+              class="hist-kpi__delta"
+              [class.is-up]="deltaFaturamento().up"
+              [class.is-down]="!deltaFaturamento().up"
+            >
+              {{ deltaFaturamento().label }}
+            </span>
+          }
         </div>
-      </div>
-      <div class="em-kpi">
-        <span class="em-kpi__ico"><mat-icon>trending_up</mat-icon></span>
-        <div>
-          <p class="em-kpi__value">R$ {{ kpis().lucro | number: '1.2-2' }}</p>
-          <p class="em-kpi__label">Lucro real</p>
+        <p class="hist-kpi__value">R$ {{ kpis().faturamento | number: '1.2-2' }}</p>
+        <p class="hist-kpi__label">Faturamento</p>
+        <p class="hist-kpi__hint">vs. período anterior</p>
+      </article>
+
+      <article class="hist-kpi">
+        <div class="hist-kpi__top">
+          <span class="hist-kpi__ico"><mat-icon>trending_up</mat-icon></span>
+          @if (deltaLucro().available) {
+            <span class="hist-kpi__delta" [class.is-up]="deltaLucro().up" [class.is-down]="!deltaLucro().up">
+              {{ deltaLucro().label }}
+            </span>
+          }
         </div>
-      </div>
-      <div class="em-kpi">
-        <span class="em-kpi__ico"><mat-icon>percent</mat-icon></span>
-        <div>
-          <p class="em-kpi__value">{{ kpis().margem | number: '1.1-1' }}%</p>
-          <p class="em-kpi__label">Margem</p>
+        <p class="hist-kpi__value">R$ {{ kpis().lucro | number: '1.2-2' }}</p>
+        <p class="hist-kpi__label">Lucro real</p>
+        <p class="hist-kpi__hint">vs. período anterior</p>
+      </article>
+
+      <article class="hist-kpi">
+        <div class="hist-kpi__top">
+          <span class="hist-kpi__ico"><mat-icon>percent</mat-icon></span>
+          @if (deltaMargem().available) {
+            <span class="hist-kpi__delta" [class.is-up]="deltaMargem().up" [class.is-down]="!deltaMargem().up">
+              {{ deltaMargem().label }}
+            </span>
+          }
         </div>
-      </div>
+        <p class="hist-kpi__value">{{ kpis().margem | number: '1.1-1' }}%</p>
+        <p class="hist-kpi__label">Margem</p>
+        <p class="hist-kpi__hint">vs. período anterior</p>
+      </article>
     </div>
 
-    <div class="em-toolbar">
-      <label class="em-search">
+    <div class="hist-toolbar">
+      <label class="hist-search">
         <mat-icon>search</mat-icon>
         <input
           type="search"
-          placeholder="Buscar pedido, cliente, telefone ou produto"
+          placeholder="Buscar pedido, cliente, telefone ou produto..."
           [ngModel]="busca()"
           (ngModelChange)="onBuscaChange($event)"
         />
       </label>
       <select
-        class="em-select"
+        class="hist-select"
         [ngModel]="filtroStatus()"
         (ngModelChange)="filtroStatus.set($event); onFiltroChange()"
       >
@@ -129,7 +160,7 @@
         <option value="CANCELADO">Cancelado</option>
       </select>
       <select
-        class="em-select"
+        class="hist-select"
         [ngModel]="filtroTipo()"
         (ngModelChange)="filtroTipo.set($event); onFiltroChange()"
       >
@@ -139,7 +170,7 @@
         <option value="ENTREGA">Entrega</option>
       </select>
       <select
-        class="em-select"
+        class="hist-select"
         [ngModel]="filtroPagamento()"
         (ngModelChange)="filtroPagamento.set($event); onFiltroChange()"
       >
@@ -148,14 +179,19 @@
         <option value="CARTAO">Cartão</option>
         <option value="DINHEIRO">Dinheiro</option>
       </select>
-      <button type="button" class="em-btn em-btn--ghost" (click)="toggleFiltros()">
+      <button
+        type="button"
+        class="em-btn em-btn--ghost hist-toolbar__filters"
+        [class.is-on]="filtrosAbertos()"
+        (click)="toggleFiltros()"
+      >
         <mat-icon>tune</mat-icon>
         Filtros
       </button>
     </div>
 
     @if (filtrosAbertos()) {
-      <div class="hist-extra-filters em-card">
+      <div class="hist-extra em-card">
         <div class="em-card__body">
           @if ((dados()?.quantidadeEntreguesSemCaixa ?? 0) > 0) {
             <p class="hist-alert">
@@ -163,7 +199,7 @@
               {{ dados()?.quantidadeEntreguesSemCaixa }} entregue(s) sem lançamento no caixa
             </p>
           }
-          <div class="hist-extra-filters__actions">
+          <div class="hist-extra__actions">
             <button type="button" class="em-btn em-btn--gold-outline" (click)="sincronizarCaixa()">
               <mat-icon>sync</mat-icon>
               Sincronizar com o caixa
@@ -174,164 +210,167 @@
       </div>
     }
 
-    <div class="em-grid-main-side">
+    <div class="hist-layout">
       <div class="hist-main">
-        <div class="em-table-wrap">
-          <table class="em-table">
-            <thead>
-              <tr>
-                <th></th>
-                <th>Pedido</th>
-                <th>Data/hora</th>
-                <th>Itens</th>
-                <th>Cliente</th>
-                <th>Tipo</th>
-                <th>Status</th>
-                <th>Pagamento</th>
-                <th>Desconto</th>
-                <th>Total</th>
-                <th>Lucro</th>
-                <th>Caixa</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (p of pedidosPaginados(); track p.id) {
-                <tr
-                  class="hist-row"
-                  [class.hist-row--open]="pedidoAbertoId() === p.id"
-                  (click)="toggleDetalhePedido(p.id, $event)"
-                >
-                  <td class="hist-expand">
-                    <mat-icon>{{ pedidoAbertoId() === p.id ? 'expand_less' : 'expand_more' }}</mat-icon>
-                  </td>
-                  <td><span class="em-code">#{{ p.id }}</span></td>
-                  <td>{{ p.dataHora | date: 'dd/MM/yyyy HH:mm' }}</td>
-                  <td class="hist-itens-cell">
-                    <span class="hist-itens-resumo" [title]="itensTexto(p)">{{ itensResumo(p) }}</span>
-                  </td>
-                  <td>{{ p.clienteNome || '—' }}</td>
-                  <td>
-                    <span class="em-badge" [class]="tipoBadge(p.tipo)">{{ p.tipo | statusLabel }}</span>
-                  </td>
-                  <td>
-                    <span class="em-badge" [class]="statusBadge(p.status)">{{ p.status | statusLabel }}</span>
-                  </td>
-                  <td>{{ p.formaPagamento | statusLabel }}</td>
-                  <td>
-                    @if ((p.desconto ?? 0) > 0) {
-                      <span class="hist-desconto">− R$ {{ p.desconto | number: '1.2-2' }}</span>
-                    } @else {
-                      —
-                    }
-                  </td>
-                  <td><strong>R$ {{ p.total | number: '1.2-2' }}</strong></td>
-                  <td>
-                    @if (p.status === 'ENTREGUE' && p.lucro != null) {
-                      <span class="hist-lucro" [class.hist-lucro--neg]="p.lucro < 0">
-                        R$ {{ p.lucro | number: '1.2-2' }}
-                      </span>
-                    } @else {
-                      —
-                    }
-                  </td>
-                  <td>
-                    @if (p.status === 'ENTREGUE') {
-                      <span
-                        class="em-badge"
-                        [class.em-badge--ok]="p.registradoNoCaixa"
-                        [class.em-badge--danger]="!p.registradoNoCaixa"
-                      >
-                        {{ p.registradoNoCaixa ? 'Sim' : 'Não' }}
-                      </span>
-                    } @else {
-                      —
-                    }
-                  </td>
-                  <td class="hist-actions" (click)="$event.stopPropagation()">
-                    <div class="hist-actions__wrap">
-                      <button
-                        type="button"
-                        class="hist-actions__btn"
-                        (click)="toggleMenuPedido(p.id, $event)"
-                        aria-label="Ações do pedido"
-                      >
-                        <mat-icon>more_vert</mat-icon>
-                      </button>
-                      @if (menuPedidoId() === p.id) {
-                        <div class="hist-actions__menu" (click)="$event.stopPropagation()">
-                          <button type="button" (click)="toggleDetalhePedido(p.id)">Ver produtos</button>
-                          <button type="button" (click)="copiarIdPedido(p)">Copiar nº do pedido</button>
-                        </div>
-                      }
-                    </div>
-                  </td>
+        <div class="hist-table-card">
+          <div class="hist-table-wrap">
+            <table class="hist-table">
+              <thead>
+                <tr>
+                  <th class="hist-table__expand"></th>
+                  <th>Pedido</th>
+                  <th>Data/hora</th>
+                  <th>Itens</th>
+                  <th>Cliente</th>
+                  <th>Tipo</th>
+                  <th>Status</th>
+                  <th>Pagamento</th>
+                  <th>Desconto</th>
+                  <th>Total</th>
+                  <th>Lucro</th>
+                  <th></th>
                 </tr>
-                @if (pedidoAbertoId() === p.id) {
-                  <tr class="hist-detail-row">
-                    <td colspan="13">
-                      <div class="hist-detail">
-                        <p class="hist-detail__title">Produtos do pedido #{{ p.id }}</p>
-                        @if (itensDoPedido(p).length) {
-                          <table class="hist-detail__table">
-                            <thead>
-                              <tr>
-                                <th>Produto</th>
-                                <th>Qtd</th>
-                                <th>Preço</th>
-                                <th>Subtotal</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              @for (item of itensDoPedido(p); track $index) {
-                                <tr>
-                                  <td>{{ item.produtoNome }}</td>
-                                  <td>{{ item.quantidade }}</td>
-                                  <td>R$ {{ item.precoUnitario | number: '1.2-2' }}</td>
-                                  <td>
-                                    <strong>R$ {{ subtotalItem(item) | number: '1.2-2' }}</strong>
-                                  </td>
-                                </tr>
-                              }
-                            </tbody>
-                          </table>
-                          <div class="hist-detail__totais">
-                            <div>
-                              <span>Itens</span>
-                              <strong>R$ {{ subtotalItens(p) | number: '1.2-2' }}</strong>
-                            </div>
-                            @if ((p.desconto ?? 0) > 0) {
-                              <div class="hist-detail__totais--desc">
-                                <span>Desconto</span>
-                                <strong>− R$ {{ p.desconto | number: '1.2-2' }}</strong>
-                              </div>
-                            }
-                            <div>
-                              <span>Total pago</span>
-                              <strong>R$ {{ p.total | number: '1.2-2' }}</strong>
-                            </div>
+              </thead>
+              <tbody>
+                @for (p of pedidosPaginados(); track p.id) {
+                  <tr
+                    class="hist-row"
+                    [class.hist-row--open]="pedidoAbertoId() === p.id"
+                    (click)="toggleDetalhePedido(p.id, $event)"
+                  >
+                    <td class="hist-expand">
+                      <mat-icon>{{ pedidoAbertoId() === p.id ? 'expand_less' : 'expand_more' }}</mat-icon>
+                    </td>
+                    <td><span class="hist-code">#{{ p.id }}</span></td>
+                    <td class="hist-muted">{{ p.dataHora | date: 'dd/MM/yyyy HH:mm' }}</td>
+                    <td class="hist-itens-cell">
+                      <span class="hist-itens-resumo" [title]="itensTexto(p)">{{ itensResumo(p) }}</span>
+                    </td>
+                    <td>{{ p.clienteNome || '—' }}</td>
+                    <td>
+                      <span class="hist-badge" [class]="tipoBadge(p.tipo)">{{ p.tipo | statusLabel }}</span>
+                    </td>
+                    <td>
+                      <span class="hist-badge" [class]="statusBadge(p.status)">{{ p.status | statusLabel }}</span>
+                    </td>
+                    <td class="hist-muted">{{ p.formaPagamento | statusLabel }}</td>
+                    <td>
+                      @if ((p.desconto ?? 0) > 0) {
+                        <span class="hist-desconto">− R$ {{ p.desconto | number: '1.2-2' }}</span>
+                      } @else {
+                        <span class="hist-muted">—</span>
+                      }
+                    </td>
+                    <td class="hist-money">R$ {{ p.total | number: '1.2-2' }}</td>
+                    <td>
+                      @if (p.status === 'ENTREGUE' && p.lucro != null) {
+                        <span class="hist-lucro" [class.hist-lucro--neg]="p.lucro < 0">
+                          R$ {{ p.lucro | number: '1.2-2' }}
+                        </span>
+                      } @else {
+                        <span class="hist-muted">—</span>
+                      }
+                    </td>
+                    <td class="hist-actions" (click)="$event.stopPropagation()">
+                      <div class="hist-actions__wrap">
+                        <button
+                          type="button"
+                          class="hist-actions__btn"
+                          (click)="toggleMenuPedido(p.id, $event)"
+                          aria-label="Ações do pedido"
+                        >
+                          <mat-icon>more_vert</mat-icon>
+                        </button>
+                        @if (menuPedidoId() === p.id) {
+                          <div class="hist-actions__menu" (click)="$event.stopPropagation()">
+                            <button type="button" (click)="toggleDetalhePedido(p.id)">Ver produtos</button>
+                            <button type="button" (click)="copiarIdPedido(p)">Copiar nº do pedido</button>
                           </div>
-                        } @else {
-                          <p class="hist-detail__empty">Nenhum item registrado neste pedido.</p>
                         }
                       </div>
                     </td>
                   </tr>
+                  @if (pedidoAbertoId() === p.id) {
+                    <tr class="hist-detail-row">
+                      <td colspan="12">
+                        <div class="hist-detail">
+                          <div class="hist-detail__head">
+                            <p class="hist-detail__title">Produtos do pedido #{{ p.id }}</p>
+                            @if (p.status === 'ENTREGUE') {
+                              <span
+                                class="hist-badge"
+                                [class.hist-badge--ok]="p.registradoNoCaixa"
+                                [class.hist-badge--danger]="!p.registradoNoCaixa"
+                              >
+                                Caixa: {{ p.registradoNoCaixa ? 'Sim' : 'Não' }}
+                              </span>
+                            }
+                          </div>
+                          @if (itensDoPedido(p).length) {
+                            <table class="hist-detail__table">
+                              <thead>
+                                <tr>
+                                  <th>Produto</th>
+                                  <th>Qtd</th>
+                                  <th>Preço</th>
+                                  <th>Subtotal</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                @for (item of itensDoPedido(p); track $index) {
+                                  <tr>
+                                    <td>{{ item.produtoNome }}</td>
+                                    <td>{{ item.quantidade }}</td>
+                                    <td>R$ {{ item.precoUnitario | number: '1.2-2' }}</td>
+                                    <td>
+                                      <strong>R$ {{ subtotalItem(item) | number: '1.2-2' }}</strong>
+                                    </td>
+                                  </tr>
+                                }
+                              </tbody>
+                            </table>
+                            <div class="hist-detail__totais">
+                              <div>
+                                <span>Itens</span>
+                                <strong>R$ {{ subtotalItens(p) | number: '1.2-2' }}</strong>
+                              </div>
+                              @if ((p.desconto ?? 0) > 0) {
+                                <div class="hist-detail__totais--desc">
+                                  <span>Desconto</span>
+                                  <strong>− R$ {{ p.desconto | number: '1.2-2' }}</strong>
+                                </div>
+                              }
+                              <div>
+                                <span>Total pago</span>
+                                <strong>R$ {{ p.total | number: '1.2-2' }}</strong>
+                              </div>
+                            </div>
+                          } @else {
+                            <p class="hist-detail__empty">Nenhum item registrado neste pedido.</p>
+                          }
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                } @empty {
+                  <tr>
+                    <td colspan="12" class="hist-empty">Nenhum pedido encontrado neste período.</td>
+                  </tr>
                 }
-              } @empty {
-                <tr>
-                  <td colspan="13" class="hist-empty">Nenhum pedido encontrado neste período.</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-          <div class="em-pagination">
+              </tbody>
+            </table>
+          </div>
+
+          <div class="hist-pagination">
             <span>{{ paginationLabel() }}</span>
-            <div class="em-pager">
-              <button type="button" [disabled]="paginaAtual() <= 1" (click)="irParaPagina(paginaAtual() - 1)">
-                ‹
+            <div class="hist-pager">
+              <button type="button" [disabled]="paginaAtual() <= 1" (click)="irParaPagina(paginaAtual() - 1)" aria-label="Anterior">
+                <mat-icon>chevron_left</mat-icon>
               </button>
-              @for (pg of paginasVisiveis(); track pg) {
+              @for (pg of paginasVisiveis(); track pg; let i = $index) {
+                @if (showEllipsisBefore(pg, i)) {
+                  <span class="hist-pager__dots">…</span>
+                }
                 <button type="button" [class.on]="pg === paginaAtual()" (click)="irParaPagina(pg)">
                   {{ pg }}
                 </button>
@@ -340,8 +379,9 @@
                 type="button"
                 [disabled]="paginaAtual() >= totalPaginas()"
                 (click)="irParaPagina(paginaAtual() + 1)"
+                aria-label="Próxima"
               >
-                ›
+                <mat-icon>chevron_right</mat-icon>
               </button>
             </div>
           </div>
@@ -349,64 +389,93 @@
       </div>
 
       <aside class="hist-side">
-        <div class="em-card">
-          <div class="em-card__head">
-            <h2 class="em-card__title">Resumo do período</h2>
+        <div class="hist-summary">
+          <div class="hist-summary__head">
+            <h2>Resumo do período</h2>
+            <p>
+              <mat-icon>calendar_today</mat-icon>
+              {{ periodoExibicao() }}
+            </p>
           </div>
-          <div class="em-card__body">
+
+          <div class="hist-summary__chart" role="img" [attr.aria-label]="'Faturamento diário: ' + periodoExibicao()">
             @if (chartBars().length) {
-              <div class="em-bar-chart">
+              <div class="hist-bars">
                 @for (bar of chartBars(); track bar.label) {
-                  <div class="em-bar-chart__col">
-                    <div class="em-bar-chart__bar" [style.height.%]="bar.heightPct"></div>
-                    <span class="em-bar-chart__label">{{ bar.label }}</span>
+                  <div class="hist-bars__col" [class.is-peak]="bar.peak" [title]="'R$ ' + (bar.total | number: '1.2-2')">
+                    <div class="hist-bars__track">
+                      <div class="hist-bars__bar" [style.height.%]="bar.heightPct"></div>
+                    </div>
+                    <span>{{ bar.label }}</span>
                   </div>
                 }
               </div>
             } @else {
-              <p class="em-page__subtitle">Sem vendas entregues no período.</p>
+              <p class="hist-summary__empty">Sem vendas entregues no período.</p>
             }
           </div>
-        </div>
 
-        <div class="em-card">
-          <div class="em-card__head">
-            <h2 class="em-card__title">Formas de pagamento</h2>
-          </div>
-          <div class="em-card__body">
-            @for (pay of paymentRows(); track pay.nome) {
-              <div class="hist-pay">
-                <div class="hist-pay__top">
-                  <span>{{ pay.nome }}</span>
-                  <span>R$ {{ pay.valor | number: '1.2-2' }} · {{ pay.pct }}%</span>
-                </div>
-                <div class="em-progress"><span [style.width.%]="pay.pct"></span></div>
-              </div>
-            } @empty {
-              <p class="em-page__subtitle">Sem pagamentos registrados.</p>
-            }
-          </div>
-        </div>
+          <dl class="hist-summary__stats">
+            <div>
+              <dt>Total de pedidos</dt>
+              <dd>{{ kpis().pedidos }}</dd>
+            </div>
+            <div>
+              <dt>Faturamento</dt>
+              <dd>R$ {{ kpis().faturamento | number: '1.2-2' }}</dd>
+            </div>
+            <div>
+              <dt>Lucro real</dt>
+              <dd>R$ {{ kpis().lucro | number: '1.2-2' }}</dd>
+            </div>
+            <div>
+              <dt>Margem</dt>
+              <dd>{{ kpis().margem | number: '1.1-1' }}%</dd>
+            </div>
+          </dl>
 
-        <div class="em-card">
-          <div class="em-card__head">
-            <h2 class="em-card__title">Top produtos</h2>
-          </div>
-          <div class="em-card__body">
-            <ul class="hist-top">
-              @for (prod of topProdutos(); track prod.nome) {
-                <li>
-                  <div>
-                    <strong>{{ prod.nome }}</strong>
-                    <span>{{ prod.unidades }} un.</span>
+          @if (variacaoFaturamentoResumo().available) {
+            <div
+              class="hist-summary__trend"
+              [class.is-up]="variacaoFaturamentoResumo().up"
+              [class.is-down]="!variacaoFaturamentoResumo().up"
+            >
+              <strong>{{ variacaoFaturamentoResumo().label }} no faturamento</strong>
+              <span>em relação ao período anterior</span>
+            </div>
+          }
+
+          @if (paymentRows().length) {
+            <div class="hist-summary__pay">
+              <p class="hist-summary__section">Formas de pagamento</p>
+              @for (pay of paymentRows(); track pay.nome) {
+                <div class="hist-pay">
+                  <div class="hist-pay__top">
+                    <span>{{ pay.nome }}</span>
+                    <span>R$ {{ pay.valor | number: '1.2-2' }} · {{ pay.pct }}%</span>
                   </div>
-                  <span>R$ {{ prod.valor | number: '1.2-2' }}</span>
-                </li>
-              } @empty {
-                <li class="hist-top__empty">Nenhuma venda entregue no período.</li>
+                  <div class="em-progress em-progress--lg"><span [style.width.%]="pay.pct"></span></div>
+                </div>
               }
-            </ul>
-          </div>
+            </div>
+          }
+
+          @if (topProdutos().length) {
+            <div class="hist-summary__top">
+              <p class="hist-summary__section">Top produtos</p>
+              <ul class="hist-top">
+                @for (prod of topProdutos(); track prod.nome) {
+                  <li>
+                    <div>
+                      <strong>{{ prod.nome }}</strong>
+                      <span>{{ prod.unidades }} un.</span>
+                    </div>
+                    <span>R$ {{ prod.valor | number: '1.2-2' }}</span>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
         </div>
       </aside>
     </div>
