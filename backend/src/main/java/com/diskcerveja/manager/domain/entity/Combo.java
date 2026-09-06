@@ -57,6 +57,9 @@ public class Combo {
     @Column(name = "visivel_cardapio", nullable = false)
     private boolean visivelCardapio = true;
 
+    @Column(name = "promocao_cardapio", nullable = false)
+    private boolean promocaoCardapio = false;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -162,6 +165,14 @@ public class Combo {
 
     public void setVisivelCardapio(boolean visivelCardapio) {
         this.visivelCardapio = visivelCardapio;
+    }
+
+    public boolean isPromocaoCardapio() {
+        return promocaoCardapio;
+    }
+
+    public void setPromocaoCardapio(boolean promocaoCardapio) {
+        this.promocaoCardapio = promocaoCardapio;
     }
 
     public Instant getCreatedAt() {

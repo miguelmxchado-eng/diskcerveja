@@ -22,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class CatalogoPublicoService {
 
+    public static final String CAT_PROMOCOES = "PROMOCOES";
+
     private final ConfigSistemaService configSistemaService;
     private final ProdutoRepository produtoRepository;
     private final ComboRepository comboRepository;
@@ -45,7 +47,8 @@ public class CatalogoPublicoService {
                 c.horario(),
                 c.taxaEntrega(),
                 c.pedidoMinimo(),
-                c.info());
+                c.info(),
+                configSistemaService.isPagamentoOnlineAtivo());
     }
 
     @Transactional(readOnly = true)
@@ -54,6 +57,8 @@ public class CatalogoPublicoService {
         String busca = q == null ? "" : q.trim().toLowerCase(Locale.ROOT);
 
         List<CatalogoItemDto> itens = new ArrayList<>();
+        List<CatalogoItemDto> promos = new ArrayList<>();
+
         for (Produto p : produtoRepository.findCardapioProdutos()) {
             if (!busca.isEmpty()
                     && !p.getNome().toLowerCase(Locale.ROOT).contains(busca)
@@ -61,7 +66,7 @@ public class CatalogoPublicoService {
                             || !p.getDescricaoCardapio().toLowerCase(Locale.ROOT).contains(busca))) {
                 continue;
             }
-            itens.add(new CatalogoItemDto(
+            CatalogoItemDto item = new CatalogoItemDto(
                     "PRODUTO",
                     p.getId(),
                     p.getNome(),
@@ -71,7 +76,12 @@ public class CatalogoPublicoService {
                     p.getPreco(),
                     p.getPrecoUnidade(),
                     p.getUnidadesPorEmbalagem(),
-                    p.getEstoqueAtual() > 0));
+                    p.getEstoqueAtual() > 0,
+                    p.isPromocaoCardapio());
+            itens.add(item);
+            if (p.isPromocaoCardapio()) {
+                promos.add(item);
+            }
         }
         for (Combo c : comboRepository.findCardapioCombos()) {
             if (!busca.isEmpty()
@@ -80,7 +90,7 @@ public class CatalogoPublicoService {
                 continue;
             }
             int estoque = estoqueCombo(c);
-            itens.add(new CatalogoItemDto(
+            CatalogoItemDto item = new CatalogoItemDto(
                     "COMBO",
                     c.getId(),
                     c.getNome(),
@@ -90,7 +100,12 @@ public class CatalogoPublicoService {
                     c.getPrecoVenda(),
                     null,
                     null,
-                    estoque > 0));
+                    estoque > 0,
+                    c.isPromocaoCardapio());
+            itens.add(item);
+            if (c.isPromocaoCardapio()) {
+                promos.add(item);
+            }
         }
 
         Map<String, List<CatalogoItemDto>> porCat = new LinkedHashMap<>();
@@ -102,6 +117,10 @@ public class CatalogoPublicoService {
         }
 
         List<CatalogoCategoriaDto> categorias = new ArrayList<>();
+        if (!promos.isEmpty()) {
+            promos.sort(Comparator.comparing(CatalogoItemDto::nome, String.CASE_INSENSITIVE_ORDER));
+            categorias.add(new CatalogoCategoriaDto(CAT_PROMOCOES, "Promoções", promos));
+        }
         for (Map.Entry<String, List<CatalogoItemDto>> e : porCat.entrySet()) {
             if (e.getValue().isEmpty()) {
                 continue;
@@ -137,6 +156,7 @@ public class CatalogoPublicoService {
             case "PETISCOS" -> "Petiscos";
             case "COMBOS" -> "Combos";
             case "CIGARROS" -> "Cigarros";
+            case CAT_PROMOCOES -> "Promoções";
             default -> "Outros";
         };
     }

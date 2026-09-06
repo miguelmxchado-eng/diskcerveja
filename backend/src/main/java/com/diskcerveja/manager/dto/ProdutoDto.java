@@ -28,5 +28,6 @@ public record ProdutoDto(
         @NotNull Integer estoqueMinimo,
         boolean ativo,
         Boolean visivelCardapio,
+        Boolean promocaoCardapio,
         @Size(max = 500) String descricaoCardapio,
         @Size(max = 500) String imagemUrl) {}

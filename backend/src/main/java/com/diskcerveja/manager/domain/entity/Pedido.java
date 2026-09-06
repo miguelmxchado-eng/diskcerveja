@@ -68,6 +68,12 @@ public class Pedido {
     @Column(name = "estoque_baixado", nullable = false)
     private boolean estoqueBaixado;
 
+    @Column(name = "pagamento_confirmado", nullable = false)
+    private boolean pagamentoConfirmado;
+
+    @Column(name = "pagamento_ref", length = 80)
+    private String pagamentoRef;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id")
     private Usuario usuario;
@@ -175,6 +181,22 @@ public class Pedido {
 
     public void setEstoqueBaixado(boolean estoqueBaixado) {
         this.estoqueBaixado = estoqueBaixado;
+    }
+
+    public boolean isPagamentoConfirmado() {
+        return pagamentoConfirmado;
+    }
+
+    public void setPagamentoConfirmado(boolean pagamentoConfirmado) {
+        this.pagamentoConfirmado = pagamentoConfirmado;
+    }
+
+    public String getPagamentoRef() {
+        return pagamentoRef;
+    }
+
+    public void setPagamentoRef(String pagamentoRef) {
+        this.pagamentoRef = pagamentoRef;
     }
 
     public Usuario getUsuario() {

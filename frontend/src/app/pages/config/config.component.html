@@ -126,6 +126,35 @@
             ></textarea>
           </div>
 
+          <h6 class="mb-3 text-muted text-uppercase fw-semibold" style="font-size:.75rem; letter-spacing:.05em">
+            Pagamento online (InfinitePay)
+          </h6>
+          <p class="text-muted small mb-3">
+            Preencha sua InfiniteTag (sem o $) para o cliente pagar Pix/Cartão no checkout.
+            Sem handle, o pedido fica como pagamento na entrega. Dinheiro fica para depois.
+          </p>
+          <div class="mb-3">
+            <label class="form-label">InfiniteTag (handle)</label>
+            <input
+              class="form-control"
+              [ngModel]="loja().infinitepayHandle"
+              (ngModelChange)="patchLoja({ infinitepayHandle: $event })"
+              name="infiniteHandle"
+              placeholder="sua_tag"
+            />
+          </div>
+          <div class="mb-4">
+            <label class="form-label">URL pública do site (opcional)</label>
+            <input
+              class="form-control"
+              [ngModel]="loja().publicBaseUrl"
+              (ngModelChange)="patchLoja({ publicBaseUrl: $event })"
+              name="publicBase"
+              placeholder="https://15.204.123.70"
+            />
+            <div class="form-text">Usada no retorno e no webhook do InfinitePay.</div>
+          </div>
+
           <button class="btn btn-primary" (click)="salvar()" [disabled]="salvando()">
             @if (salvando()) {
               <span class="spinner-border spinner-border-sm me-1"></span>

@@ -73,6 +73,7 @@ public class EstoqueController {
                 p.getEstoqueMinimo(),
                 p.isAtivo(),
                 p.isVisivelCardapio(),
+                p.isPromocaoCardapio(),
                 p.getDescricaoCardapio(),
                 p.getImagemUrl());
     }

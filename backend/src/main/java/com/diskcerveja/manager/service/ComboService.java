@@ -106,6 +106,7 @@ public class ComboService {
         combo.setPrecoVenda(dto.precoVenda());
         combo.setAtivo(dto.ativo());
         combo.setVisivelCardapio(dto.visivelCardapio() == null || dto.visivelCardapio());
+        combo.setPromocaoCardapio(Boolean.TRUE.equals(dto.promocaoCardapio()));
         if (combo.getCodigo() == null || combo.getCodigo().isBlank()) {
             combo.setCodigo(gerarCodigoInterno());
         }
@@ -210,6 +211,7 @@ public class ComboService {
                 c.getPrecoVenda(),
                 c.isAtivo(),
                 c.isVisivelCardapio(),
+                c.isPromocaoCardapio(),
                 custoTotal,
                 lucro,
                 margem,

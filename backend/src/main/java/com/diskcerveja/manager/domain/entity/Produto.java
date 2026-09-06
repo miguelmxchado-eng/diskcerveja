@@ -68,6 +68,9 @@ public class Produto {
     @Column(name = "visivel_cardapio", nullable = false)
     private boolean visivelCardapio = true;
 
+    @Column(name = "promocao_cardapio", nullable = false)
+    private boolean promocaoCardapio = false;
+
     @Column(name = "descricao_cardapio", length = 500)
     private String descricaoCardapio;
 
@@ -195,6 +198,14 @@ public class Produto {
 
     public void setVisivelCardapio(boolean visivelCardapio) {
         this.visivelCardapio = visivelCardapio;
+    }
+
+    public boolean isPromocaoCardapio() {
+        return promocaoCardapio;
+    }
+
+    public void setPromocaoCardapio(boolean promocaoCardapio) {
+        this.promocaoCardapio = promocaoCardapio;
     }
 
     public String getDescricaoCardapio() {

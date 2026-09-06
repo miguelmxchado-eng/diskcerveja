@@ -67,6 +67,7 @@ public class ComboController {
                 dto.precoVenda(),
                 dto.ativo(),
                 dto.visivelCardapio(),
+                dto.promocaoCardapio(),
                 dto.itens());
         return ResponseEntity.ok(comboService.salvar(novo));
     }
@@ -85,6 +86,7 @@ public class ComboController {
                 dto.precoVenda(),
                 dto.ativo(),
                 dto.visivelCardapio(),
+                dto.promocaoCardapio(),
                 dto.itens());
         return comboService.salvar(alvo);
     }

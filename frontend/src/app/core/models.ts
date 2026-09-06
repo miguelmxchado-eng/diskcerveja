@@ -28,6 +28,7 @@ export interface Produto {
   estoqueMinimo: number;
   ativo: boolean;
   visivelCardapio?: boolean;
+  promocaoCardapio?: boolean;
   descricaoCardapio?: string | null;
   imagemUrl?: string | null;
 }
@@ -68,6 +69,7 @@ export interface ComboResponse {
   precoVenda: number;
   ativo: boolean;
   visivelCardapio?: boolean;
+  promocaoCardapio?: boolean;
   custoTotal: number;
   lucro: number;
   margem: number;
@@ -88,6 +90,7 @@ export interface ComboDto {
   precoVenda: number;
   ativo: boolean;
   visivelCardapio?: boolean;
+  promocaoCardapio?: boolean;
   itens: ComboItemDto[];
 }
 
@@ -99,6 +102,9 @@ export interface LojaConfig {
   taxaEntrega: number;
   pedidoMinimo: number;
   info: string;
+  infinitepayHandle?: string;
+  publicBaseUrl?: string;
+  pagamentoOnline?: boolean;
 }
 
 export interface CatalogoItemPublico {
@@ -112,6 +118,7 @@ export interface CatalogoItemPublico {
   precoUnidade?: number | null;
   unidadesPorEmbalagem?: number | null;
   disponivel: boolean;
+  promocao?: boolean;
 }
 
 export interface CatalogoPublico {

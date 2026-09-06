@@ -4,7 +4,9 @@ import com.diskcerveja.manager.domain.entity.Cliente;
 import com.diskcerveja.manager.domain.entity.Combo;
 import com.diskcerveja.manager.domain.entity.Pedido;
 import com.diskcerveja.manager.domain.entity.Produto;
+import com.diskcerveja.manager.domain.enums.FormaPagamento;
 import com.diskcerveja.manager.domain.enums.TipoPedido;
+import com.diskcerveja.manager.dto.InfinitePayWebhookRequest;
 import com.diskcerveja.manager.dto.LojaConfigResponse;
 import com.diskcerveja.manager.dto.PedidoItemRequest;
 import com.diskcerveja.manager.dto.PedidoPublicoRequest;
@@ -12,6 +14,7 @@ import com.diskcerveja.manager.dto.PedidoPublicoResponse;
 import com.diskcerveja.manager.dto.PedidoRequest;
 import com.diskcerveja.manager.repository.ClienteRepository;
 import com.diskcerveja.manager.repository.ComboRepository;
+import com.diskcerveja.manager.repository.PedidoRepository;
 import com.diskcerveja.manager.repository.ProdutoRepository;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -28,25 +31,35 @@ public class PedidoPublicoService {
     private final ProdutoRepository produtoRepository;
     private final ComboRepository comboRepository;
     private final ClienteRepository clienteRepository;
+    private final PedidoRepository pedidoRepository;
+    private final InfinitePayService infinitePayService;
 
     public PedidoPublicoService(
             ConfigSistemaService configSistemaService,
             PedidoService pedidoService,
             ProdutoRepository produtoRepository,
             ComboRepository comboRepository,
-            ClienteRepository clienteRepository) {
+            ClienteRepository clienteRepository,
+            PedidoRepository pedidoRepository,
+            InfinitePayService infinitePayService) {
         this.configSistemaService = configSistemaService;
         this.pedidoService = pedidoService;
         this.produtoRepository = produtoRepository;
         this.comboRepository = comboRepository;
         this.clienteRepository = clienteRepository;
+        this.pedidoRepository = pedidoRepository;
+        this.infinitePayService = infinitePayService;
     }
 
     @Transactional
-    public PedidoPublicoResponse criar(PedidoPublicoRequest req) {
+    public PedidoPublicoResponse criar(PedidoPublicoRequest req, String publicBaseUrl) {
         LojaConfigResponse loja = configSistemaService.getLoja();
         if (!loja.aberta()) {
             throw new IllegalStateException("A loja está fechada no momento. Tente mais tarde.");
+        }
+
+        if (req.formaPagamento() == FormaPagamento.DINHEIRO) {
+            throw new IllegalArgumentException("Pagamento em dinheiro ainda não está disponível no cardápio.");
         }
 
         String nome = req.clienteNome().trim();
@@ -119,6 +132,18 @@ public class PedidoPublicoService {
 
         Pedido salvo = pedidoService.criar(pedidoReq, null, false);
         BigDecimal taxa = loja.taxaEntrega() != null ? loja.taxaEntrega() : BigDecimal.ZERO;
+
+        boolean online = configSistemaService.isPagamentoOnlineAtivo();
+        String checkoutUrl = null;
+        String mensagem;
+        if (online) {
+            String base = resolverBaseUrl(publicBaseUrl);
+            checkoutUrl = infinitePayService.criarLinkCheckout(salvo, nome, telefone, base);
+            mensagem = "Pedido #" + salvo.getId() + " criado. Finalize o pagamento para confirmar.";
+        } else {
+            mensagem = "Pedido #" + salvo.getId() + " recebido! Pagamento na entrega.";
+        }
+
         return new PedidoPublicoResponse(
                 salvo.getId(),
                 salvo.getDataHora(),
@@ -126,7 +151,51 @@ public class PedidoPublicoService {
                 salvo.getTotal(),
                 taxa,
                 salvo.getFormaPagamento(),
-                "Pedido #" + salvo.getId() + " recebido! Em breve entraremos em contato.");
+                mensagem,
+                checkoutUrl,
+                online);
+    }
+
+    @Transactional
+    public void confirmarPagamentoWebhook(InfinitePayWebhookRequest body) {
+        if (body == null || body.order_nsu() == null || body.order_nsu().isBlank()) {
+            throw new IllegalArgumentException("Webhook sem order_nsu.");
+        }
+        Long id;
+        try {
+            id = Long.valueOf(body.order_nsu().trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("order_nsu inválido.");
+        }
+        Pedido p = pedidoRepository
+                .findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado."));
+        if (p.isPagamentoConfirmado()) {
+            return;
+        }
+        p.setPagamentoConfirmado(true);
+        if (body.transaction_nsu() != null) {
+            p.setPagamentoRef(body.transaction_nsu());
+        }
+        if (body.capture_method() != null) {
+            if ("pix".equalsIgnoreCase(body.capture_method())) {
+                p.setFormaPagamento(FormaPagamento.PIX);
+            } else if ("credit_card".equalsIgnoreCase(body.capture_method())) {
+                p.setFormaPagamento(FormaPagamento.CARTAO);
+            }
+        }
+        pedidoRepository.save(p);
+    }
+
+    private String resolverBaseUrl(String fromRequest) {
+        String configured = configSistemaService.getPublicBaseUrl();
+        if (!configured.isBlank()) {
+            return configured;
+        }
+        if (fromRequest != null && !fromRequest.isBlank()) {
+            return fromRequest.replaceAll("/$", "");
+        }
+        return "https://15.204.123.70";
     }
 
     private Long upsertCliente(String nome, String telefone, String endereco, String observacao) {

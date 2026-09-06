@@ -191,6 +191,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   novoMarca = '';
   novoDescricao = '';
   novoVisivelCardapio = true;
+  novoPromocaoCardapio = false;
   novoDescricaoCardapio = '';
   codigoInternoEdicao: string | null = null;
 
@@ -1018,6 +1019,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.novoMarca = '';
     this.novoDescricao = '';
     this.novoVisivelCardapio = true;
+    this.novoPromocaoCardapio = false;
     this.novoDescricaoCardapio = '';
     this.imagemPreview.set(null);
     this.ultimaLeituraPreview.set(null);
@@ -1062,6 +1064,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.novoMarca = '';
     this.novoDescricao = '';
     this.novoVisivelCardapio = p.visivelCardapio !== false;
+    this.novoPromocaoCardapio = !!p.promocaoCardapio;
     this.novoDescricaoCardapio = p.descricaoCardapio ?? '';
     this.imagemPreview.set(null);
     this.ultimaLeituraPreview.set(null);
@@ -1126,6 +1129,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       estoqueMinimo: this.toInt(this.novoMin, 0),
       ativo: editando?.ativo ?? true,
       visivelCardapio: this.novoVisivelCardapio,
+      promocaoCardapio: this.novoPromocaoCardapio,
       descricaoCardapio: this.novoDescricaoCardapio.trim() || null,
       imagemUrl: editando?.imagemUrl ?? null,
     };

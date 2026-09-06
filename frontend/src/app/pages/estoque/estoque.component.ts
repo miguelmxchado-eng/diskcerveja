@@ -214,6 +214,7 @@ export class EstoqueComponent implements OnInit, OnDestroy {
   comboPreco = signal<number>(0);
   comboAtivo = true;
   comboVisivelCardapio = true;
+  comboPromocaoCardapio = false;
   comboItens = signal<ComboItemForm[]>([]);
   comboSalvando = signal(false);
   produtoParaAdicionar: number | null = null;
@@ -557,6 +558,7 @@ export class EstoqueComponent implements OnInit, OnDestroy {
     this.comboPreco.set(0);
     this.comboAtivo = true;
     this.comboVisivelCardapio = true;
+    this.comboPromocaoCardapio = false;
     this.comboItens.set([]);
     this.produtoParaAdicionar = null;
   }
@@ -572,6 +574,7 @@ export class EstoqueComponent implements OnInit, OnDestroy {
     this.comboPreco.set(Number(c.precoVenda) || 0);
     this.comboAtivo = c.ativo;
     this.comboVisivelCardapio = c.visivelCardapio !== false;
+    this.comboPromocaoCardapio = !!c.promocaoCardapio;
     this.comboItens.set(
       c.itens.map((i) => ({ produtoId: i.produtoId, quantidade: i.quantidade })),
     );
@@ -654,6 +657,7 @@ export class EstoqueComponent implements OnInit, OnDestroy {
       precoVenda: this.comboPreco(),
       ativo: this.comboAtivo,
       visivelCardapio: this.comboVisivelCardapio,
+      promocaoCardapio: this.comboPromocaoCardapio,
       itens: itens.map((i) => ({ produtoId: i.produtoId as number, quantidade: i.quantidade })),
     };
 

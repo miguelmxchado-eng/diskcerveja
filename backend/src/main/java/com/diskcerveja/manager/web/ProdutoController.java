@@ -77,6 +77,7 @@ public class ProdutoController {
                 dto.estoqueMinimo(),
                 dto.ativo(),
                 dto.visivelCardapio(),
+                dto.promocaoCardapio(),
                 dto.descricaoCardapio(),
                 dto.imagemUrl())));
     }
@@ -104,6 +105,7 @@ public class ProdutoController {
                 p.getEstoqueMinimo(),
                 p.isAtivo(),
                 p.isVisivelCardapio(),
+                p.isPromocaoCardapio(),
                 p.getDescricaoCardapio(),
                 p.getImagemUrl());
     }

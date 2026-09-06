@@ -16,6 +16,7 @@ public record ComboResponse(
         BigDecimal precoVenda,
         boolean ativo,
         boolean visivelCardapio,
+        boolean promocaoCardapio,
         BigDecimal custoTotal,
         BigDecimal lucro,
         BigDecimal margem,

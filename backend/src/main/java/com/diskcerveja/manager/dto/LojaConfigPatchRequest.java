@@ -9,4 +9,6 @@ public record LojaConfigPatchRequest(
         String horario,
         BigDecimal taxaEntrega,
         BigDecimal pedidoMinimo,
-        String info) {}
+        String info,
+        String infinitepayHandle,
+        String publicBaseUrl) {}

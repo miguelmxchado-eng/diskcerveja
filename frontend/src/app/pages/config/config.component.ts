@@ -25,6 +25,8 @@ export class ConfigComponent implements OnInit {
     taxaEntrega: 5,
     pedidoMinimo: 20,
     info: '',
+    infinitepayHandle: '',
+    publicBaseUrl: '',
   });
   loading = signal(false);
   salvando = signal(false);

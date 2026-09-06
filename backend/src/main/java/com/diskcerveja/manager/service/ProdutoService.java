@@ -97,6 +97,7 @@ public class ProdutoService {
         }
         p.setAtivo(dto.ativo());
         p.setVisivelCardapio(dto.visivelCardapio() == null || dto.visivelCardapio());
+        p.setPromocaoCardapio(Boolean.TRUE.equals(dto.promocaoCardapio()));
         p.setDescricaoCardapio(normalizeTexto(dto.descricaoCardapio(), 500));
         p.setImagemUrl(normalizeTexto(dto.imagemUrl(), 500));
         return produtoRepository.save(p);

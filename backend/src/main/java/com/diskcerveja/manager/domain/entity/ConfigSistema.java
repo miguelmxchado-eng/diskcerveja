@@ -17,6 +17,8 @@ public class ConfigSistema {
     public static final String CHAVE_LOJA_TAXA_ENTREGA = "loja.taxa_entrega";
     public static final String CHAVE_LOJA_PEDIDO_MINIMO = "loja.pedido_minimo";
     public static final String CHAVE_LOJA_INFO = "loja.info";
+    public static final String CHAVE_LOJA_INFINITEPAY_HANDLE = "loja.infinitepay_handle";
+    public static final String CHAVE_LOJA_PUBLIC_BASE_URL = "loja.public_base_url";
 
     @Id
     @Column(name = "chave", length = 80)

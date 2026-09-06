@@ -34,7 +34,25 @@ public class ConfigSistemaService {
                 get(ConfigSistema.CHAVE_LOJA_HORARIO, "Seg–Dom · 18h às 02h"),
                 parseDecimal(get(ConfigSistema.CHAVE_LOJA_TAXA_ENTREGA, "5.00")),
                 parseDecimal(get(ConfigSistema.CHAVE_LOJA_PEDIDO_MINIMO, "20.00")),
-                get(ConfigSistema.CHAVE_LOJA_INFO, ""));
+                get(ConfigSistema.CHAVE_LOJA_INFO, ""),
+                get(ConfigSistema.CHAVE_LOJA_INFINITEPAY_HANDLE, ""),
+                get(ConfigSistema.CHAVE_LOJA_PUBLIC_BASE_URL, ""));
+    }
+
+    public String getInfinitepayHandle() {
+        String h = get(ConfigSistema.CHAVE_LOJA_INFINITEPAY_HANDLE, "").trim();
+        if (h.startsWith("$")) {
+            h = h.substring(1);
+        }
+        return h;
+    }
+
+    public boolean isPagamentoOnlineAtivo() {
+        return !getInfinitepayHandle().isBlank();
+    }
+
+    public String getPublicBaseUrl() {
+        return get(ConfigSistema.CHAVE_LOJA_PUBLIC_BASE_URL, "").trim();
     }
 
     @Transactional
@@ -59,6 +77,16 @@ public class ConfigSistemaService {
         }
         if (req.info() != null) {
             put(ConfigSistema.CHAVE_LOJA_INFO, req.info().trim());
+        }
+        if (req.infinitepayHandle() != null) {
+            String h = req.infinitepayHandle().trim();
+            if (h.startsWith("$")) {
+                h = h.substring(1);
+            }
+            put(ConfigSistema.CHAVE_LOJA_INFINITEPAY_HANDLE, h);
+        }
+        if (req.publicBaseUrl() != null) {
+            put(ConfigSistema.CHAVE_LOJA_PUBLIC_BASE_URL, req.publicBaseUrl().trim().replaceAll("/$", ""));
         }
         return getLoja();
     }

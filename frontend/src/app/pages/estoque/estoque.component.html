@@ -629,6 +629,13 @@
               <mat-slide-toggle [(ngModel)]="comboVisivelCardapio" name="comboVisivelCardapio">
                 {{ comboVisivelCardapio ? 'No cardápio' : 'Fora do cardápio' }}
               </mat-slide-toggle>
+              <mat-slide-toggle
+                [(ngModel)]="comboPromocaoCardapio"
+                name="comboPromocaoCardapio"
+                [disabled]="!comboVisivelCardapio"
+              >
+                {{ comboPromocaoCardapio ? 'Em promoção' : 'Sem promoção' }}
+              </mat-slide-toggle>
             </div>
 
             <div class="est-combo-itens">

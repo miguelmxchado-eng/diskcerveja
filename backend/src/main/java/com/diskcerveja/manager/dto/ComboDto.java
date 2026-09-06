@@ -20,4 +20,5 @@ public record ComboDto(
         @NotNull BigDecimal precoVenda,
         boolean ativo,
         Boolean visivelCardapio,
+        Boolean promocaoCardapio,
         @NotEmpty @Valid List<ComboItemDto> itens) {}

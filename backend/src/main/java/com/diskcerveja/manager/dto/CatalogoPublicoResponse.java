@@ -12,7 +12,8 @@ public record CatalogoPublicoResponse(LojaPublicaDto loja, List<CatalogoCategori
             String horario,
             BigDecimal taxaEntrega,
             BigDecimal pedidoMinimo,
-            String info) {}
+            String info,
+            boolean pagamentoOnline) {}
 
     public record CatalogoCategoriaDto(String codigo, String nome, List<CatalogoItemDto> itens) {}
 
@@ -26,5 +27,6 @@ public record CatalogoPublicoResponse(LojaPublicaDto loja, List<CatalogoCategori
             BigDecimal preco,
             BigDecimal precoUnidade,
             Integer unidadesPorEmbalagem,
-            boolean disponivel) {}
+            boolean disponivel,
+            boolean promocao) {}
 }

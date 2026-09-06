@@ -36,36 +36,21 @@
       </div>
     </header>
 
-    <nav class="cardapio__cats" aria-label="Categorias">
-      <button
-        type="button"
-        class="cardapio__chip"
-        [class.is-on]="categoriaAtiva() === null"
-        (click)="selecionarCategoria(null)"
-      >
-        Todos
+    <div class="cardapio__toolbar">
+      <button type="button" class="cardapio__menu-btn" (click)="abrirMenu()" aria-label="Abrir menu">
+        <mat-icon>menu</mat-icon>
+        <span>Menu</span>
       </button>
-      @for (c of categorias(); track c.codigo) {
-        <button
-          type="button"
-          class="cardapio__chip"
-          [class.is-on]="categoriaAtiva() === c.codigo"
-          (click)="selecionarCategoria(c.codigo)"
-        >
-          {{ c.nome }}
-        </button>
-      }
-    </nav>
-
-    <label class="cardapio__search">
-      <mat-icon>search</mat-icon>
-      <input
-        type="search"
-        placeholder="Pesquisar produto…"
-        [ngModel]="busca()"
-        (ngModelChange)="busca.set($event)"
-      />
-    </label>
+      <label class="cardapio__search">
+        <mat-icon>search</mat-icon>
+        <input
+          type="search"
+          placeholder="Pesquisar produto…"
+          [ngModel]="busca()"
+          (ngModelChange)="busca.set($event)"
+        />
+      </label>
+    </div>
 
     <section class="cardapio__section">
       <h2>{{ tituloSecao() }}</h2>
@@ -73,7 +58,12 @@
         @for (item of itensVisiveis(); track item.tipo + '-' + item.id) {
           <article class="cardapio__card" [class.is-off]="!item.disponivel">
             <div class="cardapio__card-body">
-              <h3>{{ item.nome }}</h3>
+              <h3>
+                {{ item.nome }}
+                @if (item.promocao || categoriaAtiva() === 'PROMOCOES') {
+                  <span class="cardapio__promo-tag">Promo</span>
+                }
+              </h3>
               @if (item.descricao) {
                 <p>{{ item.descricao }}</p>
               } @else if (item.tipo === 'COMBO') {
@@ -115,6 +105,37 @@
     <footer class="cardapio__foot">
       Delivery · Pagamento na entrega · Empório Machado
     </footer>
+
+    @if (menuAberto()) {
+      <div class="cardapio__menu-overlay" (click)="fecharMenu()"></div>
+      <aside class="cardapio__menu" role="dialog" aria-label="Categorias">
+        <header class="cardapio__menu-head">
+          <h2>Cardápio</h2>
+          <button type="button" class="cardapio__sheet-close" (click)="fecharMenu()" aria-label="Fechar">
+            <mat-icon>close</mat-icon>
+          </button>
+        </header>
+        <nav class="cardapio__menu-list">
+          @for (c of categorias(); track c.codigo) {
+            <button
+              type="button"
+              class="cardapio__menu-item"
+              [class.is-on]="categoriaAtiva() === c.codigo && !busca().trim()"
+              [class.is-promo]="c.codigo === 'PROMOCOES'"
+              (click)="selecionarCategoria(c.codigo)"
+            >
+              <span>
+                @if (c.codigo === 'PROMOCOES') {
+                  <mat-icon class="cardapio__menu-ico">local_offer</mat-icon>
+                }
+                {{ c.nome }}
+              </span>
+              <span class="cardapio__menu-count">{{ c.itens.length }}</span>
+            </button>
+          }
+        </nav>
+      </aside>
+    }
 
     @if (qtdCarrinho() > 0 && painel() === 'fechado') {
       <button type="button" class="cardapio__bar" (click)="abrirCarrinho()">
@@ -190,30 +211,79 @@
           <label class="cardapio__field">
             <span>WhatsApp</span>
             <input
-              [(ngModel)]="telefone"
+              [ngModel]="telefone"
+              (ngModelChange)="onTelefoneInput($event)"
               name="telefone"
               autocomplete="tel"
               inputmode="tel"
+              maxlength="15"
               placeholder="(11) 99999-9999"
             />
           </label>
+
+          <div class="cardapio__addr">
+            <label class="cardapio__field cardapio__field--cep">
+              <span>CEP</span>
+              <input
+                [ngModel]="cep"
+                (ngModelChange)="onCepInput($event)"
+                name="cep"
+                inputmode="numeric"
+                maxlength="9"
+                placeholder="00000-000"
+                autocomplete="postal-code"
+              />
+              @if (buscandoCep()) {
+                <small class="cardapio__hint">Buscando endereço…</small>
+              }
+            </label>
+            <label class="cardapio__field cardapio__field--num">
+              <span>Número</span>
+              <input [(ngModel)]="numero" name="numero" placeholder="123" autocomplete="address-line2" />
+            </label>
+          </div>
           <label class="cardapio__field">
-            <span>Endereço de entrega</span>
-            <textarea
-              [(ngModel)]="endereco"
-              name="endereco"
-              rows="3"
-              placeholder="Rua, número, bairro, referência"
-            ></textarea>
+            <span>Rua</span>
+            <input
+              [(ngModel)]="logradouro"
+              name="rua"
+              placeholder="Preenchido pelo CEP"
+              autocomplete="address-line1"
+            />
           </label>
           <label class="cardapio__field">
-            <span>Observação (opcional)</span>
-            <input [(ngModel)]="observacao" name="obs" placeholder="Sem cebola, interfone 12…" />
+            <span>Complemento (opcional)</span>
+            <input [(ngModel)]="complemento" name="comp" placeholder="Apto, bloco, referência" />
           </label>
+          <div class="cardapio__addr">
+            <label class="cardapio__field cardapio__field--grow">
+              <span>Bairro</span>
+              <input [(ngModel)]="bairro" name="bairro" autocomplete="address-level3" />
+            </label>
+            <label class="cardapio__field cardapio__field--grow">
+              <span>Cidade</span>
+              <input [(ngModel)]="cidade" name="cidade" autocomplete="address-level2" />
+            </label>
+            <label class="cardapio__field cardapio__field--uf">
+              <span>UF</span>
+              <input [(ngModel)]="uf" name="uf" maxlength="2" autocomplete="address-level1" />
+            </label>
+          </div>
+
+          <label class="cardapio__field">
+            <span>Observação do pedido (opcional)</span>
+            <input [(ngModel)]="observacao" name="obs" placeholder="Interfone 12, sem gelo…" />
+          </label>
+
           <fieldset class="cardapio__pay">
-            <legend>Pagamento na entrega</legend>
+            <legend>
+              @if (pagamentoOnline()) {
+                Pagamento online (InfinitePay)
+              } @else {
+                Pagamento na entrega
+              }
+            </legend>
             <label><input type="radio" name="pag" [(ngModel)]="formaPagamento" value="PIX" /> Pix</label>
-            <label><input type="radio" name="pag" [(ngModel)]="formaPagamento" value="DINHEIRO" /> Dinheiro</label>
             <label><input type="radio" name="pag" [(ngModel)]="formaPagamento" value="CARTAO" /> Cartão</label>
           </fieldset>
           <div class="cardapio__totais">
@@ -222,7 +292,13 @@
         </div>
         <div class="cardapio__sheet-foot">
           <button type="button" class="cardapio__cta" [disabled]="enviando()" (click)="enviarPedido()">
-            {{ enviando() ? 'Enviando…' : 'Confirmar pedido' }}
+            @if (enviando()) {
+              Enviando…
+            } @else if (pagamentoOnline()) {
+              Pagar agora
+            } @else {
+              Confirmar pedido
+            }
           </button>
         </div>
       }

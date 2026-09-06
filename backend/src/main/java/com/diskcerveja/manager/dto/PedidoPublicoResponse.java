@@ -12,4 +12,6 @@ public record PedidoPublicoResponse(
         BigDecimal total,
         BigDecimal taxaEntrega,
         FormaPagamento formaPagamento,
-        String mensagem) {}
+        String mensagem,
+        String checkoutUrl,
+        boolean pagamentoOnline) {}
