@@ -5,6 +5,7 @@ import com.diskcerveja.manager.domain.entity.Combo;
 import com.diskcerveja.manager.domain.entity.Pedido;
 import com.diskcerveja.manager.domain.entity.Produto;
 import com.diskcerveja.manager.domain.enums.FormaPagamento;
+import com.diskcerveja.manager.domain.enums.StatusPedido;
 import com.diskcerveja.manager.domain.enums.TipoPedido;
 import com.diskcerveja.manager.dto.InfinitePayWebhookRequest;
 import com.diskcerveja.manager.dto.LojaConfigResponse;
@@ -59,7 +60,11 @@ public class PedidoPublicoService {
         }
 
         if (req.formaPagamento() == FormaPagamento.DINHEIRO) {
-            throw new IllegalArgumentException("Pagamento em dinheiro ainda não está disponível no cardápio.");
+            throw new IllegalArgumentException("Pagamento em dinheiro não está disponível no cardápio.");
+        }
+        if (!configSistemaService.isPagamentoOnlineAtivo()) {
+            throw new IllegalStateException(
+                    "Pagamento online não está configurado. Configure a InfiniteTag em Configurações.");
         }
 
         String nome = req.clienteNome().trim();
@@ -133,15 +138,17 @@ public class PedidoPublicoService {
         Pedido salvo = pedidoService.criar(pedidoReq, null, false);
         BigDecimal taxa = loja.taxaEntrega() != null ? loja.taxaEntrega() : BigDecimal.ZERO;
 
-        boolean online = configSistemaService.isPagamentoOnlineAtivo();
-        String checkoutUrl = null;
-        String mensagem;
-        if (online) {
-            String base = resolverBaseUrl(publicBaseUrl);
+        String base = resolverBaseUrl(publicBaseUrl);
+        String checkoutUrl;
+        try {
             checkoutUrl = infinitePayService.criarLinkCheckout(salvo, nome, telefone, base);
-            mensagem = "Pedido #" + salvo.getId() + " criado. Finalize o pagamento para confirmar.";
-        } else {
-            mensagem = "Pedido #" + salvo.getId() + " recebido! Pagamento na entrega.";
+        } catch (RuntimeException ex) {
+            pedidoService.mudarStatus(salvo.getId(), StatusPedido.CANCELADO, null);
+            throw ex;
+        }
+        if (checkoutUrl == null || checkoutUrl.isBlank()) {
+            pedidoService.mudarStatus(salvo.getId(), StatusPedido.CANCELADO, null);
+            throw new IllegalStateException("Não foi possível gerar o link de pagamento.");
         }
 
         return new PedidoPublicoResponse(
@@ -151,9 +158,9 @@ public class PedidoPublicoService {
                 salvo.getTotal(),
                 taxa,
                 salvo.getFormaPagamento(),
-                mensagem,
+                "Pedido #" + salvo.getId() + " criado. Finalize o pagamento no InfinitePay.",
                 checkoutUrl,
-                online);
+                true);
     }
 
     @Transactional
@@ -170,6 +177,9 @@ public class PedidoPublicoService {
         Pedido p = pedidoRepository
                 .findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado."));
+        if (p.getStatus() == StatusPedido.CANCELADO) {
+            throw new IllegalStateException("Pedido cancelado.");
+        }
         if (p.isPagamentoConfirmado()) {
             return;
         }
@@ -183,6 +193,9 @@ public class PedidoPublicoService {
             } else if ("credit_card".equalsIgnoreCase(body.capture_method())) {
                 p.setFormaPagamento(FormaPagamento.CARTAO);
             }
+        }
+        if (p.getStatus() == StatusPedido.ABERTO) {
+            p.setStatus(StatusPedido.EM_PREPARO);
         }
         pedidoRepository.save(p);
     }

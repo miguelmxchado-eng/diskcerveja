@@ -52,7 +52,6 @@ export class CardapioPublicoComponent implements OnInit {
   readonly erro = signal<string | null>(null);
   readonly data = signal<CatalogoPublico | null>(null);
   readonly categoriaAtiva = signal<string | null>(null);
-  readonly menuAberto = signal(false);
   readonly busca = signal('');
   readonly carrinho = signal<CartLine[]>([]);
   readonly painel = signal<Painel>('fechado');
@@ -71,7 +70,6 @@ export class CardapioPublicoComponent implements OnInit {
   cidade = '';
   uf = '';
   observacao = '';
-  formaPagamento: 'PIX' | 'CARTAO' = 'PIX';
 
   readonly lojaInfo = computed(() => this.data()?.loja ?? null);
   readonly categorias = computed(() => this.data()?.categorias ?? []);
@@ -170,16 +168,7 @@ export class CardapioPublicoComponent implements OnInit {
     if (!codigo) return;
     this.categoriaAtiva.set(codigo);
     this.busca.set('');
-    this.menuAberto.set(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  abrirMenu(): void {
-    this.menuAberto.set(true);
-  }
-
-  fecharMenu(): void {
-    this.menuAberto.set(false);
   }
 
   fotoUrl(item: CatalogoItemPublico | CartLine): string {
@@ -350,6 +339,12 @@ export class CardapioPublicoComponent implements OnInit {
       this.checkoutErro.set('Informe o número do endereço.');
       return;
     }
+    if (!this.pagamentoOnline()) {
+      this.checkoutErro.set(
+        'Pagamento online indisponível. A loja precisa configurar a InfinitePay.',
+      );
+      return;
+    }
     if (this.carrinho().length === 0) {
       this.checkoutErro.set('Carrinho vazio.');
       return;
@@ -361,7 +356,7 @@ export class CardapioPublicoComponent implements OnInit {
       clienteNome: nome,
       telefone,
       enderecoEntrega: endereco,
-      formaPagamento: this.formaPagamento,
+      formaPagamento: 'PIX',
       observacao: this.observacao.trim() || null,
       itens: this.carrinho().map((l) => ({
         tipo: l.tipo,
@@ -380,9 +375,7 @@ export class CardapioPublicoComponent implements OnInit {
             window.location.href = res.checkoutUrl;
             return;
           }
-          this.pedidoOk.set(res);
-          this.painel.set('sucesso');
-          this.limparCheckout();
+          this.checkoutErro.set('Não foi possível abrir o pagamento. Tente de novo.');
         },
         error: (err: HttpErrorResponse) => {
           this.enviando.set(false);
@@ -407,6 +400,5 @@ export class CardapioPublicoComponent implements OnInit {
     this.cidade = '';
     this.uf = '';
     this.observacao = '';
-    this.formaPagamento = 'PIX';
   }
 }

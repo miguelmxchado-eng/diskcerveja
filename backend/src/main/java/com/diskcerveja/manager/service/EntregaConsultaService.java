@@ -30,6 +30,8 @@ public class EntregaConsultaService {
                         StatusPedido.EM_PREPARO,
                         StatusPedido.SAIU_ENTREGA)
                 .stream()
+                // Pedido do cardápio (sem operador) só entra no painel depois do pagamento online.
+                .filter(p -> p.getUsuario() != null || p.isPagamentoConfirmado())
                 .map(EntregaConsultaService::toResumo)
                 .toList();
     }

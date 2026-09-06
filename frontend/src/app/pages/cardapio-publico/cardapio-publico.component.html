@@ -36,21 +36,32 @@
       </div>
     </header>
 
-    <div class="cardapio__toolbar">
-      <button type="button" class="cardapio__menu-btn" (click)="abrirMenu()" aria-label="Abrir menu">
-        <mat-icon>menu</mat-icon>
-        <span>Menu</span>
-      </button>
-      <label class="cardapio__search">
-        <mat-icon>search</mat-icon>
-        <input
-          type="search"
-          placeholder="Pesquisar produto…"
-          [ngModel]="busca()"
-          (ngModelChange)="busca.set($event)"
-        />
-      </label>
-    </div>
+    <nav class="cardapio__cats" aria-label="Categorias">
+      @for (c of categorias(); track c.codigo) {
+        <button
+          type="button"
+          class="cardapio__chip"
+          [class.is-on]="categoriaAtiva() === c.codigo && !busca().trim()"
+          [class.is-promo]="c.codigo === 'PROMOCOES'"
+          (click)="selecionarCategoria(c.codigo)"
+        >
+          @if (c.codigo === 'PROMOCOES') {
+            <mat-icon>local_offer</mat-icon>
+          }
+          {{ c.nome }}
+        </button>
+      }
+    </nav>
+
+    <label class="cardapio__search">
+      <mat-icon>search</mat-icon>
+      <input
+        type="search"
+        placeholder="Pesquisar produto…"
+        [ngModel]="busca()"
+        (ngModelChange)="busca.set($event)"
+      />
+    </label>
 
     <section class="cardapio__section">
       <h2>{{ tituloSecao() }}</h2>
@@ -103,39 +114,8 @@
     </section>
 
     <footer class="cardapio__foot">
-      Delivery · Pagamento na entrega · Empório Machado
+      Delivery · Pagamento no site (Pix/Cartão) · Empório Machado
     </footer>
-
-    @if (menuAberto()) {
-      <div class="cardapio__menu-overlay" (click)="fecharMenu()"></div>
-      <aside class="cardapio__menu" role="dialog" aria-label="Categorias">
-        <header class="cardapio__menu-head">
-          <h2>Cardápio</h2>
-          <button type="button" class="cardapio__sheet-close" (click)="fecharMenu()" aria-label="Fechar">
-            <mat-icon>close</mat-icon>
-          </button>
-        </header>
-        <nav class="cardapio__menu-list">
-          @for (c of categorias(); track c.codigo) {
-            <button
-              type="button"
-              class="cardapio__menu-item"
-              [class.is-on]="categoriaAtiva() === c.codigo && !busca().trim()"
-              [class.is-promo]="c.codigo === 'PROMOCOES'"
-              (click)="selecionarCategoria(c.codigo)"
-            >
-              <span>
-                @if (c.codigo === 'PROMOCOES') {
-                  <mat-icon class="cardapio__menu-ico">local_offer</mat-icon>
-                }
-                {{ c.nome }}
-              </span>
-              <span class="cardapio__menu-count">{{ c.itens.length }}</span>
-            </button>
-          }
-        </nav>
-      </aside>
-    }
 
     @if (qtdCarrinho() > 0 && painel() === 'fechado') {
       <button type="button" class="cardapio__bar" (click)="abrirCarrinho()">
@@ -275,31 +255,24 @@
             <input [(ngModel)]="observacao" name="obs" placeholder="Interfone 12, sem gelo…" />
           </label>
 
-          <fieldset class="cardapio__pay">
-            <legend>
-              @if (pagamentoOnline()) {
-                Pagamento online (InfinitePay)
-              } @else {
-                Pagamento na entrega
-              }
-            </legend>
-            <label><input type="radio" name="pag" [(ngModel)]="formaPagamento" value="PIX" /> Pix</label>
-            <label><input type="radio" name="pag" [(ngModel)]="formaPagamento" value="CARTAO" /> Cartão</label>
-          </fieldset>
+          <p class="cardapio__pay-note">
+            Pagamento pelo site (Pix ou cartão) via InfinitePay. Entregadores não levam maquininha.
+          </p>
           <div class="cardapio__totais">
             <div class="is-total"><span>Total</span><strong>R$ {{ total() | number: '1.2-2' }}</strong></div>
           </div>
         </div>
         <div class="cardapio__sheet-foot">
-          <button type="button" class="cardapio__cta" [disabled]="enviando()" (click)="enviarPedido()">
+          <button type="button" class="cardapio__cta" [disabled]="enviando() || !pagamentoOnline()" (click)="enviarPedido()">
             @if (enviando()) {
-              Enviando…
-            } @else if (pagamentoOnline()) {
-              Pagar agora
+              Abrindo pagamento…
             } @else {
-              Confirmar pedido
+              Pagar agora
             }
           </button>
+          @if (!pagamentoOnline()) {
+            <p class="cardapio__pay-warn">Pagamento online indisponível no momento.</p>
+          }
         </div>
       }
 

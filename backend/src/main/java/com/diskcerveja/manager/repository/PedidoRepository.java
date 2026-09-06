@@ -158,7 +158,7 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
             @Param("ini") java.sql.Timestamp ini, @Param("fim") java.sql.Timestamp fim);
 
     @Query(
-            "select distinct p from Pedido p left join fetch p.entrega where p.tipo = :tipo and p.status in (:s1, :s2, :s3) order by p.dataHora desc")
+            "select distinct p from Pedido p left join fetch p.entrega left join fetch p.usuario where p.tipo = :tipo and p.status in (:s1, :s2, :s3) order by p.dataHora desc")
     List<Pedido> findEntregaPainel(
             @Param("tipo") TipoPedido tipo,
             @Param("s1") StatusPedido s1,
