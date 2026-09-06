@@ -24,7 +24,8 @@ public class SpaForwardController {
         "/caixa",
         "/entregas",
         "/usuarios",
-        "/config"
+        "/config",
+        "/p"
     })
     public String forwardAngularRoutes() {
         return FORWARD_INDEX;

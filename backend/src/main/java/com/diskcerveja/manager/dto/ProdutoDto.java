@@ -15,19 +15,18 @@ public record ProdutoDto(
         @Size(max = 80) String codigoInterno,
         @NotNull CategoriaProduto categoria,
         @NotNull(message = "Preço de venda é obrigatório")
-        @DecimalMin(value = "0.01", message = "Preço de venda deve ser maior que zero")
-        BigDecimal preco,
-        /** Preço avulso (opcional). */
-        @DecimalMin(value = "0.01", message = "Preço da unidade deve ser maior que zero")
-        BigDecimal precoUnidade,
-        /** Ex.: 6 para pack c/6. Obrigatório se informar preço da unidade. */
+                @DecimalMin(value = "0.01", message = "Preço de venda deve ser maior que zero")
+                BigDecimal preco,
+        @DecimalMin(value = "0.01", message = "Preço da unidade deve ser maior que zero") BigDecimal precoUnidade,
         Integer unidadesPorEmbalagem,
         @NotNull(message = "Preço de compra (por unidade) é obrigatório")
-        @DecimalMin(value = "0.00", message = "Preço de compra não pode ser negativo")
-        BigDecimal custo,
-        /** Valor pago na caixa/pacote (opcional; espelho da NF). */
+                @DecimalMin(value = "0.00", message = "Preço de compra não pode ser negativo")
+                BigDecimal custo,
         @DecimalMin(value = "0.00", message = "Preço de compra da caixa não pode ser negativo")
-        BigDecimal custoEmbalagem,
+                BigDecimal custoEmbalagem,
         @NotNull Integer estoqueAtual,
         @NotNull Integer estoqueMinimo,
-        boolean ativo) {}
+        boolean ativo,
+        Boolean visivelCardapio,
+        @Size(max = 500) String descricaoCardapio,
+        @Size(max = 500) String imagemUrl) {}

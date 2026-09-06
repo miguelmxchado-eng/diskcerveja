@@ -65,6 +65,15 @@ public class Produto {
     @Column(nullable = false)
     private boolean ativo = true;
 
+    @Column(name = "visivel_cardapio", nullable = false)
+    private boolean visivelCardapio = true;
+
+    @Column(name = "descricao_cardapio", length = 500)
+    private String descricaoCardapio;
+
+    @Column(name = "imagem_url", length = 500)
+    private String imagemUrl;
+
     public Long getId() {
         return id;
     }
@@ -178,5 +187,29 @@ public class Produto {
 
     public void setAtivo(boolean ativo) {
         this.ativo = ativo;
+    }
+
+    public boolean isVisivelCardapio() {
+        return visivelCardapio;
+    }
+
+    public void setVisivelCardapio(boolean visivelCardapio) {
+        this.visivelCardapio = visivelCardapio;
+    }
+
+    public String getDescricaoCardapio() {
+        return descricaoCardapio;
+    }
+
+    public void setDescricaoCardapio(String descricaoCardapio) {
+        this.descricaoCardapio = descricaoCardapio;
+    }
+
+    public String getImagemUrl() {
+        return imagemUrl;
+    }
+
+    public void setImagemUrl(String imagemUrl) {
+        this.imagemUrl = imagemUrl;
     }
 }

@@ -19,4 +19,5 @@ public record ComboDto(
         String imagem,
         @NotNull BigDecimal precoVenda,
         boolean ativo,
+        Boolean visivelCardapio,
         @NotEmpty @Valid List<ComboItemDto> itens) {}

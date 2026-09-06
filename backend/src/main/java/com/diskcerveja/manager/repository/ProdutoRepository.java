@@ -12,6 +12,13 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
 
     @Query("""
             select p from Produto p
+            where p.ativo = true and p.visivelCardapio = true
+            order by p.categoria, p.nome
+            """)
+    List<Produto> findCardapioProdutos();
+
+    @Query("""
+            select p from Produto p
             where p.ativo = true
               and (
                 lower(p.nome) like lower(concat('%', :q, '%'))

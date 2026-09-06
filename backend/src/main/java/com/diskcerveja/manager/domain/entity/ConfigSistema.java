@@ -10,6 +10,13 @@ import jakarta.persistence.Table;
 public class ConfigSistema {
 
     public static final String CHAVE_CAIXA_OBRIGATORIO = "caixa.obrigatorio";
+    public static final String CHAVE_LOJA_NOME = "loja.nome";
+    public static final String CHAVE_LOJA_WHATSAPP = "loja.whatsapp";
+    public static final String CHAVE_LOJA_ABERTA = "loja.aberta";
+    public static final String CHAVE_LOJA_HORARIO = "loja.horario";
+    public static final String CHAVE_LOJA_TAXA_ENTREGA = "loja.taxa_entrega";
+    public static final String CHAVE_LOJA_PEDIDO_MINIMO = "loja.pedido_minimo";
+    public static final String CHAVE_LOJA_INFO = "loja.info";
 
     @Id
     @Column(name = "chave", length = 80)

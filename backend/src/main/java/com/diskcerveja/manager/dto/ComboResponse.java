@@ -15,6 +15,7 @@ public record ComboResponse(
         String imagem,
         BigDecimal precoVenda,
         boolean ativo,
+        boolean visivelCardapio,
         BigDecimal custoTotal,
         BigDecimal lucro,
         BigDecimal margem,

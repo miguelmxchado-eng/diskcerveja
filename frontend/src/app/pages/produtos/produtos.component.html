@@ -359,6 +359,23 @@
               }
             </p>
           }
+
+          <div class="produtos-cardapio-block">
+            <mat-checkbox [(ngModel)]="novoVisivelCardapio" name="visivelCardapio">
+              Mostrar no cardápio do cliente
+            </mat-checkbox>
+            <mat-form-field appearance="outline" class="produtos-field" style="width: 100%; margin-top: 10px">
+              <mat-label>Descrição no cardápio (opcional)</mat-label>
+              <textarea
+                matInput
+                rows="2"
+                [(ngModel)]="novoDescricaoCardapio"
+                name="descricaoCardapio"
+                maxlength="500"
+                placeholder="Ex.: Lata gelada · cx c/15"
+              ></textarea>
+            </mat-form-field>
+          </div>
         </div>
 
         <div class="produtos-wizard__footer">

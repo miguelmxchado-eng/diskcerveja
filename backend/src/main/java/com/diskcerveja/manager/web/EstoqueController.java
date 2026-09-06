@@ -71,6 +71,9 @@ public class EstoqueController {
                 p.getCustoEmbalagem(),
                 p.getEstoqueAtual(),
                 p.getEstoqueMinimo(),
-                p.isAtivo());
+                p.isAtivo(),
+                p.isVisivelCardapio(),
+                p.getDescricaoCardapio(),
+                p.getImagemUrl());
     }
 }

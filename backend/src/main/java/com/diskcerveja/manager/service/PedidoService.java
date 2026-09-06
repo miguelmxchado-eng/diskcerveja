@@ -69,10 +69,21 @@ public class PedidoService {
 
     @Transactional
     public Pedido criar(PedidoRequest dto, Usuario usuario) {
+        return criar(dto, usuario, true);
+    }
+
+    /**
+     * @param exigirCaixa quando false, permite criar pedido sem sessão de caixa
+     *     (ex.: pedido do cardápio público).
+     */
+    @Transactional
+    public Pedido criar(PedidoRequest dto, Usuario usuario, boolean exigirCaixa) {
         if (dto.tipo() == null || dto.formaPagamento() == null) {
             throw new IllegalArgumentException("Tipo e forma de pagamento são obrigatórios.");
         }
-        if (configSistemaService.isCaixaObrigatorio() && caixaSessaoService.sessaoAbertaHoje() == null) {
+        if (exigirCaixa
+                && configSistemaService.isCaixaObrigatorio()
+                && caixaSessaoService.sessaoAbertaHoje() == null) {
             throw new IllegalStateException("Abra o caixa antes de registrar pedidos.");
         }
         validarItens(dto.itens());

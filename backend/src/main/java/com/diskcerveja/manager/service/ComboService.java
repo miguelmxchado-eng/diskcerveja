@@ -105,6 +105,7 @@ public class ComboService {
         combo.setImagem(dto.imagem());
         combo.setPrecoVenda(dto.precoVenda());
         combo.setAtivo(dto.ativo());
+        combo.setVisivelCardapio(dto.visivelCardapio() == null || dto.visivelCardapio());
         if (combo.getCodigo() == null || combo.getCodigo().isBlank()) {
             combo.setCodigo(gerarCodigoInterno());
         }
@@ -208,6 +209,7 @@ public class ComboService {
                 c.getImagem(),
                 c.getPrecoVenda(),
                 c.isAtivo(),
+                c.isVisivelCardapio(),
                 custoTotal,
                 lucro,
                 margem,

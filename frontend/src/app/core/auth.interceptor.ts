@@ -6,10 +6,11 @@ import { AuthService } from './auth.service';
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const isLogin = req.url.includes('/api/auth/login');
+  const isPublico = req.url.includes('/api/publico/');
   let token = auth.token() ?? localStorage.getItem('dcm_token');
 
   if (token && auth.isTokenExpired(token)) {
-    if (!isLogin) {
+    if (!isLogin && !isPublico) {
       auth.logout();
     }
     token = null;
@@ -21,11 +22,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((err: HttpErrorResponse) => {
-      if (!isLogin && err.status === 401) {
+      if (!isLogin && !isPublico && err.status === 401) {
         auth.logout();
       }
-      // Compat: backends antigos devolviam 403 sem autenticação quando o JWT caía.
-      if (!isLogin && err.status === 403 && token && auth.isTokenExpired(token)) {
+      if (!isLogin && !isPublico && err.status === 403 && token && auth.isTokenExpired(token)) {
         auth.logout();
       }
       return throwError(() => err);

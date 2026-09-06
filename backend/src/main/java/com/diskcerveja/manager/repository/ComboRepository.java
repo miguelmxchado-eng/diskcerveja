@@ -21,6 +21,15 @@ public interface ComboRepository extends JpaRepository<Combo, Long> {
             select distinct c from Combo c
             left join fetch c.itens i
             left join fetch i.produto
+            where c.ativo = true and c.visivelCardapio = true
+            order by c.nome
+            """)
+    List<Combo> findCardapioCombos();
+
+    @Query("""
+            select distinct c from Combo c
+            left join fetch c.itens i
+            left join fetch i.produto
             where c.ativo = true
               and (
                 c.codigoBarras = :codigo

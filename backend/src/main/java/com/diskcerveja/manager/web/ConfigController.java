@@ -2,6 +2,8 @@ package com.diskcerveja.manager.web;
 
 import com.diskcerveja.manager.dto.ConfigCaixaPatchRequest;
 import com.diskcerveja.manager.dto.ConfigCaixaResponse;
+import com.diskcerveja.manager.dto.LojaConfigPatchRequest;
+import com.diskcerveja.manager.dto.LojaConfigResponse;
 import com.diskcerveja.manager.service.ConfigSistemaService;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -32,5 +34,17 @@ public class ConfigController {
     public ConfigCaixaResponse patchCaixa(@RequestBody @Valid ConfigCaixaPatchRequest req) {
         configSistemaService.setCaixaObrigatorio(req.caixaObrigatorio());
         return new ConfigCaixaResponse(configSistemaService.isCaixaObrigatorio());
+    }
+
+    @GetMapping("/loja")
+    @PreAuthorize("hasRole('ADMIN')")
+    public LojaConfigResponse getLoja() {
+        return configSistemaService.getLoja();
+    }
+
+    @PatchMapping("/loja")
+    @PreAuthorize("hasRole('ADMIN')")
+    public LojaConfigResponse patchLoja(@RequestBody LojaConfigPatchRequest req) {
+        return configSistemaService.patchLoja(req);
     }
 }

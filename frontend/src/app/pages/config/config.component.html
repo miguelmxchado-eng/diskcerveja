@@ -1,11 +1,10 @@
 <div class="row justify-content-center">
-  <div class="col-12 col-md-6">
+  <div class="col-12 col-md-8 col-lg-6">
     <div class="card">
       <div class="card-header">
         <h4 class="card-title mb-0">Configurações do Sistema</h4>
       </div>
       <div class="card-body">
-
         @if (erro()) {
           <div class="alert alert-danger alert-dismissible">
             {{ erro() }}
@@ -35,7 +34,7 @@
               id="caixaObrigatorioSwitch"
               [checked]="caixaObrigatorio()"
               (change)="caixaObrigatorio.set(!caixaObrigatorio())"
-            >
+            />
             <label class="form-check-label" for="caixaObrigatorioSwitch">
               Exigir abertura de caixa antes de registrar pedidos
             </label>
@@ -44,8 +43,93 @@
             Quando ativado, o sistema bloqueia novos pedidos se não houver uma sessão de caixa aberta.
           </p>
 
+          <h6 class="mb-3 text-muted text-uppercase fw-semibold" style="font-size:.75rem; letter-spacing:.05em">
+            Cardápio do cliente
+          </h6>
+          <p class="text-muted small mb-3">
+            Link público: <a href="/p" target="_blank" rel="noopener"><strong>/p</strong></a>
+          </p>
+
+          <div class="form-check form-switch mb-3">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="lojaAbertaSwitch"
+              [checked]="loja().aberta"
+              (change)="patchLoja({ aberta: !loja().aberta })"
+            />
+            <label class="form-check-label" for="lojaAbertaSwitch">Loja aberta no cardápio</label>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Nome da loja</label>
+            <input
+              class="form-control"
+              [ngModel]="loja().nome"
+              (ngModelChange)="patchLoja({ nome: $event })"
+              name="lojaNome"
+            />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">WhatsApp (com DDD)</label>
+            <input
+              class="form-control"
+              [ngModel]="loja().whatsapp"
+              (ngModelChange)="patchLoja({ whatsapp: $event })"
+              name="lojaWhatsapp"
+              placeholder="11999999999"
+            />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Horário</label>
+            <input
+              class="form-control"
+              [ngModel]="loja().horario"
+              (ngModelChange)="patchLoja({ horario: $event })"
+              name="lojaHorario"
+            />
+          </div>
+          <div class="row mb-3">
+            <div class="col-6">
+              <label class="form-label">Taxa de entrega (R$)</label>
+              <input
+                class="form-control"
+                type="number"
+                step="0.01"
+                min="0"
+                [ngModel]="loja().taxaEntrega"
+                (ngModelChange)="patchLoja({ taxaEntrega: +$event })"
+                name="lojaTaxa"
+              />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Pedido mínimo (R$)</label>
+              <input
+                class="form-control"
+                type="number"
+                step="0.01"
+                min="0"
+                [ngModel]="loja().pedidoMinimo"
+                (ngModelChange)="patchLoja({ pedidoMinimo: +$event })"
+                name="lojaMinimo"
+              />
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label">Texto de info</label>
+            <textarea
+              class="form-control"
+              rows="2"
+              [ngModel]="loja().info"
+              (ngModelChange)="patchLoja({ info: $event })"
+              name="lojaInfo"
+            ></textarea>
+          </div>
+
           <button class="btn btn-primary" (click)="salvar()" [disabled]="salvando()">
-            @if (salvando()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+            @if (salvando()) {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+            }
             Salvar configurações
           </button>
         }

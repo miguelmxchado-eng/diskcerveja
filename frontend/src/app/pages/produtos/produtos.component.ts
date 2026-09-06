@@ -190,6 +190,8 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   novoEst = 0;
   novoMarca = '';
   novoDescricao = '';
+  novoVisivelCardapio = true;
+  novoDescricaoCardapio = '';
   codigoInternoEdicao: string | null = null;
 
   private scanSub?: Subscription;
@@ -1015,6 +1017,8 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.novoEst = 0;
     this.novoMarca = '';
     this.novoDescricao = '';
+    this.novoVisivelCardapio = true;
+    this.novoDescricaoCardapio = '';
     this.imagemPreview.set(null);
     this.ultimaLeituraPreview.set(null);
     this.codigoDuplicadoMsg.set(null);
@@ -1057,6 +1061,8 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.novoEst = p.estoqueAtual;
     this.novoMarca = '';
     this.novoDescricao = '';
+    this.novoVisivelCardapio = p.visivelCardapio !== false;
+    this.novoDescricaoCardapio = p.descricaoCardapio ?? '';
     this.imagemPreview.set(null);
     this.ultimaLeituraPreview.set(null);
     this.codigoDuplicadoMsg.set(null);
@@ -1119,6 +1125,9 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       estoqueAtual: this.toInt(this.novoEst, 0),
       estoqueMinimo: this.toInt(this.novoMin, 0),
       ativo: editando?.ativo ?? true,
+      visivelCardapio: this.novoVisivelCardapio,
+      descricaoCardapio: this.novoDescricaoCardapio.trim() || null,
+      imagemUrl: editando?.imagemUrl ?? null,
     };
     this.salvando.set(true);
     const req = editando

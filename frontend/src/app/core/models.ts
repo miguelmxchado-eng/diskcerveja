@@ -27,6 +27,9 @@ export interface Produto {
   estoqueAtual: number;
   estoqueMinimo: number;
   ativo: boolean;
+  visivelCardapio?: boolean;
+  descricaoCardapio?: string | null;
+  imagemUrl?: string | null;
 }
 
 export interface PedidoItemResponse {
@@ -64,6 +67,7 @@ export interface ComboResponse {
   imagem?: string | null;
   precoVenda: number;
   ativo: boolean;
+  visivelCardapio?: boolean;
   custoTotal: number;
   lucro: number;
   margem: number;
@@ -83,7 +87,36 @@ export interface ComboDto {
   imagem?: string | null;
   precoVenda: number;
   ativo: boolean;
+  visivelCardapio?: boolean;
   itens: ComboItemDto[];
+}
+
+export interface LojaConfig {
+  nome: string;
+  whatsapp: string;
+  aberta: boolean;
+  horario: string;
+  taxaEntrega: number;
+  pedidoMinimo: number;
+  info: string;
+}
+
+export interface CatalogoItemPublico {
+  tipo: 'PRODUTO' | 'COMBO';
+  id: number;
+  nome: string;
+  descricao?: string | null;
+  imagemUrl?: string | null;
+  categoria: string;
+  preco: number;
+  precoUnidade?: number | null;
+  unidadesPorEmbalagem?: number | null;
+  disponivel: boolean;
+}
+
+export interface CatalogoPublico {
+  loja: LojaConfig;
+  categorias: { codigo: string; nome: string; itens: CatalogoItemPublico[] }[];
 }
 
 export interface ComboRelatorio {

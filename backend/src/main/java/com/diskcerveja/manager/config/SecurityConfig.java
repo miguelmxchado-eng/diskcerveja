@@ -54,6 +54,7 @@ public class SecurityConfig {
                             "/entregas",
                             "/usuarios",
                             "/config",
+                            "/p",
                             "/*.js",
                             "/*.css",
                             "/assets/**",
@@ -63,6 +64,7 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                     // Endpoint de login — público
                     .requestMatchers("/api/auth/**").permitAll()
+                    .requestMatchers("/api/publico/**").permitAll()
                     // Todas as demais rotas /api/** exigem autenticação
                     .requestMatchers("/api/**").authenticated()
                     // Rotas de navegação SPA (F5) — públicas

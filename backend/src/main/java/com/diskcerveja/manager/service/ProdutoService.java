@@ -96,7 +96,18 @@ public class ProdutoService {
             }
         }
         p.setAtivo(dto.ativo());
+        p.setVisivelCardapio(dto.visivelCardapio() == null || dto.visivelCardapio());
+        p.setDescricaoCardapio(normalizeTexto(dto.descricaoCardapio(), 500));
+        p.setImagemUrl(normalizeTexto(dto.imagemUrl(), 500));
         return produtoRepository.save(p);
+    }
+
+    private static String normalizeTexto(String v, int max) {
+        if (v == null || v.isBlank()) {
+            return null;
+        }
+        String t = v.trim();
+        return t.length() > max ? t.substring(0, max) : t;
     }
 
     private static void aplicarPrecoUnidade(Produto p, ProdutoDto dto) {

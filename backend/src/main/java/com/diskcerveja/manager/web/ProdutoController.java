@@ -75,7 +75,10 @@ public class ProdutoController {
                 dto.custoEmbalagem(),
                 dto.estoqueAtual(),
                 dto.estoqueMinimo(),
-                dto.ativo())));
+                dto.ativo(),
+                dto.visivelCardapio(),
+                dto.descricaoCardapio(),
+                dto.imagemUrl())));
     }
 
     @DeleteMapping("/{id}")
@@ -99,6 +102,9 @@ public class ProdutoController {
                 p.getCustoEmbalagem(),
                 p.getEstoqueAtual(),
                 p.getEstoqueMinimo(),
-                p.isAtivo());
+                p.isAtivo(),
+                p.isVisivelCardapio(),
+                p.getDescricaoCardapio(),
+                p.getImagemUrl());
     }
 }

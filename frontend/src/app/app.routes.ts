@@ -12,9 +12,11 @@ import { RelatorioPedidosComponent } from './pages/relatorio-pedidos/relatorio-p
 import { ClientesComponent } from './pages/clientes/clientes.component';
 import { UsuariosComponent } from './pages/usuarios/usuarios.component';
 import { ConfigComponent } from './pages/config/config.component';
+import { CardapioPublicoComponent } from './pages/cardapio-publico/cardapio-publico.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
+  { path: 'p', component: CardapioPublicoComponent },
   {
     path: '',
     component: MainLayoutComponent,
