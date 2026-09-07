@@ -54,17 +54,24 @@ for i in $(seq 1 30); do
 done
 
 echo "==> Solicitando certificado Let's Encrypt para ${DOMAIN}..."
-"${COMPOSE[@]}" run --rm --profile certs certbot certonly \
+# Se ainda for o self-signed de bootstrap, remove para o certbot gravar o real.
+if [[ -f "${LIVE_DIR}/fullchain.pem" ]] \
+  && ! sudo openssl x509 -in "${LIVE_DIR}/fullchain.pem" -noout -issuer 2>/dev/null | grep -qi "Let's Encrypt"; then
+  sudo rm -rf "./certbot/conf/live/${DOMAIN}" \
+    "./certbot/conf/archive/${DOMAIN}" \
+    "./certbot/conf/renewal/${DOMAIN}.conf"
+fi
+
+"${COMPOSE[@]}" run --rm certbot certonly \
   --webroot \
   --webroot-path=/var/www/certbot \
   --email "$EMAIL" \
   --agree-tos \
   --no-eff-email \
-  --force-renewal \
   -d "$DOMAIN"
 
 echo "==> Recarregando nginx com o certificado real..."
-"${COMPOSE[@]}" exec proxy nginx -s reload
+"${COMPOSE[@]}" up -d --force-recreate proxy
 
 echo
 echo "OK — HTTPS ativo em https://${DOMAIN}"
@@ -74,4 +81,4 @@ echo "Em Ajustes do sistema, defina a URL pública:"
 echo "  https://${DOMAIN}"
 echo
 echo "Renovação (a cada ~60 dias, ou no cron):"
-echo "  cd ~/diskcerveja && sudo docker compose -f docker-compose.prod.yml --env-file .env run --rm --profile certs certbot renew && sudo docker compose -f docker-compose.prod.yml --env-file .env exec proxy nginx -s reload"
+echo "  cd ~/diskcerveja && sudo docker compose -f docker-compose.prod.yml --env-file .env run --rm certbot renew && sudo docker compose -f docker-compose.prod.yml --env-file .env exec proxy nginx -s reload"
