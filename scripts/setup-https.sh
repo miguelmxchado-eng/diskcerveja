@@ -15,6 +15,10 @@ cd "$(dirname "$0")/.."
 DOMAIN="${DOMAIN:-emporiomachado.duckdns.org}"
 COMPOSE=(sudo docker compose -f docker-compose.prod.yml --env-file .env)
 LIVE_DIR="./certbot/conf/live/${DOMAIN}"
+CERTBOT=(sudo docker run --rm
+  -v "$(pwd)/certbot/www:/var/www/certbot"
+  -v "$(pwd)/certbot/conf:/etc/letsencrypt"
+  certbot/certbot)
 
 if [[ -f .env ]]; then
   # shellcheck disable=SC1091
@@ -33,7 +37,7 @@ fi
 mkdir -p ./certbot/www ./certbot/conf
 
 echo "==> Garantindo certificado temporário para o nginx subir..."
-if [[ ! -f "${LIVE_DIR}/fullchain.pem" ]]; then
+if [[ ! -d "${LIVE_DIR}" ]]; then
   sudo mkdir -p "${LIVE_DIR}"
   sudo openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
     -keyout "${LIVE_DIR}/privkey.pem" \
@@ -62,7 +66,7 @@ if [[ -f "${LIVE_DIR}/fullchain.pem" ]] \
     "./certbot/conf/renewal/${DOMAIN}.conf"
 fi
 
-"${COMPOSE[@]}" run --rm certbot certonly \
+"${CERTBOT[@]}" certonly \
   --webroot \
   --webroot-path=/var/www/certbot \
   --email "$EMAIL" \
@@ -81,4 +85,4 @@ echo "Em Ajustes do sistema, defina a URL pública:"
 echo "  https://${DOMAIN}"
 echo
 echo "Renovação (a cada ~60 dias, ou no cron):"
-echo "  cd ~/diskcerveja && sudo docker compose -f docker-compose.prod.yml --env-file .env run --rm certbot renew && sudo docker compose -f docker-compose.prod.yml --env-file .env exec proxy nginx -s reload"
+echo "  cd ~/diskcerveja && sudo docker run --rm -v \"\$(pwd)/certbot/www:/var/www/certbot\" -v \"\$(pwd)/certbot/conf:/etc/letsencrypt\" certbot/certbot renew && sudo docker compose -f docker-compose.prod.yml --env-file .env exec proxy nginx -s reload"
