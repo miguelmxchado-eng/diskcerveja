@@ -74,6 +74,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   imagemPreview = signal<string | null>(null);
   readonly produtoEmEdicao = signal<Produto | null>(null);
   readonly formularioAberto = signal(false);
+  readonly cardapioSalvandoId = signal<number | null>(null);
   readonly editando = computed(() => this.produtoEmEdicao() != null);
 
   readonly filtroTabela = signal('');
@@ -1083,6 +1084,65 @@ export class ProdutosComponent implements OnInit, OnDestroy {
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
+    });
+  }
+
+  toggleFormVisivelCardapio(): void {
+    this.novoVisivelCardapio = !this.novoVisivelCardapio;
+    if (!this.novoVisivelCardapio) {
+      this.novoPromocaoCardapio = false;
+    }
+  }
+
+  toggleFormPromocaoCardapio(): void {
+    if (!this.novoVisivelCardapio) return;
+    this.novoPromocaoCardapio = !this.novoPromocaoCardapio;
+  }
+
+  alternarVisivelCardapio(p: Produto): void {
+    if (!this.auth.isAdmin() || this.cardapioSalvandoId() === p.id) return;
+    const novo = p.visivelCardapio === false;
+    this.patchCardapio(p, { visivelCardapio: novo, promocaoCardapio: novo ? !!p.promocaoCardapio : false });
+  }
+
+  alternarPromocaoCardapio(p: Produto): void {
+    if (!this.auth.isAdmin() || this.cardapioSalvandoId() === p.id) return;
+    if (p.visivelCardapio === false) {
+      this.snack.open('Coloque no cardápio antes de destacar em Promoções.', 'OK', { duration: 2500 });
+      return;
+    }
+    this.patchCardapio(p, { promocaoCardapio: !p.promocaoCardapio });
+  }
+
+  private patchCardapio(
+    p: Produto,
+    body: { visivelCardapio?: boolean; promocaoCardapio?: boolean },
+  ): void {
+    this.cardapioSalvandoId.set(p.id);
+    this.http.patch<Produto>(`${environment.apiUrl}/api/produtos/${p.id}/cardapio`, body).subscribe({
+      next: (atualizado) => {
+        this.produtos.update((list) => list.map((x) => (x.id === atualizado.id ? { ...x, ...atualizado } : x)));
+        const edit = this.produtoEmEdicao();
+        if (edit?.id === atualizado.id) {
+          this.produtoEmEdicao.set(atualizado);
+          this.novoVisivelCardapio = atualizado.visivelCardapio !== false;
+          this.novoPromocaoCardapio = !!atualizado.promocaoCardapio;
+        }
+        this.cardapioSalvandoId.set(null);
+        const msg =
+          body.visivelCardapio != null
+            ? body.visivelCardapio
+              ? 'Produto no cardápio.'
+              : 'Produto fora do cardápio.'
+            : body.promocaoCardapio
+              ? 'Destaque em Promoções.'
+              : 'Tirado das Promoções.';
+        this.snack.open(msg, 'OK', { duration: 1800 });
+      },
+      error: (e) => {
+        this.cardapioSalvandoId.set(null);
+        this.snack.open(e?.error?.erro ?? 'Não foi possível atualizar o cardápio.', 'OK', { duration: 3500 });
+      },
     });
   }
 

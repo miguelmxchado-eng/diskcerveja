@@ -366,17 +366,34 @@
           }
 
           <div class="produtos-cardapio-block">
-            <mat-checkbox [(ngModel)]="novoVisivelCardapio" name="visivelCardapio">
-              Mostrar no cardápio do cliente
-            </mat-checkbox>
-            <mat-checkbox
-              [(ngModel)]="novoPromocaoCardapio"
-              name="promocaoCardapio"
-              [disabled]="!novoVisivelCardapio"
-              style="display: block; margin-top: 8px"
-            >
-              Destacar em Promoções
-            </mat-checkbox>
+            <p class="produtos-cardapio-block__label">Cardápio do cliente</p>
+            <div class="produtos-cardapio-toggles" role="group" aria-label="Opções do cardápio">
+              <button
+                type="button"
+                class="produtos-cardapio-btn"
+                [class.is-on]="novoVisivelCardapio"
+                (click)="toggleFormVisivelCardapio()"
+              >
+                <mat-icon>storefront</mat-icon>
+                <span>
+                  <strong>{{ novoVisivelCardapio ? 'No cardápio' : 'Fora do cardápio' }}</strong>
+                  <small>{{ novoVisivelCardapio ? 'Cliente vê no site' : 'Toque para mostrar' }}</small>
+                </span>
+              </button>
+              <button
+                type="button"
+                class="produtos-cardapio-btn"
+                [class.is-on]="novoPromocaoCardapio"
+                [disabled]="!novoVisivelCardapio"
+                (click)="toggleFormPromocaoCardapio()"
+              >
+                <mat-icon>local_offer</mat-icon>
+                <span>
+                  <strong>{{ novoPromocaoCardapio ? 'Em promoção' : 'Sem promoção' }}</strong>
+                  <small>{{ novoPromocaoCardapio ? 'Na aba Promoções' : 'Toque para destacar' }}</small>
+                </span>
+              </button>
+            </div>
             <mat-form-field appearance="outline" class="produtos-field" style="width: 100%; margin-top: 10px">
               <mat-label>Descrição no cardápio (opcional)</mat-label>
               <textarea
@@ -516,6 +533,7 @@
           <th>Margem</th>
           <th>Estoque</th>
           <th>Status</th>
+          <th>Cardápio</th>
           <th>Ações</th>
         </tr>
       </thead>
@@ -591,6 +609,38 @@
                 <span class="em-badge em-badge--ok">Ativo</span>
               } @else {
                 <span class="em-badge em-badge--neutral">Inativo</span>
+              }
+            </td>
+            <td class="produtos-table__cardapio" (click)="$event.stopPropagation()">
+              @if (auth.isAdmin()) {
+                <div class="produtos-cardapio-chips">
+                  <button
+                    type="button"
+                    class="produtos-chip"
+                    [class.is-on]="p.visivelCardapio !== false"
+                    [disabled]="cardapioSalvandoId() === p.id"
+                    (click)="alternarVisivelCardapio(p)"
+                    [attr.aria-pressed]="p.visivelCardapio !== false"
+                    title="Mostrar ou tirar do cardápio"
+                  >
+                    Cardápio
+                  </button>
+                  <button
+                    type="button"
+                    class="produtos-chip"
+                    [class.is-on]="!!p.promocaoCardapio"
+                    [disabled]="cardapioSalvandoId() === p.id || p.visivelCardapio === false"
+                    (click)="alternarPromocaoCardapio(p)"
+                    [attr.aria-pressed]="!!p.promocaoCardapio"
+                    title="Destacar em Promoções"
+                  >
+                    Promo
+                  </button>
+                </div>
+              } @else {
+                <span class="produtos-muted">
+                  {{ p.visivelCardapio !== false ? (p.promocaoCardapio ? 'Promo' : 'Sim') : 'Não' }}
+                </span>
               }
             </td>
             <td class="produtos-table__acoes">

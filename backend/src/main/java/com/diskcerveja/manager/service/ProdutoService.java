@@ -139,6 +139,24 @@ public class ProdutoService {
     }
 
     @Transactional
+    public Produto atualizarCardapio(Long id, Boolean visivelCardapio, Boolean promocaoCardapio) {
+        Produto p = buscarPorId(id);
+        if (visivelCardapio != null) {
+            p.setVisivelCardapio(visivelCardapio);
+            if (!visivelCardapio) {
+                p.setPromocaoCardapio(false);
+            }
+        }
+        if (promocaoCardapio != null) {
+            if (promocaoCardapio && !p.isVisivelCardapio()) {
+                p.setVisivelCardapio(true);
+            }
+            p.setPromocaoCardapio(Boolean.TRUE.equals(promocaoCardapio) && p.isVisivelCardapio());
+        }
+        return produtoRepository.save(p);
+    }
+
+    @Transactional
     public void desativar(Long id) {
         Produto p = buscarPorId(id);
         p.setAtivo(false);

@@ -521,3 +521,111 @@
   font-weight: 800;
   color: #171717;
 }
+
+.produtos-cardapio-block {
+  margin-top: 12px;
+  padding-top: 4px;
+
+  &__label {
+    margin: 0 0 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #3a342c;
+  }
+}
+
+.produtos-cardapio-toggles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.produtos-cardapio-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 72px;
+  padding: 12px;
+  border: 1.5px solid rgba(9, 9, 9, 0.14);
+  border-radius: 12px;
+  background: #fff;
+  color: #090909;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+
+  mat-icon {
+    flex-shrink: 0;
+    color: #8a7d68;
+  }
+
+  strong {
+    display: block;
+    font-size: 0.92rem;
+    line-height: 1.2;
+  }
+
+  small {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.72rem;
+    color: #6b6256;
+  }
+
+  &.is-on {
+    border-color: #d2a410;
+    background: #fff8e6;
+    box-shadow: 0 0 0 1px rgba(210, 164, 16, 0.35);
+
+    mat-icon {
+      color: #b08a0c;
+    }
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.produtos-cardapio-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.produtos-chip {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1.5px solid rgba(9, 9, 9, 0.16);
+  border-radius: 999px;
+  background: #fff;
+  color: #5c5348;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+
+  &.is-on {
+    border-color: #d2a410;
+    background: #fff8e6;
+    color: #7a5f00;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.produtos-table__cardapio {
+  min-width: 9.5rem;
+}
+
+@media (max-width: 720px) {
+  .produtos-cardapio-toggles {
+    grid-template-columns: 1fr;
+  }
+}

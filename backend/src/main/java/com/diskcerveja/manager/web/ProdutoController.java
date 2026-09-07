@@ -2,6 +2,7 @@ package com.diskcerveja.manager.web;
 
 import com.diskcerveja.manager.domain.entity.Produto;
 import com.diskcerveja.manager.dto.PdvInsightsResponse;
+import com.diskcerveja.manager.dto.ProdutoCardapioPatchRequest;
 import com.diskcerveja.manager.dto.ProdutoDto;
 import com.diskcerveja.manager.dto.ProdutoSugestaoDto;
 import com.diskcerveja.manager.dto.ValidacaoCodigoResponse;
@@ -14,6 +15,7 @@ import java.util.stream.Collectors;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -105,6 +107,12 @@ public class ProdutoController {
                 dto.promocaoCardapio(),
                 dto.descricaoCardapio(),
                 dto.imagemUrl())));
+    }
+
+    @PatchMapping("/{id}/cardapio")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ProdutoDto atualizarCardapio(@PathVariable Long id, @RequestBody ProdutoCardapioPatchRequest req) {
+        return toDto(produtoService.atualizarCardapio(id, req.visivelCardapio(), req.promocaoCardapio()));
     }
 
     @DeleteMapping("/{id}")
