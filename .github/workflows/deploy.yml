@@ -46,6 +46,7 @@ jobs:
             --exclude 'backend/target/' \
             --exclude '.env' \
             --exclude 'nginx/certs/' \
+            --exclude 'certbot/' \
             --exclude '.github/' \
             ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:~/diskcerveja/"
 
@@ -55,6 +56,17 @@ jobs:
           set -euo pipefail
           sudo timedatectl set-timezone America/Sao_Paulo
           cd ~/diskcerveja
+
+          # Certificado temporário para o nginx subir antes do Let's Encrypt.
+          DOMAIN=emporiomachado.duckdns.org
+          LIVE="certbot/conf/live/${DOMAIN}"
+          if [ ! -f "${LIVE}/fullchain.pem" ]; then
+            mkdir -p "${LIVE}"
+            openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
+              -keyout "${LIVE}/privkey.pem" \
+              -out "${LIVE}/fullchain.pem" \
+              -subj "/CN=${DOMAIN}"
+          fi
 
           # Docker Hub às vezes responde 500 no pull; tenta de novo antes de falhar o deploy.
           attempt=1

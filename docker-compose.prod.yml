@@ -46,7 +46,16 @@ services:
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./certbot/www:/var/www/certbot:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+
+  # Renovação: docker compose -f docker-compose.prod.yml run --rm certbot renew
+  certbot:
+    image: certbot/certbot
+    profiles: ["certs"]
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
 
 volumes:
   pgdata: {}

@@ -5,3 +5,7 @@
 *.log
 .idea/
 .vscode/
+.env
+nginx/certs/
+certbot/conf/
+certbot/www/
