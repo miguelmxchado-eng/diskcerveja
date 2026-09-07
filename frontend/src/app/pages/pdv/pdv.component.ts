@@ -10,7 +10,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
@@ -19,7 +19,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { DecimalPipe } from '@angular/common';
 import { StatusLabelPipe } from '../../shared/pipes/status-label.pipe';
 import { environment } from '../../../environments/environment';
-import { ComboResponse, ClienteDto, ConfigCaixaResponse, PedidoResponse, Produto } from '../../core/models';
+import { ComboResponse, ClienteDto, ConfigCaixaResponse, PedidoResponse, PdvInsightsResponse, Produto, ProdutoSugestao } from '../../core/models';
 import { ComboService } from '../../core/combo.service';
 import { ClienteService } from '../../core/cliente.service';
 import { BarcodeScanResult } from '../../shared/barcode/barcode-scan.types';
@@ -135,6 +135,10 @@ export class PdvComponent implements OnInit, OnDestroy {
   pageSize = 24;
   pagina = signal(1);
   favoritos = signal<number[]>(this.lerFavoritos());
+  rankingVendas = signal<Map<number, number>>(new Map());
+  alertaEstoqueQuente = signal<{ produtoId: number; nome: string; estoqueAtual: number }[]>([]);
+  sugestoesLevaJunto = signal<ProdutoSugestao[]>([]);
+  private sugestoesIdle?: ReturnType<typeof setTimeout>;
   ultimoScan = signal<{ code: string; nome: string; qtd: number; preco: number } | null>(null);
   historicoScans = signal<ScanHistoryEntry[]>([]);
   scanFlash = signal(false);
@@ -222,6 +226,11 @@ export class PdvComponent implements OnInit, OnDestroy {
     else if (atalho === 'petiscos') list = list.filter((p) => p.categoria === 'PETISCOS');
     else if (atalho === 'favoritos') {
       list = list.filter((p) => this.favoritos().includes(p.id));
+    } else if (atalho === 'maisVendidos') {
+      const rank = this.rankingVendas();
+      if (rank.size) {
+        list = list.filter((p) => rank.has(p.id));
+      }
     }
 
     if (termo) {
@@ -248,8 +257,19 @@ export class PdvComponent implements OnInit, OnDestroy {
       case 'estoque':
         list.sort((a, b) => b.estoqueAtual - a.estoqueAtual);
         break;
-      default:
-        list.sort((a, b) => b.estoqueAtual - a.estoqueAtual);
+      default: {
+        const rank = this.rankingVendas();
+        if (rank.size) {
+          list.sort((a, b) => {
+            const ra = rank.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+            const rb = rank.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+            if (ra !== rb) return ra - rb;
+            return (a.nome || '').localeCompare(b.nome || '', 'pt-BR');
+          });
+        } else {
+          list.sort((a, b) => b.estoqueAtual - a.estoqueAtual);
+        }
+      }
     }
     return list;
   });
@@ -313,6 +333,7 @@ export class PdvComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.buscarProdutos();
     this.carregarCombos();
+    this.carregarInsightsPdv();
     this.verificarCaixa();
     this.hid.startListening();
     this.hidSub = this.hid.scan$.subscribe((code) => this.processarCodigo(code, 'hid'));
@@ -325,6 +346,7 @@ export class PdvComponent implements OnInit, OnDestroy {
     if (this.barcodeIdle) clearTimeout(this.barcodeIdle);
     if (this.buscaIdle) clearTimeout(this.buscaIdle);
     if (this.clienteBuscaIdle) clearTimeout(this.clienteBuscaIdle);
+    if (this.sugestoesIdle) clearTimeout(this.sugestoesIdle);
     this.hid.stopListening();
     this.scanner.close();
   }
@@ -355,6 +377,75 @@ export class PdvComponent implements OnInit, OnDestroy {
         next: (list) => this.combos.set(Array.isArray(list) ? list : []),
         error: () => this.combos.set([]),
       });
+  }
+
+  carregarInsightsPdv(): void {
+    this.http
+      .get<PdvInsightsResponse>(`${environment.apiUrl}/api/produtos/insights-pdv`, {
+        params: new HttpParams().set('dias', '30'),
+      })
+      .subscribe({
+        next: (d) => {
+          const map = new Map<number, number>();
+          (d.maisVendidos ?? []).forEach((item, idx) => {
+            if (item.produtoId != null) map.set(item.produtoId, idx);
+          });
+          this.rankingVendas.set(map);
+          this.alertaEstoqueQuente.set(
+            (d.alertaEstoqueQuente ?? []).map((a) => ({
+              produtoId: a.produtoId,
+              nome: a.nome,
+              estoqueAtual: a.estoqueAtual,
+            })),
+          );
+        },
+        error: () => {
+          this.rankingVendas.set(new Map());
+          this.alertaEstoqueQuente.set([]);
+        },
+      });
+  }
+
+  private atualizarSugestoesLevaJunto(): void {
+    if (this.sugestoesIdle) clearTimeout(this.sugestoesIdle);
+    this.sugestoesIdle = setTimeout(() => {
+      const ids = [
+        ...new Set(
+          this.carrinho()
+            .filter((l) => !l.isCombo && l.produtoId != null)
+            .map((l) => l.produtoId!),
+        ),
+      ];
+      if (!ids.length) {
+        this.sugestoesLevaJunto.set([]);
+        return;
+      }
+      this.http
+        .get<ProdutoSugestao[]>(`${environment.apiUrl}/api/produtos/sugestoes`, {
+          params: new HttpParams().set('ids', ids.join(',')).set('limite', '4'),
+        })
+        .subscribe({
+          next: (list) => this.sugestoesLevaJunto.set(Array.isArray(list) ? list : []),
+          error: () => this.sugestoesLevaJunto.set([]),
+        });
+    }, 280);
+  }
+
+  adicionarSugestao(s: ProdutoSugestao): void {
+    const p = this.produtos().find((x) => x.id === s.produtoId);
+    if (!p) {
+      this.snack.open('Produto da sugestão não está no catálogo.', 'OK', { duration: 2500 });
+      return;
+    }
+    this.escolherEAdicionar(p);
+  }
+
+  irParaProdutoAlerta(produtoId: number): void {
+    const p = this.produtos().find((x) => x.id === produtoId);
+    if (!p) return;
+    this.atalhoAtivo.set('todos');
+    this.q.set(p.nome);
+    this.pagina.set(1);
   }
 
   buscarProdutos() {
@@ -876,6 +967,7 @@ export class PdvComponent implements OnInit, OnDestroy {
     }
     this.carrinho.set(atual);
     this.rolarListaItens();
+    this.atualizarSugestoesLevaJunto();
   }
 
   addCombo(c: ComboResponse, codigoLido?: string) {
@@ -909,6 +1001,7 @@ export class PdvComponent implements OnInit, OnDestroy {
     }
     this.carrinho.set(atual);
     this.rolarListaItens();
+    this.atualizarSugestoesLevaJunto();
   }
 
   toggleFavorito(produto: Produto, event: MouseEvent) {
@@ -950,6 +1043,7 @@ export class PdvComponent implements OnInit, OnDestroy {
     atual[i] = { ...atual[i], qtd: atual[i].qtd + 1, vendaUnidade: linha.vendaUnidade === true };
     this.carrinho.set(atual);
     this.rolarListaItens();
+    this.atualizarSugestoesLevaJunto();
   }
 
   dec(i: number) {
@@ -960,6 +1054,7 @@ export class PdvComponent implements OnInit, OnDestroy {
     }
     atual[i] = { ...atual[i], qtd: atual[i].qtd - 1 };
     this.carrinho.set(atual);
+    this.atualizarSugestoesLevaJunto();
   }
 
   removerLinha(i: number): void {
@@ -984,6 +1079,7 @@ export class PdvComponent implements OnInit, OnDestroy {
         const atual = [...this.carrinho()];
         atual.splice(i, 1);
         this.carrinho.set(atual);
+        this.atualizarSugestoesLevaJunto();
       });
   }
 
@@ -1009,6 +1105,7 @@ export class PdvComponent implements OnInit, OnDestroy {
     this.clienteAberto.set(false);
     this.pagamentoDividido.set(false);
     this.zerarDivisaoPagamento();
+    this.sugestoesLevaJunto.set([]);
   }
 
   /** Total exibido no botão confirmar (carrinho ou pedido pendente). */

@@ -1,11 +1,16 @@
 package com.diskcerveja.manager.web;
 
 import com.diskcerveja.manager.domain.entity.Produto;
+import com.diskcerveja.manager.dto.PdvInsightsResponse;
 import com.diskcerveja.manager.dto.ProdutoDto;
+import com.diskcerveja.manager.dto.ProdutoSugestaoDto;
 import com.diskcerveja.manager.dto.ValidacaoCodigoResponse;
+import com.diskcerveja.manager.service.PedidoRelatorioService;
 import com.diskcerveja.manager.service.ProdutoService;
 import jakarta.validation.Valid;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,15 +27,35 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProdutoController {
 
     private final ProdutoService produtoService;
+    private final PedidoRelatorioService pedidoRelatorioService;
 
-    public ProdutoController(ProdutoService produtoService) {
+    public ProdutoController(ProdutoService produtoService, PedidoRelatorioService pedidoRelatorioService) {
         this.produtoService = produtoService;
+        this.pedidoRelatorioService = pedidoRelatorioService;
     }
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public List<ProdutoDto> listar(@RequestParam(required = false) String q) {
         return produtoService.buscar(q).stream().map(ProdutoController::toDto).toList();
+    }
+
+    @GetMapping("/insights-pdv")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERADOR')")
+    public PdvInsightsResponse insightsPdv(@RequestParam(defaultValue = "30") int dias) {
+        return pedidoRelatorioService.insightsPdv(dias);
+    }
+
+    @GetMapping("/sugestoes")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERADOR')")
+    public List<ProdutoSugestaoDto> sugestoes(
+            @RequestParam String ids, @RequestParam(defaultValue = "4") int limite) {
+        List<Long> produtoIds = Arrays.stream(ids.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(Long::valueOf)
+                .collect(Collectors.toList());
+        return pedidoRelatorioService.sugestoesLevaJunto(produtoIds, limite);
     }
 
     @GetMapping("/{id}")

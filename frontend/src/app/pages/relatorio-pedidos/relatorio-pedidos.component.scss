@@ -342,6 +342,76 @@
     }
   }
 
+  &__bands {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+
+    > div {
+      padding: 10px 12px;
+      border: 1px solid #eee4c4;
+      border-radius: 10px;
+      background: #fff;
+
+      span {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        color: #667085;
+      }
+
+      strong {
+        font-size: 0.95rem;
+        color: #171717;
+      }
+
+      &.is-main {
+        border-color: #d2a410;
+        background: #fff8df;
+
+        strong {
+          color: #745a00;
+        }
+      }
+    }
+  }
+
+  &__goal {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 10px;
+    background: #fff;
+    border: 1px solid #eee4c4;
+
+    span {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #667085;
+    }
+
+    strong {
+      font-size: 0.92rem;
+      color: #171717;
+    }
+
+    &.is-ok {
+      border-color: #b7dfc4;
+      background: #f3fbf6;
+    }
+
+    &.is-warn {
+      border-color: #f0c9a0;
+      background: #fff8f0;
+    }
+  }
+
   &__progress {
     margin-top: 12px;
 
@@ -1161,6 +1231,11 @@
         border-bottom: 0;
       }
     }
+  }
+
+  .hist-projection__bands,
+  .hist-projection__goal {
+    grid-template-columns: 1fr;
   }
 }
 

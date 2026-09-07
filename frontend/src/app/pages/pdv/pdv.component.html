@@ -15,6 +15,22 @@
       </div>
     }
 
+    @if (alertaEstoqueQuente().length) {
+      <div class="pdv-hot-stock" role="status">
+        <mat-icon>warning_amber</mat-icon>
+        <div class="pdv-hot-stock__text">
+          <strong>Produtos mais vendidos com estoque baixo</strong>
+          <div class="pdv-hot-stock__list">
+            @for (a of alertaEstoqueQuente(); track a.produtoId) {
+              <button type="button" (click)="irParaProdutoAlerta(a.produtoId)">
+                {{ a.nome }} ({{ a.estoqueAtual }})
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    }
+
     <div class="pdv-search-row">
       <label class="pdv-search" [class.pdv-search--focus]="buscaFocada()">
         <mat-icon class="pdv-search__ico">search</mat-icon>
@@ -254,6 +270,23 @@
           </div>
         }
       </div>
+
+      @if (sugestoesLevaJunto().length) {
+        <div class="pdv-upsell" aria-label="Sugestões para levar junto">
+          <div class="pdv-upsell__head">
+            <mat-icon>add_shopping_cart</mat-icon>
+            <strong>Leva junto?</strong>
+          </div>
+          <div class="pdv-upsell__list">
+            @for (s of sugestoesLevaJunto(); track s.produtoId) {
+              <button type="button" class="pdv-upsell__item" (click)="adicionarSugestao(s)">
+                <span>{{ s.nome }}</span>
+                <strong>R$ {{ s.preco | number: '1.2-2' }}</strong>
+              </button>
+            }
+          </div>
+        </div>
+      }
 
       <div class="pdv-cart__checkout">
         <div class="pdv-summary">

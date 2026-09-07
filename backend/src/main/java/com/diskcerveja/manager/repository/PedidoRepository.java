@@ -223,4 +223,61 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
             nativeQuery = true)
     List<Object[]> aggregateVendasCancelamentosPorMesOperacao(
             @Param("ini") java.sql.Timestamp ini, @Param("fim") java.sql.Timestamp fim);
+
+    @Query(
+            value =
+                    """
+            SELECT i.produto_id AS produto_id,
+                   COALESCE(NULLIF(TRIM(i.descricao), ''), pr.nome, 'Produto') AS nome,
+                   CAST(SUM(i.quantidade) AS bigint) AS unidades,
+                   COALESCE(SUM(i.preco_unitario * i.quantidade), 0) AS valor,
+                   pr.estoque_atual AS estoque_atual,
+                   pr.estoque_minimo AS estoque_minimo
+            FROM pedido_item i
+            JOIN pedido p ON p.id = i.pedido_id
+            JOIN produto pr ON pr.id = i.produto_id
+            WHERE p.status = 'ENTREGUE'
+              AND p.data_hora >= :ini AND p.data_hora < :fim
+              AND i.produto_id IS NOT NULL
+              AND pr.ativo = TRUE
+            GROUP BY i.produto_id, 2, pr.estoque_atual, pr.estoque_minimo
+            ORDER BY unidades DESC, valor DESC
+            LIMIT :limite
+            """,
+            nativeQuery = true)
+    List<Object[]> topProdutosComEstoque(
+            @Param("ini") java.sql.Timestamp ini,
+            @Param("fim") java.sql.Timestamp fim,
+            @Param("limite") int limite);
+
+    @Query(
+            value =
+                    """
+            SELECT i2.produto_id AS produto_id,
+                   pr.nome AS nome,
+                   pr.preco AS preco,
+                   CAST(COUNT(DISTINCT i1.pedido_id) AS bigint) AS vezes,
+                   pr.estoque_atual AS estoque_atual
+            FROM pedido_item i1
+            JOIN pedido_item i2
+              ON i2.pedido_id = i1.pedido_id
+             AND i2.produto_id IS NOT NULL
+             AND i2.produto_id <> i1.produto_id
+            JOIN pedido p ON p.id = i1.pedido_id
+            JOIN produto pr ON pr.id = i2.produto_id AND pr.ativo = TRUE
+            WHERE p.status = 'ENTREGUE'
+              AND p.data_hora >= :ini AND p.data_hora < :fim
+              AND i1.produto_id IN (:ids)
+              AND i2.produto_id NOT IN (:ids)
+              AND pr.estoque_atual > 0
+            GROUP BY i2.produto_id, pr.nome, pr.preco, pr.estoque_atual
+            ORDER BY vezes DESC, pr.nome ASC
+            LIMIT :limite
+            """,
+            nativeQuery = true)
+    List<Object[]> sugestoesLevaJunto(
+            @Param("ini") java.sql.Timestamp ini,
+            @Param("fim") java.sql.Timestamp fim,
+            @Param("ids") Collection<Long> ids,
+            @Param("limite") int limite);
 }

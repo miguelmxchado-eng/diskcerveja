@@ -16,6 +16,10 @@ import com.diskcerveja.manager.dto.PedidoPeriodoPagamentoDto;
 import com.diskcerveja.manager.dto.PedidoPeriodoResponse;
 import com.diskcerveja.manager.dto.PedidoPeriodoTopProdutoDto;
 import com.diskcerveja.manager.dto.PedidoResumoDto;
+import com.diskcerveja.manager.dto.PdvInsightsResponse;
+import com.diskcerveja.manager.dto.ProjecaoMensalResponse;
+import com.diskcerveja.manager.dto.ProdutoSugestaoDto;
+import com.diskcerveja.manager.dto.ProdutoVendaRankDto;
 import com.diskcerveja.manager.repository.MovimentoCaixaRepository;
 import com.diskcerveja.manager.repository.PedidoRepository;
 import java.math.BigDecimal;
@@ -28,12 +32,14 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -366,5 +372,208 @@ public class PedidoRelatorioService {
 
     private static BigDecimal nvl(BigDecimal v) {
         return v != null ? v : BigDecimal.ZERO;
+    }
+
+    @Transactional(readOnly = true)
+    public ProjecaoMensalResponse projecaoMensal() {
+        var z = CaixaSessaoService.ZONA_OPERACAO;
+        LocalDate hoje = LocalDate.now(z);
+        LocalDate inicioMes = hoje.withDayOfMonth(1);
+        LocalDate fimMes = hoje.with(TemporalAdjusters.lastDayOfMonth());
+        int diasNoMes = fimMes.getDayOfMonth();
+        int diasDecorridos = Math.max(1, hoje.getDayOfMonth());
+        int diasRestantes = Math.max(0, diasNoMes - hoje.getDayOfMonth());
+        int progressoMes = (int) Math.round((diasDecorridos * 100.0) / diasNoMes);
+
+        Instant iniMes = inicioMes.atStartOfDay(z).toInstant();
+        Instant fimHoje = hoje.plusDays(1).atStartOfDay(z).toInstant();
+
+        BigDecimal faturamentoAtual = nvl(pedidoRepository.sumTotalEntreguesNoPeriodo(iniMes, fimHoje));
+        BigDecimal custoAtual = nvl(pedidoRepository.sumCustoEntreguesNoPeriodo(iniMes, fimHoje));
+        BigDecimal lucroAtual = faturamentoAtual.subtract(custoAtual);
+        long pedidosAtual = pedidoRepository.countPedidosNoPeriodo(iniMes, fimHoje);
+
+        Map<LocalDate, BigDecimal> porDia = new HashMap<>();
+        for (Object[] row : pedidoRepository.aggregateVendasCancelamentosPorDiaOperacao(
+                Timestamp.from(iniMes), Timestamp.from(fimHoje))) {
+            porDia.put(toLocalDate(row[0]), nvl(row[1] instanceof BigDecimal bd ? bd : BigDecimal.ZERO));
+        }
+
+        BigDecimal somaUtil = BigDecimal.ZERO;
+        BigDecimal somaFds = BigDecimal.ZERO;
+        int diasUtil = 0;
+        int diasFds = 0;
+        for (LocalDate d = inicioMes; !d.isAfter(hoje); d = d.plusDays(1)) {
+            BigDecimal v = porDia.getOrDefault(d, BigDecimal.ZERO);
+            if (isFimDeSemana(d)) {
+                somaFds = somaFds.add(v);
+                diasFds++;
+            } else {
+                somaUtil = somaUtil.add(v);
+                diasUtil++;
+            }
+        }
+
+        BigDecimal mediaDiaria = dinheiro(faturamentoAtual.divide(
+                BigDecimal.valueOf(diasDecorridos), 2, RoundingMode.HALF_UP));
+        BigDecimal mediaUtil = diasUtil > 0
+                ? dinheiro(somaUtil.divide(BigDecimal.valueOf(diasUtil), 2, RoundingMode.HALF_UP))
+                : mediaDiaria;
+        BigDecimal mediaFds = diasFds > 0
+                ? dinheiro(somaFds.divide(BigDecimal.valueOf(diasFds), 2, RoundingMode.HALF_UP))
+                : mediaDiaria;
+
+        BigDecimal estimativaRestante = BigDecimal.ZERO;
+        for (LocalDate d = hoje.plusDays(1); !d.isAfter(fimMes); d = d.plusDays(1)) {
+            estimativaRestante = estimativaRestante.add(isFimDeSemana(d) ? mediaFds : mediaUtil);
+        }
+        estimativaRestante = dinheiro(estimativaRestante);
+
+        BigDecimal realista = dinheiro(faturamentoAtual.add(estimativaRestante));
+        BigDecimal pessimista = dinheiro(faturamentoAtual.add(
+                estimativaRestante.multiply(new BigDecimal("0.85"))));
+        BigDecimal otimista = dinheiro(faturamentoAtual.add(
+                estimativaRestante.multiply(new BigDecimal("1.15"))));
+
+        BigDecimal lucroProjetado = BigDecimal.ZERO;
+        long pedidosProjetados = pedidosAtual;
+        if (faturamentoAtual.compareTo(BigDecimal.ZERO) > 0) {
+            lucroProjetado = dinheiro(lucroAtual
+                    .multiply(realista)
+                    .divide(faturamentoAtual, 4, RoundingMode.HALF_UP));
+            pedidosProjetados = Math.round(
+                    pedidosAtual * realista.divide(faturamentoAtual, 4, RoundingMode.HALF_UP).doubleValue());
+        } else if (diasRestantes > 0) {
+            pedidosProjetados = pedidosAtual;
+        }
+
+        LocalDate anoPassadoInicio = inicioMes.minusYears(1);
+        LocalDate anoPassadoHoje = hoje.minusYears(1);
+        LocalDate anoPassadoFim = fimMes.minusYears(1);
+        Instant apIni = anoPassadoInicio.atStartOfDay(z).toInstant();
+        Instant apHoje = anoPassadoHoje.plusDays(1).atStartOfDay(z).toInstant();
+        Instant apFim = anoPassadoFim.plusDays(1).atStartOfDay(z).toInstant();
+        BigDecimal mesmoPeriodoAnoPassado = nvl(pedidoRepository.sumTotalEntreguesNoPeriodo(apIni, apHoje));
+        BigDecimal mesmoMesAnoPassado = nvl(pedidoRepository.sumTotalEntreguesNoPeriodo(apIni, apFim));
+
+        LocalDate mesAntInicio = inicioMes.minusMonths(1);
+        LocalDate mesAntFim = inicioMes.minusDays(1);
+        Instant maIni = mesAntInicio.atStartOfDay(z).toInstant();
+        Instant maFim = mesAntFim.plusDays(1).atStartOfDay(z).toInstant();
+        BigDecimal mesAnterior = nvl(pedidoRepository.sumTotalEntreguesNoPeriodo(maIni, maFim));
+
+        BigDecimal metaMensal;
+        String metaOrigem;
+        if (mesmoMesAnoPassado.compareTo(BigDecimal.ZERO) > 0) {
+            metaMensal = dinheiro(mesmoMesAnoPassado);
+            metaOrigem = "mesmo mês do ano passado";
+        } else if (mesAnterior.compareTo(BigDecimal.ZERO) > 0) {
+            metaMensal = dinheiro(mesAnterior);
+            metaOrigem = "mês anterior";
+        } else {
+            metaMensal = realista;
+            metaOrigem = "ritmo atual do mês";
+        }
+
+        BigDecimal faltaParaMeta = dinheiro(metaMensal.subtract(faturamentoAtual).max(BigDecimal.ZERO));
+        BigDecimal faltaPorDia = diasRestantes > 0
+                ? dinheiro(faltaParaMeta.divide(BigDecimal.valueOf(diasRestantes), 2, RoundingMode.HALF_UP))
+                : BigDecimal.ZERO;
+        boolean noRitmo = realista.compareTo(metaMensal) >= 0;
+
+        return new ProjecaoMensalResponse(
+                diasDecorridos,
+                diasRestantes,
+                diasNoMes,
+                progressoMes,
+                dinheiro(faturamentoAtual),
+                dinheiro(lucroAtual),
+                pedidosAtual,
+                mediaDiaria,
+                mediaUtil,
+                mediaFds,
+                estimativaRestante,
+                pessimista,
+                realista,
+                otimista,
+                lucroProjetado,
+                pedidosProjetados,
+                metaMensal,
+                metaOrigem,
+                faltaParaMeta,
+                faltaPorDia,
+                noRitmo,
+                dinheiro(mesmoMesAnoPassado),
+                dinheiro(mesmoPeriodoAnoPassado),
+                dinheiro(mesAnterior));
+    }
+
+    @Transactional(readOnly = true)
+    public PdvInsightsResponse insightsPdv(int dias) {
+        int janela = Math.min(90, Math.max(7, dias));
+        var z = CaixaSessaoService.ZONA_OPERACAO;
+        LocalDate hoje = LocalDate.now(z);
+        Instant ini = hoje.minusDays(janela - 1L).atStartOfDay(z).toInstant();
+        Instant fim = hoje.plusDays(1).atStartOfDay(z).toInstant();
+        List<ProdutoVendaRankDto> ranking = new ArrayList<>();
+        for (Object[] row : pedidoRepository.topProdutosComEstoque(
+                Timestamp.from(ini), Timestamp.from(fim), 40)) {
+            ranking.add(toRank(row));
+        }
+        List<ProdutoVendaRankDto> alertas = ranking.stream()
+                .filter(ProdutoVendaRankDto::estoqueBaixo)
+                .limit(6)
+                .toList();
+        return new PdvInsightsResponse(janela, ranking, alertas);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProdutoSugestaoDto> sugestoesLevaJunto(Collection<Long> produtoIds, int limite) {
+        if (produtoIds == null || produtoIds.isEmpty()) {
+            return List.of();
+        }
+        Set<Long> ids = produtoIds.stream().filter(Objects::nonNull).collect(Collectors.toSet());
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        int lim = Math.min(8, Math.max(1, limite));
+        var z = CaixaSessaoService.ZONA_OPERACAO;
+        LocalDate hoje = LocalDate.now(z);
+        Instant ini = hoje.minusDays(60).atStartOfDay(z).toInstant();
+        Instant fim = hoje.plusDays(1).atStartOfDay(z).toInstant();
+        List<ProdutoSugestaoDto> out = new ArrayList<>();
+        for (Object[] row : pedidoRepository.sugestoesLevaJunto(
+                Timestamp.from(ini), Timestamp.from(fim), ids, lim)) {
+            Long id = row[0] instanceof Number n ? n.longValue() : null;
+            if (id == null) {
+                continue;
+            }
+            String nome = row[1] != null ? row[1].toString() : "Produto";
+            BigDecimal preco = row[2] instanceof BigDecimal bd ? bd : BigDecimal.ZERO;
+            long vezes = row[3] instanceof Number n ? n.longValue() : 0L;
+            int estoque = row[4] instanceof Number n ? n.intValue() : 0;
+            out.add(new ProdutoSugestaoDto(id, nome, preco, vezes, estoque));
+        }
+        return out;
+    }
+
+    private static ProdutoVendaRankDto toRank(Object[] row) {
+        Long id = row[0] instanceof Number n ? n.longValue() : null;
+        String nome = row[1] != null ? row[1].toString() : "Produto";
+        long un = row[2] instanceof Number n ? n.longValue() : 0L;
+        BigDecimal valor = row[3] instanceof BigDecimal bd ? bd : BigDecimal.ZERO;
+        int estoque = row[4] instanceof Number n ? n.intValue() : 0;
+        int minimo = row[5] instanceof Number n ? n.intValue() : 0;
+        boolean baixo = estoque <= 0 || estoque <= minimo;
+        return new ProdutoVendaRankDto(id, nome, un, valor, estoque, minimo, baixo);
+    }
+
+    private static boolean isFimDeSemana(LocalDate d) {
+        DayOfWeek dow = d.getDayOfWeek();
+        return dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY;
+    }
+
+    private static BigDecimal dinheiro(BigDecimal v) {
+        return nvl(v).setScale(2, RoundingMode.HALF_UP);
     }
 }

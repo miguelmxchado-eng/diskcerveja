@@ -10,6 +10,7 @@ import com.diskcerveja.manager.dto.PedidoMapper;
 import com.diskcerveja.manager.dto.PedidoRequest;
 import com.diskcerveja.manager.dto.PedidoResponse;
 import com.diskcerveja.manager.dto.PedidoUpdateRequest;
+import com.diskcerveja.manager.dto.ProjecaoMensalResponse;
 import com.diskcerveja.manager.dto.StatusPedidoPatchRequest;
 import com.diskcerveja.manager.security.SecurityUtils;
 import com.diskcerveja.manager.service.PedidoRelatorioService;
@@ -105,6 +106,13 @@ public class PedidoController {
             }
             throw new IllegalArgumentException("Período inválido. Use: DIA, SEMANA, MES ou ANO.");
         }
+    }
+
+    @GetMapping("/projecao-mensal")
+    @PreAuthorize("isAuthenticated()")
+    @Transactional(readOnly = true)
+    public ProjecaoMensalResponse projecaoMensal() {
+        return pedidoRelatorioService.projecaoMensal();
     }
 
     @GetMapping("/{id}")

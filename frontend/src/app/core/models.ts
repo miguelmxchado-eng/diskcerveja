@@ -230,6 +230,57 @@ export interface PedidoPeriodoResponse {
   margemPeriodoAnterior?: number;
 }
 
+export interface ProjecaoMensalResponse {
+  diasDecorridos: number;
+  diasRestantes: number;
+  diasNoMes: number;
+  progressoMes: number;
+  faturamentoAtual: number;
+  lucroAtual: number;
+  pedidosAtual: number;
+  mediaDiaria: number;
+  mediaDiaUtil: number;
+  mediaFimSemana: number;
+  estimativaRestante: number;
+  projetadoPessimista: number;
+  projetadoRealista: number;
+  projetadoOtimista: number;
+  lucroProjetado: number;
+  pedidosProjetados: number;
+  metaMensal: number;
+  metaOrigem: string;
+  faltaParaMeta: number;
+  faltaPorDia: number;
+  noRitmoDaMeta: boolean;
+  mesmoMesAnoPassado: number;
+  mesmoPeriodoAnoPassado: number;
+  mesAnterior: number;
+}
+
+export interface ProdutoVendaRank {
+  produtoId: number;
+  nome: string;
+  unidades: number;
+  valor: number;
+  estoqueAtual: number;
+  estoqueMinimo: number;
+  estoqueBaixo: boolean;
+}
+
+export interface PdvInsightsResponse {
+  diasBase: number;
+  maisVendidos: ProdutoVendaRank[];
+  alertaEstoqueQuente: ProdutoVendaRank[];
+}
+
+export interface ProdutoSugestao {
+  produtoId: number;
+  nome: string;
+  preco: number;
+  vezesJunto: number;
+  estoqueAtual: number;
+}
+
 export interface UsuarioDto {
   id?: number;
   nome: string;
