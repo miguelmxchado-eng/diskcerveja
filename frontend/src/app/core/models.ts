@@ -311,6 +311,9 @@ export interface EntregaResumo {
   telefone?: string;
   enderecoEntrega?: string;
   taxaEntrega: number;
+  total: number;
+  formaPagamento?: string;
+  pagamentoConfirmado?: boolean;
   statusEntrega: string;
   statusPedido: string;
   entregadorNome?: string;

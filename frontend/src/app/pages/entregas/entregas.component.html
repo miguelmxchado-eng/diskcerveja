@@ -1,81 +1,125 @@
-<div class="erp-page-heading">
-  <div>
-    <p class="erp-page-heading__eyebrow">Logística</p>
-    <h2 class="erp-page-heading__title">Painel de entregas</h2>
-    <p class="erp-page-heading__subtitle">Pedidos de entrega em aberto, preparo ou rota.</p>
-  </div>
-  <button mat-stroked-button type="button" (click)="reload()" [disabled]="loading()">
-    <mat-icon>refresh</mat-icon>
-    Atualizar
-  </button>
-</div>
-
-@if (loading()) {
-  <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-}
-
-<div class="table-wrapper">
-  <table mat-table [dataSource]="rows()" class="mat-elevation-z1 wide">
-    <ng-container matColumnDef="pedido">
-      <th mat-header-cell *matHeaderCellDef>#</th>
-      <td mat-cell *matCellDef="let r"><strong>#{{ r.pedidoId }}</strong></td>
-    </ng-container>
-    <ng-container matColumnDef="cliente">
-      <th mat-header-cell *matHeaderCellDef>Cliente</th>
-      <td mat-cell *matCellDef="let r">
-        <div>{{ r.clienteNome || '—' }}</div>
-        @if (r.telefone) { <small class="tel">{{ r.telefone }}</small> }
-      </td>
-    </ng-container>
-    <ng-container matColumnDef="endereco">
-      <th mat-header-cell *matHeaderCellDef>Endereço</th>
-      <td mat-cell *matCellDef="let r">{{ r.enderecoEntrega || '—' }}</td>
-    </ng-container>
-    <ng-container matColumnDef="taxa">
-      <th mat-header-cell *matHeaderCellDef>Taxa</th>
-      <td mat-cell *matCellDef="let r">R$ {{ r.taxaEntrega | number: '1.2-2' }}</td>
-    </ng-container>
-    <ng-container matColumnDef="statusPedido">
-      <th mat-header-cell *matHeaderCellDef>Status pedido</th>
-      <td mat-cell *matCellDef="let r">
-        <span class="status-chip status-chip--{{ r.statusPedido | lowercase }}">
-          {{ r.statusPedido | statusLabel }}
-        </span>
-      </td>
-    </ng-container>
-    <ng-container matColumnDef="statusEntrega">
-      <th mat-header-cell *matHeaderCellDef>Entregador</th>
-      <td mat-cell *matCellDef="let r">
-        <div>{{ r.entregadorNome || '—' }}</div>
-        @if (r.statusEntrega) { <small class="text-muted">{{ r.statusEntrega }}</small> }
-      </td>
-    </ng-container>
-    <ng-container matColumnDef="acoes">
-      <th mat-header-cell *matHeaderCellDef>Ação</th>
-      <td mat-cell *matCellDef="let r">
-        @if (auth.user()?.perfil === 'ENTREGADOR' || auth.user()?.perfil === 'ADMIN') {
-          @if (r.statusPedido !== 'ENTREGUE' && r.statusPedido !== 'CANCELADO') {
-            @if (r.statusPedido === 'ABERTO' || r.statusPedido === 'EM_PREPARO') {
-              <button mat-stroked-button type="button" (click)="status(r.pedidoId, 'SAIU_ENTREGA')">
-                <mat-icon>local_shipping</mat-icon> Saiu
-              </button>
-            }
-            @if (r.statusPedido === 'SAIU_ENTREGA') {
-              <button mat-flat-button type="button" color="primary" (click)="status(r.pedidoId, 'ENTREGUE')">
-                <mat-icon>check_circle</mat-icon> Entregue
-              </button>
-            }
-          }
+<div class="driver" [class.driver--app]="isEntregador()">
+  <header class="driver__top">
+    <div>
+      <p class="driver__eyebrow">{{ isEntregador() ? 'Empório Machado' : 'Logística' }}</p>
+      <h1 class="driver__title">{{ isEntregador() ? 'Minhas entregas' : 'Painel de entregas' }}</h1>
+      <p class="driver__sub">
+        {{ emRota().length }} em rota · {{ naFila().length }} na fila
+        @if (atualizando()) {
+          <span class="driver__sync"> · atualizando…</span>
         }
-      </td>
-    </ng-container>
-    <tr mat-header-row *matHeaderRowDef="cols"></tr>
-    <tr mat-row *matRowDef="let row; columns: cols"></tr>
-    <tr class="mat-mdc-row" *matNoDataRow>
-      <td class="mat-mdc-cell empty-state" [attr.colspan]="cols.length">
-        <mat-icon>local_shipping</mat-icon>
-        <span>Nenhuma entrega em andamento.</span>
-      </td>
-    </tr>
-  </table>
+      </p>
+    </div>
+    <button type="button" class="driver__refresh" (click)="reload(true)" [disabled]="loading()" aria-label="Atualizar">
+      <mat-icon>refresh</mat-icon>
+    </button>
+  </header>
+
+  @if (loading() && rows().length === 0) {
+    <p class="driver__empty">Carregando entregas…</p>
+  } @else if (rows().length === 0) {
+    <div class="driver__empty-box">
+      <mat-icon>local_shipping</mat-icon>
+      <p>Nenhuma entrega em andamento.</p>
+      <button type="button" class="driver__btn driver__btn--ghost" (click)="reload(true)">Atualizar</button>
+    </div>
+  } @else {
+    @if (emRota().length > 0) {
+      <section class="driver__section">
+        <h2>Em rota</h2>
+        <div class="driver__list">
+          @for (r of emRota(); track r.pedidoId) {
+            <article class="driver-card driver-card--rota">
+              <div class="driver-card__head">
+                <strong>#{{ r.pedidoId }}</strong>
+                <span class="driver-card__status">{{ r.statusPedido | statusLabel }}</span>
+              </div>
+              <h3>{{ r.clienteNome || 'Cliente' }}</h3>
+              <p class="driver-card__addr">{{ r.enderecoEntrega || 'Endereço não informado' }}</p>
+              <div class="driver-card__meta">
+                <span>Total R$ {{ r.total | number: '1.2-2' }}</span>
+                <span>Taxa R$ {{ r.taxaEntrega | number: '1.2-2' }}</span>
+                <span class="driver-card__pay" [class.is-ok]="pagamentoTone(r) === 'ok'" [class.is-warn]="pagamentoTone(r) === 'warn'">
+                  {{ pagamentoLabel(r) }}
+                </span>
+              </div>
+              @if (r.entregadorNome) {
+                <p class="driver-card__driver">Entregador: {{ r.entregadorNome }}</p>
+              }
+              <div class="driver-card__links">
+                @if (telHref(r.telefone); as tel) {
+                  <a [href]="tel">Ligar</a>
+                }
+                @if (waHref(r.telefone); as wa) {
+                  <a [href]="wa" target="_blank" rel="noopener">WhatsApp</a>
+                }
+                @if (mapsHref(r.enderecoEntrega); as maps) {
+                  <a [href]="maps" target="_blank" rel="noopener">Mapa</a>
+                }
+              </div>
+              @if (canAct()) {
+                <button
+                  type="button"
+                  class="driver__btn driver__btn--primary"
+                  [disabled]="acaoId() === r.pedidoId"
+                  (click)="status(r.pedidoId, 'ENTREGUE')"
+                >
+                  {{ acaoId() === r.pedidoId ? 'Salvando…' : 'Marcar entregue' }}
+                </button>
+              }
+            </article>
+          }
+        </div>
+      </section>
+    }
+
+    @if (naFila().length > 0) {
+      <section class="driver__section">
+        <h2>Na fila / preparo</h2>
+        <div class="driver__list">
+          @for (r of naFila(); track r.pedidoId) {
+            <article class="driver-card">
+              <div class="driver-card__head">
+                <strong>#{{ r.pedidoId }}</strong>
+                <span class="driver-card__status">{{ r.statusPedido | statusLabel }}</span>
+              </div>
+              <h3>{{ r.clienteNome || 'Cliente' }}</h3>
+              <p class="driver-card__addr">{{ r.enderecoEntrega || 'Endereço não informado' }}</p>
+              <div class="driver-card__meta">
+                <span>Total R$ {{ r.total | number: '1.2-2' }}</span>
+                <span>Taxa R$ {{ r.taxaEntrega | number: '1.2-2' }}</span>
+                <span class="driver-card__pay" [class.is-ok]="pagamentoTone(r) === 'ok'" [class.is-warn]="pagamentoTone(r) === 'warn'">
+                  {{ pagamentoLabel(r) }}
+                </span>
+              </div>
+              @if (r.entregadorNome) {
+                <p class="driver-card__driver">Entregador: {{ r.entregadorNome }}</p>
+              }
+              <div class="driver-card__links">
+                @if (telHref(r.telefone); as tel) {
+                  <a [href]="tel">Ligar</a>
+                }
+                @if (waHref(r.telefone); as wa) {
+                  <a [href]="wa" target="_blank" rel="noopener">WhatsApp</a>
+                }
+                @if (mapsHref(r.enderecoEntrega); as maps) {
+                  <a [href]="maps" target="_blank" rel="noopener">Mapa</a>
+                }
+              </div>
+              @if (canAct()) {
+                <button
+                  type="button"
+                  class="driver__btn driver__btn--dark"
+                  [disabled]="acaoId() === r.pedidoId"
+                  (click)="status(r.pedidoId, 'SAIU_ENTREGA')"
+                >
+                  {{ acaoId() === r.pedidoId ? 'Salvando…' : 'Saiu para entrega' }}
+                </button>
+              }
+            </article>
+          }
+        </div>
+      </section>
+    }
+  }
 </div>

@@ -9,6 +9,7 @@ import com.diskcerveja.manager.domain.entity.PedidoPagamento;
 import com.diskcerveja.manager.domain.entity.Produto;
 import com.diskcerveja.manager.domain.entity.Usuario;
 import com.diskcerveja.manager.domain.enums.FormaPagamento;
+import com.diskcerveja.manager.domain.enums.PerfilUsuario;
 import com.diskcerveja.manager.domain.enums.StatusEntrega;
 import com.diskcerveja.manager.domain.enums.StatusPedido;
 import com.diskcerveja.manager.domain.enums.TipoPedido;
@@ -219,6 +220,13 @@ public class PedidoService {
             if (novo == StatusPedido.SAIU_ENTREGA) {
                 e.setStatus(StatusEntrega.EM_ROTA);
                 e.setHorarioSaida(Instant.now());
+                if (usuario != null && usuario.getPerfil() == PerfilUsuario.ENTREGADOR) {
+                    e.setEntregador(usuario);
+                    e.setEntregadorNome(usuario.getNome());
+                } else if (usuario != null
+                        && (e.getEntregadorNome() == null || e.getEntregadorNome().isBlank())) {
+                    e.setEntregadorNome(usuario.getNome());
+                }
             }
             if (novo == StatusPedido.ENTREGUE) {
                 e.setStatus(StatusEntrega.CONCLUIDA);

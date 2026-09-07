@@ -25,6 +25,7 @@ export class MainLayoutComponent {
   readonly sectionTitle = signal('Início');
   readonly sectionHint = signal('Resumo do dia');
   readonly isPdv = signal(false);
+  readonly isEntregadorShell = signal(false);
 
   private readonly titles: Record<string, { title: string; hint: string }> = {
     dashboard: { title: 'Início', hint: 'Vendas, caixa e alertas de agora' },
@@ -37,7 +38,7 @@ export class MainLayoutComponent {
     produtos: { title: 'Produtos', hint: 'Cadastre, organize e acompanhe seu catálogo' },
     estoque: { title: 'Estoque', hint: 'Entrada, ajuste e itens em falta' },
     caixa: { title: 'Caixa', hint: 'Abertura, sangria e fechamento' },
-    entregas: { title: 'Rotas', hint: 'Pedidos em rota e confirmação de entrega' },
+    entregas: { title: 'Entregas', hint: 'Pedidos em rota e confirmação de entrega' },
     usuarios: { title: 'Equipe', hint: 'Acesso de operadores e entregadores' },
     config: { title: 'Ajustes', hint: 'Regras do caixa e operação' },
   };
@@ -96,10 +97,15 @@ export class MainLayoutComponent {
   private refreshTitle(): void {
     const parts = this.router.url.split('?')[0].split('/').filter(Boolean);
     const key = parts[parts.length - 1] ?? 'dashboard';
+    if (this.auth.user()?.perfil === 'ENTREGADOR' && key === 'dashboard') {
+      void this.router.navigateByUrl('/entregas');
+      return;
+    }
     const meta = this.titles[key] ?? { title: 'Início', hint: 'Vendas, caixa e alertas de agora' };
     this.sectionTitle.set(meta.title);
     this.sectionHint.set(meta.hint);
     this.isPdv.set(key === 'pdv');
+    this.isEntregadorShell.set(this.auth.user()?.perfil === 'ENTREGADOR');
   }
 
   private closeOverlayMenuAfterNav(): void {

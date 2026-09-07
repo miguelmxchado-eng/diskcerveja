@@ -46,7 +46,8 @@ export class LoginComponent {
     this.auth.login(login, senha).subscribe({
       next: (resp) => {
         this.auth.persistSession(resp);
-        void this.router.navigateByUrl('/dashboard');
+        const dest = resp.perfil === 'ENTREGADOR' ? '/entregas' : '/dashboard';
+        void this.router.navigateByUrl(dest);
       },
       error: () => {
         this.loading.set(false);

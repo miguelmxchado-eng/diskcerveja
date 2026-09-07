@@ -2,6 +2,7 @@ package com.diskcerveja.manager.service;
 
 import com.diskcerveja.manager.domain.entity.Entrega;
 import com.diskcerveja.manager.domain.entity.Pedido;
+import com.diskcerveja.manager.domain.enums.FormaPagamento;
 import com.diskcerveja.manager.domain.enums.StatusEntrega;
 import com.diskcerveja.manager.domain.enums.StatusPedido;
 import com.diskcerveja.manager.domain.enums.TipoPedido;
@@ -38,27 +39,22 @@ public class EntregaConsultaService {
 
     private static EntregaResumoResponse toResumo(Pedido p) {
         Entrega e = p.getEntrega();
-        if (e != null) {
-            return new EntregaResumoResponse(
-                    e.getId(),
-                    p.getId(),
-                    p.getClienteNome(),
-                    p.getTelefone(),
-                    p.getEnderecoEntrega(),
-                    e.getTaxaEntrega(),
-                    e.getStatus(),
-                    p.getStatus(),
-                    e.getEntregadorNome());
-        }
+        BigDecimal taxa = e != null && e.getTaxaEntrega() != null ? e.getTaxaEntrega() : BigDecimal.ZERO;
+        StatusEntrega statusEntrega = e != null ? e.getStatus() : StatusEntrega.PENDENTE;
+        String entregadorNome = e != null ? e.getEntregadorNome() : null;
+        Long entregaId = e != null ? e.getId() : null;
         return new EntregaResumoResponse(
-                null,
+                entregaId,
                 p.getId(),
                 p.getClienteNome(),
                 p.getTelefone(),
                 p.getEnderecoEntrega(),
-                BigDecimal.ZERO,
-                StatusEntrega.PENDENTE,
+                taxa,
+                p.getTotal() != null ? p.getTotal() : BigDecimal.ZERO,
+                p.getFormaPagamento() != null ? p.getFormaPagamento() : FormaPagamento.PIX,
+                p.isPagamentoConfirmado(),
+                statusEntrega,
                 p.getStatus(),
-                null);
+                entregadorNome);
     }
 }
