@@ -8,30 +8,29 @@
     </div>
   } @else if (lojaInfo()) {
     <header class="cardapio__hero">
-      <div class="cardapio__hero-inner">
-        <div class="cardapio__brand">
-          <div class="cardapio__logo" aria-hidden="true">EM</div>
-          <div>
-            <h1>{{ lojaInfo()!.nome }}</h1>
-            <p>{{ lojaInfo()!.horario || 'Delivery e retirada' }}</p>
-          </div>
-        </div>
-        <span
-          class="cardapio__status"
-          [class.is-open]="lojaInfo()!.aberta"
-          [class.is-closed]="!lojaInfo()!.aberta"
-        >
-          {{ lojaInfo()!.aberta ? 'Aberto' : 'Fechado' }}
-        </span>
-      </div>
-      @if (lojaInfo()!.info) {
-        <p class="cardapio__info">{{ lojaInfo()!.info }}</p>
-      }
-      <div class="cardapio__meta">
-        <span>Taxa a partir de R$ {{ lojaInfo()!.taxaEntrega | number: '1.2-2' }}</span>
-        <span>Pedido mín. R$ {{ lojaInfo()!.pedidoMinimo | number: '1.2-2' }}</span>
-        @if (whatsappLink(lojaInfo()!); as wa) {
-          <a [href]="wa" target="_blank" rel="noopener">WhatsApp</a>
+      <div class="cardapio__hero-glow" aria-hidden="true"></div>
+      <div class="cardapio__brand">
+        <img
+          class="cardapio__logo"
+          src="assets/brand/emporio-machado-mark-480.png"
+          srcset="assets/brand/emporio-machado-mark-480.png 480w, assets/brand/emporio-machado-mark-720.png 720w"
+          sizes="(max-width: 480px) 200px, 240px"
+          width="240"
+          height="105"
+          alt="{{ lojaInfo()!.nome }}"
+        />
+        <p class="cardapio__horario">
+          {{ lojaInfo()!.horario || 'Delivery e retirada' }}
+          <span
+            class="cardapio__status"
+            [class.is-open]="lojaInfo()!.aberta"
+            [class.is-closed]="!lojaInfo()!.aberta"
+          >
+            {{ lojaInfo()!.aberta ? 'Aberto' : 'Fechado' }}
+          </span>
+        </p>
+        @if (lojaInfo()!.info) {
+          <p class="cardapio__info">{{ lojaInfo()!.info }}</p>
         }
       </div>
     </header>
@@ -63,11 +62,19 @@
       />
     </label>
 
+    <div class="cardapio__meta">
+      <span>Taxa a partir de R$ {{ lojaInfo()!.taxaEntrega | number: '1.2-2' }}</span>
+      <span>Pedido mín. R$ {{ lojaInfo()!.pedidoMinimo | number: '1.2-2' }}</span>
+      @if (whatsappLink(lojaInfo()!); as wa) {
+        <a [href]="wa" target="_blank" rel="noopener">WhatsApp</a>
+      }
+    </div>
+
     <section class="cardapio__section">
       <h2>{{ tituloSecao() }}</h2>
       <div class="cardapio__list">
         @for (item of itensVisiveis(); track item.tipo + '-' + item.id) {
-          <article class="cardapio__card" [class.is-off]="!item.disponivel">
+          <article class="cardapio__card" [class.is-off]="!item.disponivel || !lojaInfo()!.aberta">
             <div class="cardapio__card-body">
               <h3>
                 {{ item.nome }}
@@ -86,7 +93,9 @@
                   <span>un. R$ {{ item.precoUnidade | number: '1.2-2' }}</span>
                 }
               </div>
-              @if (!item.disponivel) {
+              @if (!lojaInfo()!.aberta) {
+                <span class="cardapio__badge">Loja fechada</span>
+              } @else if (!item.disponivel) {
                 <span class="cardapio__badge">Indisponível</span>
               } @else {
                 <div class="cardapio__add">
@@ -128,13 +137,26 @@
 
   @if (painel() !== 'fechado') {
     <div class="cardapio__overlay" (click)="fecharPainel()"></div>
-    <aside class="cardapio__sheet" role="dialog" aria-modal="true">
+    <aside
+      class="cardapio__sheet"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="cardapio-sheet-title"
+    >
       <header class="cardapio__sheet-head">
-        <h2>
+        <h2 id="cardapio-sheet-title" #sheetTitle tabindex="-1">
           @if (painel() === 'carrinho') {
             Seu pedido
           } @else if (painel() === 'checkout') {
-            Finalizar
+            @if (checkoutPasso() === 1) {
+              Seus dados
+            } @else {
+              Endereço de entrega
+            }
+          } @else if (painel() === 'confirmando') {
+            Confirmando pagamento
+          } @else if (painel() === 'aguardando') {
+            Pedido recebido
           } @else {
             Pedido enviado
           }
@@ -144,7 +166,15 @@
         </button>
       </header>
 
-      @if (checkoutErro()) {
+      @if (painel() === 'checkout') {
+        <div class="cardapio__steps" aria-label="Etapas do checkout">
+          <span [class.is-on]="checkoutPasso() === 1">1. Dados</span>
+          <span class="cardapio__steps-sep" aria-hidden="true">→</span>
+          <span [class.is-on]="checkoutPasso() === 2">2. Entrega</span>
+        </div>
+      }
+
+      @if (checkoutErro() && painel() !== 'confirmando' && painel() !== 'aguardando') {
         <p class="cardapio__sheet-erro">{{ checkoutErro() }}</p>
       }
 
@@ -158,9 +188,9 @@
                 <span>R$ {{ l.preco | number: '1.2-2' }}</span>
               </div>
               <div class="cardapio__qty">
-                <button type="button" (click)="alterarQtd(l.key, -1)">−</button>
+                <button type="button" (click)="alterarQtd(l.key, -1)" aria-label="Diminuir">−</button>
                 <span>{{ l.quantidade }}</span>
-                <button type="button" (click)="alterarQtd(l.key, 1)">+</button>
+                <button type="button" (click)="alterarQtd(l.key, 1)" aria-label="Aumentar">+</button>
               </div>
             </div>
           }
@@ -182,7 +212,7 @@
         </div>
       }
 
-      @if (painel() === 'checkout') {
+      @if (painel() === 'checkout' && checkoutPasso() === 1) {
         <div class="cardapio__sheet-body">
           <label class="cardapio__field">
             <span>Seu nome</span>
@@ -200,6 +230,54 @@
               placeholder="(11) 99999-9999"
             />
           </label>
+
+          <div class="cardapio__pay">
+            <span class="cardapio__pay-label">Como quer pagar?</span>
+            <div class="cardapio__pay-opts" role="radiogroup" aria-label="Forma de pagamento">
+              <button
+                type="button"
+                class="cardapio__pay-opt"
+                role="radio"
+                [attr.aria-checked]="formaPagamento === 'PIX'"
+                [class.is-on]="formaPagamento === 'PIX'"
+                (click)="formaPagamento = 'PIX'"
+              >
+                <mat-icon>qr_code_2</mat-icon>
+                <strong>Pix</strong>
+                <small>Aprovado na hora</small>
+              </button>
+              <button
+                type="button"
+                class="cardapio__pay-opt"
+                role="radio"
+                [attr.aria-checked]="formaPagamento === 'CARTAO'"
+                [class.is-on]="formaPagamento === 'CARTAO'"
+                (click)="formaPagamento = 'CARTAO'"
+              >
+                <mat-icon>credit_card</mat-icon>
+                <strong>Cartão</strong>
+                <small>Crédito no site</small>
+              </button>
+            </div>
+            <p class="cardapio__pay-note">
+              Você paga agora no site. Entregadores não levam maquininha.
+            </p>
+          </div>
+          <div class="cardapio__totais">
+            <div class="is-total"><span>Total</span><strong>R$ {{ total() | number: '1.2-2' }}</strong></div>
+          </div>
+        </div>
+        <div class="cardapio__sheet-foot">
+          <button type="button" class="cardapio__cta" (click)="irCheckoutEndereco()">Continuar</button>
+        </div>
+      }
+
+      @if (painel() === 'checkout' && checkoutPasso() === 2) {
+        <div class="cardapio__sheet-body">
+          <button type="button" class="cardapio__back" (click)="voltarCheckoutDados()">← Voltar aos dados</button>
+          <p class="cardapio__pay-resumo">
+            Pagamento: <strong>{{ formaPagamento === 'CARTAO' ? 'Cartão' : 'Pix' }}</strong>
+          </p>
 
           <div class="cardapio__addr">
             <label class="cardapio__field cardapio__field--cep">
@@ -255,38 +333,6 @@
             <input [(ngModel)]="observacao" name="obs" placeholder="Interfone 12, sem gelo…" />
           </label>
 
-          <div class="cardapio__pay">
-            <span class="cardapio__pay-label">Como quer pagar?</span>
-            <div class="cardapio__pay-opts" role="radiogroup" aria-label="Forma de pagamento">
-              <button
-                type="button"
-                class="cardapio__pay-opt"
-                role="radio"
-                [attr.aria-checked]="formaPagamento === 'PIX'"
-                [class.is-on]="formaPagamento === 'PIX'"
-                (click)="formaPagamento = 'PIX'"
-              >
-                <mat-icon>qr_code_2</mat-icon>
-                <strong>Pix</strong>
-                <small>Aprovado na hora</small>
-              </button>
-              <button
-                type="button"
-                class="cardapio__pay-opt"
-                role="radio"
-                [attr.aria-checked]="formaPagamento === 'CARTAO'"
-                [class.is-on]="formaPagamento === 'CARTAO'"
-                (click)="formaPagamento = 'CARTAO'"
-              >
-                <mat-icon>credit_card</mat-icon>
-                <strong>Cartão</strong>
-                <small>Crédito no site</small>
-              </button>
-            </div>
-            <p class="cardapio__pay-note">
-              Você paga agora no site. Entregadores não levam maquininha.
-            </p>
-          </div>
           <div class="cardapio__totais">
             <div class="is-total"><span>Total</span><strong>R$ {{ total() | number: '1.2-2' }}</strong></div>
           </div>
@@ -304,6 +350,38 @@
           @if (!pagamentoOnline()) {
             <p class="cardapio__pay-warn">Pagamento online indisponível no momento.</p>
           }
+        </div>
+      }
+
+      @if (painel() === 'confirmando') {
+        <div class="cardapio__sheet-body cardapio__confirmando">
+          <div class="cardapio__confirmando-spin" aria-hidden="true"></div>
+          <p>{{ checkoutErro() || 'Confirmando seu pagamento…' }}</p>
+          <p class="cardapio__sucesso-hint">Isso pode levar alguns segundos.</p>
+        </div>
+      }
+
+      @if (painel() === 'aguardando' && pedidoAguardando(); as ag) {
+        <div class="cardapio__sheet-body cardapio__aguardando">
+          <div class="cardapio__aguardando-mark" aria-hidden="true"></div>
+          @if (ag.id > 0) {
+            <p class="cardapio__aguardando-id">Pedido #{{ ag.id }}</p>
+          }
+          <p>{{ ag.mensagem }}</p>
+          @if (ag.total != null && ag.total > 0) {
+            <p class="cardapio__sucesso-total">Total R$ {{ ag.total | number: '1.2-2' }}</p>
+          }
+          <p class="cardapio__sucesso-hint">Não é necessário pagar de novo. Se precisar, fale no WhatsApp.</p>
+        </div>
+        <div class="cardapio__sheet-foot">
+          @if (lojaInfo(); as loja) {
+            @if (whatsappLink(loja); as wa) {
+              <a class="cardapio__cta cardapio__cta--link" [href]="wa" target="_blank" rel="noopener">Abrir WhatsApp</a>
+            }
+          }
+          <button type="button" class="cardapio__cta cardapio__cta--ghost" (click)="fecharPainel()">
+            Voltar ao cardápio
+          </button>
         </div>
       }
 

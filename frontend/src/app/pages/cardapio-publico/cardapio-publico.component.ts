@@ -1,4 +1,13 @@
-import { Component, OnInit, computed, signal } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  HostListener,
+  OnInit,
+  ViewChild,
+  computed,
+  effect,
+  signal,
+} from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { DecimalPipe } from '@angular/common';
@@ -38,7 +47,13 @@ interface ViaCepResponse {
   uf?: string;
 }
 
-type Painel = 'fechado' | 'carrinho' | 'checkout' | 'sucesso';
+type Painel = 'fechado' | 'carrinho' | 'checkout' | 'confirmando' | 'aguardando' | 'sucesso';
+
+interface PedidoAguardando {
+  id: number;
+  mensagem: string;
+  total?: number;
+}
 
 @Component({
   selector: 'app-cardapio-publico',
@@ -48,6 +63,8 @@ type Painel = 'fechado' | 'carrinho' | 'checkout' | 'sucesso';
   styleUrl: './cardapio-publico.component.scss',
 })
 export class CardapioPublicoComponent implements OnInit {
+  @ViewChild('sheetTitle') sheetTitle?: ElementRef<HTMLHeadingElement>;
+
   readonly loading = signal(true);
   readonly erro = signal<string | null>(null);
   readonly data = signal<CatalogoPublico | null>(null);
@@ -55,10 +72,12 @@ export class CardapioPublicoComponent implements OnInit {
   readonly busca = signal('');
   readonly carrinho = signal<CartLine[]>([]);
   readonly painel = signal<Painel>('fechado');
+  readonly checkoutPasso = signal<1 | 2>(1);
   readonly enviando = signal(false);
   readonly buscandoCep = signal(false);
   readonly checkoutErro = signal<string | null>(null);
   readonly pedidoOk = signal<PedidoPublicoOk | null>(null);
+  readonly pedidoAguardando = signal<PedidoAguardando | null>(null);
 
   clienteNome = '';
   telefone = '';
@@ -124,7 +143,31 @@ export class CardapioPublicoComponent implements OnInit {
   constructor(
     private readonly http: HttpClient,
     private readonly route: ActivatedRoute,
-  ) {}
+  ) {
+    effect(() => {
+      const p = this.painel();
+      if (p === 'fechado') return;
+      queueMicrotask(() => this.sheetTitle?.nativeElement?.focus());
+    });
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.painel() !== 'fechado' && this.painel() !== 'confirmando') {
+      this.fecharPainel();
+    }
+  }
+
+  private abrirAguardando(id: number | string, mensagem: string, total?: number): void {
+    this.pedidoAguardando.set({
+      id: Number(id),
+      mensagem,
+      total,
+    });
+    this.carrinho.set([]);
+    this.checkoutErro.set(null);
+    this.painel.set('aguardando');
+  }
 
   ngOnInit(): void {
     this.carregar();
@@ -135,12 +178,16 @@ export class CardapioPublicoComponent implements OnInit {
       const slug = params.get('slug');
       const captureMethod = params.get('capture_method');
       if (!id) {
-        this.checkoutErro.set('Pagamento retornou sem número do pedido.');
-        this.painel.set('checkout');
+        this.abrirAguardando(
+          0,
+          'Pagamento retornou sem número do pedido. Se já pagou, fale conosco no WhatsApp com o comprovante.',
+        );
         return;
       }
       // InfinitePay anexa transaction_nsu + slug; confirmamos no servidor.
       if (transactionNsu && slug) {
+        this.painel.set('confirmando');
+        this.checkoutErro.set(`Pedido #${id} registrado. Confirmando pagamento…`);
         this.http
           .post<PedidoPublicoOk>(`${environment.apiUrl}/api/publico/pedidos/${id}/confirmar-pagamento`, {
             transactionNsu,
@@ -151,15 +198,17 @@ export class CardapioPublicoComponent implements OnInit {
             next: (res) => {
               this.pedidoOk.set(res);
               this.carrinho.set([]);
+              this.checkoutErro.set(null);
+              this.pedidoAguardando.set(null);
               this.painel.set('sucesso');
             },
-            // Confirmação falhou: não mostrar “sucesso” como se tivesse pago.
+            // Confirmação falhou: pedido já existe — não reabrir checkout de pagar.
             error: (err: HttpErrorResponse) => {
-              this.checkoutErro.set(
+              this.abrirAguardando(
+                id,
                 err.error?.erro ||
-                  'Não confirmamos o pagamento ainda. Se já pagou, aguarde e atualize a página.',
+                  `Pedido #${id} recebido. Estamos confirmando o pagamento — não pague de novo.`,
               );
-              this.painel.set('checkout');
             },
           });
         return;
@@ -171,7 +220,7 @@ export class CardapioPublicoComponent implements OnInit {
 
   private aguardarConfirmacaoPagamento(id: number): void {
     this.checkoutErro.set(`Pedido #${id} registrado. Confirmando pagamento…`);
-    this.painel.set('checkout');
+    this.painel.set('confirmando');
     let tentativas = 0;
     const max = 20;
     const tick = () => {
@@ -188,7 +237,11 @@ export class CardapioPublicoComponent implements OnInit {
         .subscribe({
           next: (s) => {
             if (s.cancelado) {
-              this.checkoutErro.set('Este pedido foi cancelado. Faça um novo pedido.');
+              this.abrirAguardando(
+                id,
+                'Este pedido foi cancelado. Se precisar, faça um novo pedido pelo cardápio.',
+                Number(s.total),
+              );
               return;
             }
             if (s.pagamentoConfirmado) {
@@ -201,21 +254,26 @@ export class CardapioPublicoComponent implements OnInit {
               });
               this.carrinho.set([]);
               this.checkoutErro.set(null);
+              this.pedidoAguardando.set(null);
               this.painel.set('sucesso');
               return;
             }
             tentativas += 1;
             if (tentativas >= max) {
-              this.checkoutErro.set(
-                `Pedido #${id} ainda aguarda confirmação. Se já pagou, em breve a entrega recebe automaticamente.`,
+              this.abrirAguardando(
+                id,
+                `Pedido #${id} recebido. O pagamento ainda está sendo confirmado — não pague de novo. Em breve a entrega recebe automaticamente.`,
+                Number(s.total),
               );
               return;
             }
+            this.checkoutErro.set(`Pedido #${id} registrado. Confirmando pagamento…`);
             setTimeout(tick, 2000);
           },
           error: () => {
-            this.checkoutErro.set(
-              `Pedido #${id} registrado. Se já pagou, aguarde — a confirmação chega em breve.`,
+            this.abrirAguardando(
+              id,
+              `Pedido #${id} registrado. Se já pagou, aguarde — a confirmação chega em breve. Não pague de novo.`,
             );
           },
         });
@@ -327,8 +385,6 @@ export class CardapioPublicoComponent implements OnInit {
   adicionar(item: CatalogoItemPublico, vendaUnidade = false): void {
     if (!item.disponivel) return;
     if (!this.lojaInfo()?.aberta) {
-      this.checkoutErro.set('A loja está fechada no momento.');
-      this.painel.set('carrinho');
       return;
     }
     const key = `${item.tipo}-${item.id}${vendaUnidade ? '-u' : ''}`;
@@ -380,15 +436,41 @@ export class CardapioPublicoComponent implements OnInit {
       return;
     }
     this.checkoutErro.set(null);
+    this.checkoutPasso.set(1);
     this.painel.set('checkout');
   }
 
+  irCheckoutEndereco(): void {
+    const nome = this.clienteNome.trim();
+    const telefone = this.telefone.trim();
+    if (!nome) {
+      this.checkoutErro.set('Informe seu nome.');
+      return;
+    }
+    if (telefone.replace(/\D/g, '').length < 10) {
+      this.checkoutErro.set('Informe um telefone com DDD.');
+      return;
+    }
+    this.checkoutErro.set(null);
+    this.checkoutPasso.set(2);
+  }
+
+  voltarCheckoutDados(): void {
+    this.checkoutErro.set(null);
+    this.checkoutPasso.set(1);
+  }
+
   fecharPainel(): void {
-    if (this.painel() === 'sucesso') {
+    if (this.painel() === 'confirmando') {
+      return;
+    }
+    if (this.painel() === 'sucesso' || this.painel() === 'aguardando') {
       this.pedidoOk.set(null);
+      this.pedidoAguardando.set(null);
       this.carrinho.set([]);
     }
     this.painel.set('fechado');
+    this.checkoutPasso.set(1);
     this.checkoutErro.set(null);
   }
 
@@ -399,10 +481,12 @@ export class CardapioPublicoComponent implements OnInit {
     const endereco = this.montarEndereco();
     if (!nome) {
       this.checkoutErro.set('Informe seu nome.');
+      this.checkoutPasso.set(1);
       return;
     }
     if (telefone.replace(/\D/g, '').length < 10) {
       this.checkoutErro.set('Informe um telefone com DDD.');
+      this.checkoutPasso.set(1);
       return;
     }
     if (this.cep.replace(/\D/g, '').length !== 8) {
@@ -459,9 +543,11 @@ export class CardapioPublicoComponent implements OnInit {
           this.enviando.set(false);
           const msg =
             err.error?.erro ||
-            (err.status === 409
-              ? 'Não foi possível registrar o pedido agora.'
-              : 'Falha ao enviar. Tente de novo.');
+            (err.status === 429
+              ? 'Muitas tentativas. Aguarde um minuto e tente de novo.'
+              : err.status === 409
+                ? 'Não foi possível registrar o pedido agora.'
+                : 'Falha ao enviar. Tente de novo.');
           this.checkoutErro.set(msg);
         },
       });

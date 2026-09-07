@@ -7,9 +7,7 @@ import com.diskcerveja.manager.dto.InfinitePayWebhookRequest;
 import com.diskcerveja.manager.dto.PedidoPublicoRequest;
 import com.diskcerveja.manager.dto.PedidoPublicoResponse;
 import com.diskcerveja.manager.service.CatalogoPublicoService;
-import com.diskcerveja.manager.service.ConfigSistemaService;
 import com.diskcerveja.manager.service.PedidoPublicoService;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -29,15 +27,11 @@ public class PublicoController {
 
     private final CatalogoPublicoService catalogoPublicoService;
     private final PedidoPublicoService pedidoPublicoService;
-    private final ConfigSistemaService configSistemaService;
 
     public PublicoController(
-            CatalogoPublicoService catalogoPublicoService,
-            PedidoPublicoService pedidoPublicoService,
-            ConfigSistemaService configSistemaService) {
+            CatalogoPublicoService catalogoPublicoService, PedidoPublicoService pedidoPublicoService) {
         this.catalogoPublicoService = catalogoPublicoService;
         this.pedidoPublicoService = pedidoPublicoService;
-        this.configSistemaService = configSistemaService;
     }
 
     @GetMapping("/loja")
@@ -52,9 +46,9 @@ public class PublicoController {
 
     @PostMapping("/pedidos")
     @ResponseStatus(HttpStatus.CREATED)
-    public PedidoPublicoResponse criarPedido(
-            @RequestBody @Valid PedidoPublicoRequest req, HttpServletRequest http) {
-        return pedidoPublicoService.criar(req, resolverBaseUrl(http));
+    public PedidoPublicoResponse criarPedido(@RequestBody @Valid PedidoPublicoRequest req) {
+        // Base URL só da config (não confiar em Host/X-Forwarded-* do cliente).
+        return pedidoPublicoService.criar(req);
     }
 
     @PostMapping("/infinitepay/webhook")
@@ -81,27 +75,5 @@ public class PublicoController {
     @GetMapping("/pedidos/{id}/status-pagamento")
     public Map<String, Object> statusPagamento(@PathVariable Long id) {
         return pedidoPublicoService.statusPagamentoPublico(id);
-    }
-
-    private String resolverBaseUrl(HttpServletRequest http) {
-        String configured = configSistemaService.getPublicBaseUrl();
-        if (!configured.isBlank()) {
-            return configured;
-        }
-        String proto = headerOr(http, "X-Forwarded-Proto", http.getScheme());
-        String host = headerOr(http, "X-Forwarded-Host", null);
-        if (host == null || host.isBlank()) {
-            host = http.getServerName();
-            int port = http.getServerPort();
-            if (port != 80 && port != 443) {
-                host = host + ":" + port;
-            }
-        }
-        return proto + "://" + host;
-    }
-
-    private static String headerOr(HttpServletRequest http, String name, String fallback) {
-        String v = http.getHeader(name);
-        return v != null && !v.isBlank() ? v : fallback;
     }
 }

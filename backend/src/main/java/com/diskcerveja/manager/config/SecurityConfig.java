@@ -1,6 +1,7 @@
 package com.diskcerveja.manager.config;
 
 import com.diskcerveja.manager.security.JwtAuthenticationFilter;
+import com.diskcerveja.manager.security.PublicoRateLimitFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
@@ -23,9 +24,12 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final PublicoRateLimitFilter publicoRateLimitFilter;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthenticationFilter, PublicoRateLimitFilter publicoRateLimitFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.publicoRateLimitFilter = publicoRateLimitFilter;
     }
 
     @Bean
@@ -70,6 +74,7 @@ public class SecurityConfig {
                     // Rotas de navegação SPA (F5) — públicas
                     .anyRequest().permitAll()
                 )
+                .addFilterBefore(publicoRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

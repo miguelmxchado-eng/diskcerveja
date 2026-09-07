@@ -67,7 +67,7 @@ public class PedidoPublicoService {
      * Cria o pedido (commit) e só então chama a InfinitePay — evita segurar a
      * transação do banco durante a HTTP externa.
      */
-    public PedidoPublicoResponse criar(PedidoPublicoRequest req, String publicBaseUrl) {
+    public PedidoPublicoResponse criar(PedidoPublicoRequest req) {
         Pedido salvo = transactionTemplate.execute(status -> persistirPedido(req));
         if (salvo == null) {
             throw new IllegalStateException("Não foi possível criar o pedido.");
@@ -84,7 +84,7 @@ public class PedidoPublicoService {
             throw new IllegalStateException("Pedido não encontrado após criar.");
         }
 
-        String base = resolverBaseUrl(publicBaseUrl);
+        String base = resolverBaseUrl();
         String checkoutUrl;
         try {
             checkoutUrl = infinitePayService.criarLinkCheckout(
@@ -212,16 +212,16 @@ public class PedidoPublicoService {
         }
 
         // Confirma na InfinitePay antes de marcar pago (webhook não tem assinatura).
-        boolean pagoNaInfinite = infinitePayService.verificarPagamento(
+        var check = infinitePayService.verificarPagamento(
                 body.order_nsu().trim(), body.transaction_nsu().trim(), body.invoice_slug().trim());
-        if (!pagoNaInfinite) {
+        if (!check.paid()) {
             throw new IllegalArgumentException("Pagamento não confirmado na InfinitePay.");
         }
 
-        transactionTemplate.executeWithoutResult(status -> confirmarPagamentoWebhookTx(body));
+        transactionTemplate.executeWithoutResult(status -> confirmarPagamentoWebhookTx(body, check.amountCents()));
     }
 
-    private void confirmarPagamentoWebhookTx(InfinitePayWebhookRequest body) {
+    private void confirmarPagamentoWebhookTx(InfinitePayWebhookRequest body, Integer amountFromCheck) {
         Long id;
         try {
             id = Long.valueOf(body.order_nsu().trim());
@@ -233,6 +233,10 @@ public class PedidoPublicoService {
             log.warn("Webhook InfinitePay para pedido inexistente: {}", body.order_nsu());
             return;
         }
+        if (p.getUsuario() != null) {
+            log.warn("Webhook InfinitePay ignorado para pedido interno #{}", id);
+            return;
+        }
         if (p.getStatus() == StatusPedido.CANCELADO) {
             log.warn("Webhook InfinitePay para pedido cancelado #{}", id);
             return;
@@ -240,16 +244,8 @@ public class PedidoPublicoService {
         if (p.isPagamentoConfirmado()) {
             return;
         }
-        int esperado = toCents(p.getTotal());
-        Integer informado = body.paid_amount() != null ? body.paid_amount() : body.amount();
-        if (informado != null && informado < esperado) {
-            log.error(
-                    "Webhook InfinitePay com valor menor que o pedido #{}: informado={} esperado={}",
-                    id,
-                    informado,
-                    esperado);
-            throw new IllegalArgumentException("Valor pago inferior ao pedido.");
-        }
+        // Só confia no valor do payment_check — o body do webhook não é autenticado.
+        garantirValorPago(p, amountFromCheck);
         marcarPago(p, body.transaction_nsu(), body.capture_method());
     }
 
@@ -298,9 +294,7 @@ public class PedidoPublicoService {
         }
 
         PedidoPublicoResponse jaPago = transactionTemplate.execute(status -> {
-            Pedido p = pedidoRepository
-                    .findById(pedidoId)
-                    .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado."));
+            Pedido p = exigirPedidoPublico(pedidoId);
             if (p.getStatus() == StatusPedido.CANCELADO) {
                 throw new IllegalStateException("Este pedido foi cancelado.");
             }
@@ -313,21 +307,50 @@ public class PedidoPublicoService {
             return jaPago;
         }
 
-        boolean ok = infinitePayService.verificarPagamento(String.valueOf(pedidoId), tx, slug);
-        if (!ok) {
+        var check = infinitePayService.verificarPagamento(String.valueOf(pedidoId), tx, slug);
+        if (!check.paid()) {
             throw new IllegalStateException(
                     "Pagamento ainda não confirmado. Se já pagou, aguarde alguns segundos.");
         }
 
         return transactionTemplate.execute(status -> {
-            Pedido p = pedidoRepository
-                    .findById(pedidoId)
-                    .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado."));
+            Pedido p = exigirPedidoPublico(pedidoId);
             if (!p.isPagamentoConfirmado()) {
+                garantirValorPago(p, check.amountCents());
                 marcarPago(p, tx, capture);
             }
             return toPublicoOk(p, "Pagamento do pedido #" + p.getId() + " confirmado! Em breve saímos para entrega.");
         });
+    }
+
+    private Pedido exigirPedidoPublico(Long pedidoId) {
+        Pedido p = pedidoRepository
+                .findById(pedidoId)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado."));
+        if (p.getUsuario() != null) {
+            throw new IllegalArgumentException("Pedido não encontrado.");
+        }
+        return p;
+    }
+
+    /**
+     * Exige valor pago (centavos) vindo do payment_check da InfinitePay ≥ total do pedido.
+     * Sem valor autenticado → rejeita (evita subpagamento e body de webhook forjado).
+     */
+    private void garantirValorPago(Pedido p, Integer amountFromCheck) {
+        int esperado = toCents(p.getTotal());
+        if (amountFromCheck == null) {
+            log.error("Pagamento sem valor no payment_check para pedido #{} (esperado={} centavos)", p.getId(), esperado);
+            throw new IllegalArgumentException("Pagamento sem valor confirmado. Aguarde e tente de novo.");
+        }
+        if (amountFromCheck < esperado) {
+            log.error(
+                    "Pagamento com valor menor que o pedido #{}: informado={} esperado={}",
+                    p.getId(),
+                    amountFromCheck,
+                    esperado);
+            throw new IllegalArgumentException("Valor pago inferior ao pedido.");
+        }
     }
 
     private void marcarPago(Pedido p, String transactionNsu, String captureMethod) {
@@ -371,28 +394,48 @@ public class PedidoPublicoService {
                 true);
     }
 
-    private String resolverBaseUrl(String fromRequest) {
+    private String resolverBaseUrl() {
         String configured = configSistemaService.getPublicBaseUrl();
-        if (!configured.isBlank()) {
-            return configured;
+        if (configured != null && !configured.isBlank()) {
+            return configured.replaceAll("/$", "");
         }
-        if (fromRequest != null && !fromRequest.isBlank()) {
-            return fromRequest.replaceAll("/$", "");
-        }
-        return "https://15.204.123.70";
+        // Não confiar em X-Forwarded-* / Host do cliente: risco de sequestro de redirect/webhook.
+        throw new IllegalStateException(
+                "URL pública da loja não configurada. Defina em Configurações (loja.public_base_url).");
     }
 
+    /**
+     * Vincula pedido a cliente pelo telefone sem sobrescrever PII de cadastro existente.
+     */
     private Long upsertCliente(String nome, String telefone, String endereco, String observacao) {
         String digits = soDigitos(telefone);
-        Cliente c = clienteRepository.findAtivoByTelefoneDigits(digits).orElseGet(Cliente::new);
-        c.setNome(nome);
-        c.setTelefone(telefone);
-        c.setEndereco(endereco);
-        if (observacao != null && !observacao.isBlank()) {
-            c.setObservacao(observacao.trim());
-        }
-        c.setAtivo(true);
-        return clienteRepository.save(c).getId();
+        return clienteRepository
+                .findAtivoByTelefoneDigits(digits)
+                .map(c -> {
+                    // Só preenche endereço/obs se o cadastro estiver vazio — não sobrescreve.
+                    if ((c.getEndereco() == null || c.getEndereco().isBlank())
+                            && endereco != null
+                            && !endereco.isBlank()) {
+                        c.setEndereco(endereco);
+                    }
+                    if ((c.getObservacao() == null || c.getObservacao().isBlank())
+                            && observacao != null
+                            && !observacao.isBlank()) {
+                        c.setObservacao(observacao.trim());
+                    }
+                    return clienteRepository.save(c).getId();
+                })
+                .orElseGet(() -> {
+                    Cliente c = new Cliente();
+                    c.setNome(nome);
+                    c.setTelefone(telefone);
+                    c.setEndereco(endereco);
+                    if (observacao != null && !observacao.isBlank()) {
+                        c.setObservacao(observacao.trim());
+                    }
+                    c.setAtivo(true);
+                    return clienteRepository.save(c).getId();
+                });
     }
 
     private static void garantirEstoqueProduto(Produto p, int quantidade, boolean unidade) {

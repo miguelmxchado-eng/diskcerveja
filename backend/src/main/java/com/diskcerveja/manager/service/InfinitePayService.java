@@ -135,17 +135,20 @@ public class InfinitePayService {
         }
     }
 
+    /** Resultado do payment_check — valor em centavos quando a InfinitePay informa. */
+    public record PaymentCheckResult(boolean paid, Integer amountCents) {}
+
     /**
      * Confirma pagamento no retorno do redirect (quando o webhook ainda não chegou).
-     * Retorna true se a InfinitePay confirmar paid=true.
+     * Inclui o valor pago (centavos) quando disponível na resposta.
      */
-    public boolean verificarPagamento(String orderNsu, String transactionNsu, String slug) {
+    public PaymentCheckResult verificarPagamento(String orderNsu, String transactionNsu, String slug) {
         String handle = configSistemaService.getInfinitepayHandle();
         if (handle.isBlank() || orderNsu == null || transactionNsu == null || slug == null) {
-            return false;
+            return new PaymentCheckResult(false, null);
         }
         if (orderNsu.isBlank() || transactionNsu.isBlank() || slug.isBlank()) {
-            return false;
+            return new PaymentCheckResult(false, null);
         }
         try {
             Map<String, Object> body = new LinkedHashMap<>();
@@ -163,14 +166,33 @@ public class InfinitePayService {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 log.warn("InfinitePay payment_check falhou ({}): {}", response.statusCode(), response.body());
-                return false;
+                return new PaymentCheckResult(false, null);
             }
             JsonNode parsed = objectMapper.readTree(response.body());
-            return parsed.path("paid").asBoolean(false);
+            boolean paid = parsed.path("paid").asBoolean(false);
+            Integer amount = firstInt(parsed, "paid_amount", "amount");
+            return new PaymentCheckResult(paid, amount);
         } catch (Exception e) {
             log.warn("Falha ao consultar payment_check", e);
-            return false;
+            return new PaymentCheckResult(false, null);
         }
+    }
+
+    private static Integer firstInt(JsonNode node, String... fields) {
+        for (String f : fields) {
+            JsonNode v = node.get(f);
+            if (v != null && v.isNumber()) {
+                return v.asInt();
+            }
+            if (v != null && v.isTextual()) {
+                try {
+                    return Integer.parseInt(v.asText().trim());
+                } catch (NumberFormatException ignored) {
+                    // tenta próximo campo
+                }
+            }
+        }
+        return null;
     }
 
     private String mensagemErroLink(String body) {

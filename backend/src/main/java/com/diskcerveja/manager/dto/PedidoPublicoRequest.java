@@ -6,14 +6,15 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record PedidoPublicoRequest(
-        @NotBlank String clienteNome,
-        @NotBlank String telefone,
-        @NotBlank String enderecoEntrega,
+        @NotBlank @Size(max = 120) String clienteNome,
+        @NotBlank @Size(max = 32) String telefone,
+        @NotBlank @Size(max = 400) String enderecoEntrega,
         @NotNull FormaPagamento formaPagamento,
-        String observacao,
+        @Size(max = 240) String observacao,
         @NotEmpty @Valid List<Item> itens) {
 
     public record Item(
