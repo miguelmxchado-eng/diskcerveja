@@ -32,6 +32,17 @@
         @if (lojaInfo()!.info) {
           <p class="cardapio__info">{{ lojaInfo()!.info }}</p>
         }
+        <div class="cardapio__conta-bar">
+          @if (clienteLogado()) {
+            <span class="cardapio__conta-ola">Olá, {{ clienteNomeCurto() }}</span>
+            <button type="button" class="cardapio__conta-link" (click)="sairConta()">Sair</button>
+          } @else {
+            <button type="button" class="cardapio__conta-btn" (click)="abrirContaLogin()">Entrar</button>
+            <button type="button" class="cardapio__conta-btn is-primary" (click)="abrirContaRegistrar()">
+              Criar conta
+            </button>
+          }
+        </div>
       </div>
     </header>
 
@@ -150,6 +161,8 @@
           } @else if (painel() === 'checkout') {
             @if (checkoutPasso() === 1) {
               Seus dados
+            } @else if (modoEntrega() === 'RETIRADA') {
+              Retirada na loja
             } @else {
               Endereço de entrega
             }
@@ -157,6 +170,10 @@
             Confirmando pagamento
           } @else if (painel() === 'aguardando') {
             Pedido recebido
+          } @else if (painel() === 'conta-login') {
+            Entrar na conta
+          } @else if (painel() === 'conta-registrar') {
+            Criar conta
           } @else {
             Pedido enviado
           }
@@ -170,7 +187,9 @@
         <div class="cardapio__steps" aria-label="Etapas do checkout">
           <span [class.is-on]="checkoutPasso() === 1">1. Dados</span>
           <span class="cardapio__steps-sep" aria-hidden="true">→</span>
-          <span [class.is-on]="checkoutPasso() === 2">2. Entrega</span>
+          <span [class.is-on]="checkoutPasso() === 2">
+            {{ modoEntrega() === 'RETIRADA' ? '2. Retirada' : '2. Entrega' }}
+          </span>
         </div>
       }
 
@@ -199,7 +218,9 @@
             <div>
               <span>Taxa de entrega</span>
               <strong>
-                @if (freteConfirmado()) {
+                @if (modoEntrega() === 'RETIRADA') {
+                  Grátis (retirada)
+                } @else if (freteConfirmado()) {
                   R$ {{ taxa() | number: '1.2-2' }}
                 } @else {
                   a partir de R$ {{ taxaMinima() | number: '1.2-2' }}
@@ -249,14 +270,62 @@
             />
           </label>
 
+          <div class="cardapio__pay">
+            <span class="cardapio__pay-label">Como quer receber?</span>
+            <div class="cardapio__pay-opts" role="radiogroup" aria-label="Entrega ou retirada">
+              <button
+                type="button"
+                class="cardapio__pay-opt"
+                role="radio"
+                [attr.aria-checked]="modoEntrega() === 'ENTREGA'"
+                [class.is-on]="modoEntrega() === 'ENTREGA'"
+                (click)="modoEntrega.set('ENTREGA')"
+              >
+                <mat-icon>delivery_dining</mat-icon>
+                <strong>Entrega</strong>
+                <small>Leva até você</small>
+              </button>
+              <button
+                type="button"
+                class="cardapio__pay-opt"
+                role="radio"
+                [attr.aria-checked]="modoEntrega() === 'RETIRADA'"
+                [class.is-on]="modoEntrega() === 'RETIRADA'"
+                (click)="modoEntrega.set('RETIRADA')"
+              >
+                <mat-icon>storefront</mat-icon>
+                <strong>Retirar</strong>
+                <small>Sem taxa de frete</small>
+              </button>
+            </div>
+          </div>
+
           <p class="cardapio__pay-note">
-            No próximo passo você escolhe Pix ou cartão. Entregadores não levam maquininha.
+            @if (modoEntrega() === 'RETIRADA') {
+              Pague no site e retire na loja. Avisamos no WhatsApp quando estiver pronto.
+            } @else {
+              No próximo passo informe o endereço. Pix ou cartão na hora do pagamento.
+            }
           </p>
+          @if (!clienteLogado()) {
+            <p class="cardapio__conta-hint">
+              Quer lembrar seus dados?
+              <button type="button" class="cardapio__conta-link" (click)="abrirContaRegistrar()">Criar conta</button>
+              ou
+              <button type="button" class="cardapio__conta-link" (click)="abrirContaLogin()">entrar</button>
+            </p>
+          }
           <div class="cardapio__totais">
             <div><span>Itens</span><strong>R$ {{ subtotal() | number: '1.2-2' }}</strong></div>
             <div class="is-total">
               <span>Total</span>
-              <strong>R$ {{ subtotal() | number: '1.2-2' }} + frete</strong>
+              <strong>
+                @if (modoEntrega() === 'RETIRADA') {
+                  R$ {{ total() | number: '1.2-2' }}
+                } @else {
+                  R$ {{ subtotal() | number: '1.2-2' }} + frete
+                }
+              </strong>
             </div>
           </div>
         </div>
@@ -269,100 +338,121 @@
         <div class="cardapio__sheet-body">
           <button type="button" class="cardapio__back" (click)="voltarCheckoutDados()">← Voltar aos dados</button>
 
-          <div class="cardapio__addr">
-            <label class="cardapio__field cardapio__field--cep">
-              <span>CEP</span>
+          @if (modoEntrega() === 'RETIRADA') {
+            <p class="cardapio__pay-note">
+              Retire o pedido na loja após o pagamento. Sem taxa de entrega.
+            </p>
+            <label class="cardapio__field">
+              <span>Observação do pedido (opcional)</span>
+              <input [(ngModel)]="observacao" name="obs" placeholder="Sem gelo, avisar na portaria…" />
+            </label>
+            <div class="cardapio__totais">
+              <div><span>Taxa de entrega</span><strong>Grátis</strong></div>
+              <div class="is-total">
+                <span>Total</span>
+                <strong>R$ {{ total() | number: '1.2-2' }}</strong>
+              </div>
+            </div>
+          } @else {
+            <div class="cardapio__addr">
+              <label class="cardapio__field cardapio__field--cep">
+                <span>CEP</span>
+                <input
+                  [ngModel]="cep"
+                  (ngModelChange)="onCepInput($event)"
+                  name="cep"
+                  inputmode="numeric"
+                  maxlength="9"
+                  placeholder="00000-000"
+                  autocomplete="postal-code"
+                />
+                @if (buscandoCep()) {
+                  <small class="cardapio__hint">Buscando endereço…</small>
+                }
+              </label>
+              <label class="cardapio__field cardapio__field--num">
+                <span>Número</span>
+                <input [(ngModel)]="numero" name="numero" placeholder="123" autocomplete="address-line2" />
+              </label>
+            </div>
+            <label class="cardapio__field">
+              <span>Rua</span>
               <input
-                [ngModel]="cep"
-                (ngModelChange)="onCepInput($event)"
-                name="cep"
-                inputmode="numeric"
-                maxlength="9"
-                placeholder="00000-000"
-                autocomplete="postal-code"
-              />
-              @if (buscandoCep()) {
-                <small class="cardapio__hint">Buscando endereço…</small>
-              }
-            </label>
-            <label class="cardapio__field cardapio__field--num">
-              <span>Número</span>
-              <input [(ngModel)]="numero" name="numero" placeholder="123" autocomplete="address-line2" />
-            </label>
-          </div>
-          <label class="cardapio__field">
-            <span>Rua</span>
-            <input
-              [(ngModel)]="logradouro"
-              name="rua"
-              placeholder="Preenchido pelo CEP"
-              autocomplete="address-line1"
-            />
-          </label>
-          <label class="cardapio__field">
-            <span>Complemento (opcional)</span>
-            <input [(ngModel)]="complemento" name="comp" placeholder="Apto, bloco, referência" />
-          </label>
-          <div class="cardapio__addr">
-            <label class="cardapio__field cardapio__field--grow">
-              <span>Bairro</span>
-              <input
-                [(ngModel)]="bairro"
-                (ngModelChange)="onBairroChange($event)"
-                name="bairro"
-                autocomplete="address-level3"
+                [(ngModel)]="logradouro"
+                name="rua"
+                placeholder="Preenchido pelo CEP"
+                autocomplete="address-line1"
               />
             </label>
-            <label class="cardapio__field cardapio__field--grow">
-              <span>Cidade</span>
-              <input [(ngModel)]="cidade" name="cidade" autocomplete="address-level2" />
+            <label class="cardapio__field">
+              <span>Complemento (opcional)</span>
+              <input [(ngModel)]="complemento" name="comp" placeholder="Apto, bloco, referência" />
             </label>
-            <label class="cardapio__field cardapio__field--uf">
-              <span>UF</span>
-              <input [(ngModel)]="uf" name="uf" maxlength="2" autocomplete="address-level1" />
+            <div class="cardapio__addr">
+              <label class="cardapio__field cardapio__field--grow">
+                <span>Bairro</span>
+                <input
+                  [(ngModel)]="bairro"
+                  (ngModelChange)="onBairroChange($event)"
+                  name="bairro"
+                  autocomplete="address-level3"
+                />
+              </label>
+              <label class="cardapio__field cardapio__field--grow">
+                <span>Cidade</span>
+                <input [(ngModel)]="cidade" name="cidade" autocomplete="address-level2" />
+              </label>
+              <label class="cardapio__field cardapio__field--uf">
+                <span>UF</span>
+                <input [(ngModel)]="uf" name="uf" maxlength="2" autocomplete="address-level1" />
+              </label>
+            </div>
+
+            <label class="cardapio__field">
+              <span>Observação do pedido (opcional)</span>
+              <input [(ngModel)]="observacao" name="obs" placeholder="Interfone 12, sem gelo…" />
             </label>
-          </div>
 
-          <label class="cardapio__field">
-            <span>Observação do pedido (opcional)</span>
-            <input [(ngModel)]="observacao" name="obs" placeholder="Interfone 12, sem gelo…" />
-          </label>
-
-          <div class="cardapio__totais">
-            <div>
-              <span>Taxa de entrega</span>
-              <strong>
-                @if (cotandoFrete()) {
-                  …
-                } @else if (frete()?.coberta) {
-                  R$ {{ taxa() | number: '1.2-2' }}
-                  @if (frete()?.zona) {
-                    <small> ({{ frete()!.zona }})</small>
+            <div class="cardapio__totais">
+              <div>
+                <span>Taxa de entrega</span>
+                <strong>
+                  @if (cotandoFrete()) {
+                    …
+                  } @else if (frete()?.coberta) {
+                    R$ {{ taxa() | number: '1.2-2' }}
+                    @if (frete()?.zona) {
+                      <small> ({{ frete()!.zona }})</small>
+                    }
+                  } @else if (freteBloqueado()) {
+                    —
+                  } @else {
+                    Informe o CEP
                   }
-                } @else if (freteBloqueado()) {
-                  —
-                } @else {
-                  Informe o CEP
-                }
-              </strong>
+                </strong>
+              </div>
+              <div class="is-total">
+                <span>Total</span>
+                <strong>
+                  @if (freteConfirmado()) {
+                    R$ {{ total() | number: '1.2-2' }}
+                  } @else {
+                    R$ {{ subtotal() | number: '1.2-2' }} + frete
+                  }
+                </strong>
+              </div>
             </div>
-            <div class="is-total">
-              <span>Total</span>
-              <strong>
-                @if (freteConfirmado()) {
-                  R$ {{ total() | number: '1.2-2' }}
-                } @else {
-                  R$ {{ subtotal() | number: '1.2-2' }} + frete
-                }
-              </strong>
-            </div>
-          </div>
+          }
         </div>
         <div class="cardapio__sheet-foot">
           <button
             type="button"
             class="cardapio__cta"
-            [disabled]="enviando() || !pagamentoOnline() || freteBloqueado() || !frete()?.coberta"
+            [disabled]="
+              enviando() ||
+              !pagamentoOnline() ||
+              (modoEntrega() === 'ENTREGA' && (freteBloqueado() || !frete()?.coberta))
+            "
             (click)="enviarPedido()"
           >
             @if (enviando()) {
@@ -374,6 +464,119 @@
           @if (!pagamentoOnline()) {
             <p class="cardapio__pay-warn">Pagamento online indisponível no momento.</p>
           }
+        </div>
+      }
+
+      @if (painel() === 'conta-login') {
+        <div class="cardapio__sheet-body">
+          <p class="cardapio__pay-note">Entre com o WhatsApp e a senha da sua conta.</p>
+          <label class="cardapio__field">
+            <span>WhatsApp</span>
+            <input
+              [ngModel]="telefone"
+              (ngModelChange)="onTelefoneInput($event)"
+              name="loginTel"
+              autocomplete="tel"
+              inputmode="tel"
+              maxlength="15"
+              placeholder="(11) 99999-9999"
+            />
+          </label>
+          <label class="cardapio__field">
+            <span>Senha</span>
+            <input
+              [(ngModel)]="contaSenha"
+              name="loginSenha"
+              type="password"
+              autocomplete="current-password"
+              placeholder="Sua senha"
+            />
+          </label>
+          <p class="cardapio__conta-hint">
+            Ainda não tem conta?
+            <button type="button" class="cardapio__conta-link" (click)="abrirContaRegistrar()">Criar agora</button>
+          </p>
+        </div>
+        <div class="cardapio__sheet-foot">
+          <button
+            type="button"
+            class="cardapio__cta"
+            [disabled]="contaEnviando()"
+            (click)="enviarLoginConta()"
+          >
+            {{ contaEnviando() ? 'Entrando…' : 'Entrar' }}
+          </button>
+        </div>
+      }
+
+      @if (painel() === 'conta-registrar') {
+        <div class="cardapio__sheet-body">
+          <p class="cardapio__pay-note">
+            Crie com WhatsApp e senha. Na próxima compra seus dados já vêm preenchidos.
+          </p>
+          <label class="cardapio__field">
+            <span>Seu nome</span>
+            <input [(ngModel)]="clienteNome" name="regNome" autocomplete="name" placeholder="Maria Silva" />
+          </label>
+          <label class="cardapio__field">
+            <span>WhatsApp</span>
+            <input
+              [ngModel]="telefone"
+              (ngModelChange)="onTelefoneInput($event)"
+              name="regTel"
+              autocomplete="tel"
+              inputmode="tel"
+              maxlength="15"
+              placeholder="(11) 99999-9999"
+            />
+          </label>
+          <label class="cardapio__field">
+            <span>Nº do pedido (se já pediu antes)</span>
+            <input
+              [(ngModel)]="contaPedidoId"
+              name="regPedido"
+              inputmode="numeric"
+              placeholder="Ex.: 42 — veja no comprovante"
+            />
+          </label>
+          <label class="cardapio__field">
+            <span>Senha</span>
+            <input
+              [(ngModel)]="contaSenha"
+              name="regSenha"
+              type="password"
+              autocomplete="new-password"
+              placeholder="Mínimo 4 caracteres"
+            />
+          </label>
+          <label class="cardapio__field">
+            <span>Confirmar senha</span>
+            <input
+              [(ngModel)]="contaSenha2"
+              name="regSenha2"
+              type="password"
+              autocomplete="new-password"
+              placeholder="Repita a senha"
+            />
+          </label>
+          <p class="cardapio__conta-hint">
+            Primeira vez? Pode deixar o nº do pedido em branco. Já pediu sem conta? Informe um pedido
+            <strong>pago</strong> desse WhatsApp.
+          </p>
+          <p class="cardapio__conta-hint">
+            Já tem conta?
+            <button type="button" class="cardapio__conta-link" (click)="abrirContaLogin()">Entrar</button>
+          </p>
+        </div>
+        <div class="cardapio__sheet-foot">
+          <button
+            type="button"
+            class="cardapio__cta"
+            [disabled]="contaEnviando()"
+            (click)="enviarRegistrarConta()"
+          >
+            {{ contaEnviando() ? 'Criando…' : 'Criar conta' }}
+          </button>
         </div>
       }
 

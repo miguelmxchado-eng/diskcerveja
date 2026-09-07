@@ -28,7 +28,14 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
                     """
                     SELECT * FROM cliente
                     WHERE ativo = true
-                      AND regexp_replace(COALESCE(telefone, ''), '[^0-9]', '', 'g') = :digits
+                      AND (
+                        CASE
+                          WHEN length(regexp_replace(COALESCE(telefone, ''), '[^0-9]', '', 'g')) >= 12
+                           AND regexp_replace(COALESCE(telefone, ''), '[^0-9]', '', 'g') LIKE '55%'
+                          THEN substring(regexp_replace(COALESCE(telefone, ''), '[^0-9]', '', 'g') from 3)
+                          ELSE regexp_replace(COALESCE(telefone, ''), '[^0-9]', '', 'g')
+                        END
+                      ) = :digits
                     ORDER BY id DESC
                     LIMIT 1
                     """,

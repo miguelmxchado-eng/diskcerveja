@@ -34,6 +34,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = header.substring(7);
             try {
                 Claims claims = jwtTokenProvider.parse(token);
+                if (jwtTokenProvider.isClienteToken(claims)) {
+                    // Token do cardápio — não carrega Usuario do PDV.
+                    filterChain.doFilter(request, response);
+                    return;
+                }
                 String login = claims.getSubject();
                 if (login != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                     UserDetails user = userDetailsService.loadUserByUsername(login);

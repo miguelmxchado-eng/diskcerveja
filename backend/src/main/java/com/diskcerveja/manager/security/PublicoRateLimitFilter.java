@@ -68,6 +68,16 @@ public class PublicoRateLimitFilter extends OncePerRequestFilter {
         if ("POST".equalsIgnoreCase(method) && path.contains("/infinitepay/webhook")) {
             return 120;
         }
+        if ("POST".equalsIgnoreCase(method) && path.contains("/conta/login")) {
+            return 12;
+        }
+        if ("POST".equalsIgnoreCase(method) && path.contains("/conta/registrar")) {
+            return 8;
+        }
+        if (("GET".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method))
+                && path.contains("/conta/me")) {
+            return 60;
+        }
         return 0;
     }
 
@@ -83,6 +93,15 @@ public class PublicoRateLimitFilter extends OncePerRequestFilter {
         }
         if (path.contains("/infinitepay/webhook")) {
             return "webhook";
+        }
+        if (path.contains("/conta/login")) {
+            return "conta-login";
+        }
+        if (path.contains("/conta/registrar")) {
+            return "conta-reg";
+        }
+        if (path.contains("/conta/me")) {
+            return "conta-me";
         }
         if (path.endsWith("/pedidos")) {
             return "pedidos";

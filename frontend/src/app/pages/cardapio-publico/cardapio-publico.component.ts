@@ -14,6 +14,7 @@ import { DecimalPipe } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute } from '@angular/router';
 import { environment } from '../../../environments/environment';
+import { ContaClienteService } from '../../core/conta-cliente.service';
 import { CatalogoItemPublico, CatalogoPublico, FretePublico, LojaConfig } from '../../core/models';
 import { produtoFotoUrl } from '../../shared/produto-foto';
 
@@ -47,7 +48,15 @@ interface ViaCepResponse {
   uf?: string;
 }
 
-type Painel = 'fechado' | 'carrinho' | 'checkout' | 'confirmando' | 'aguardando' | 'sucesso';
+type Painel =
+  | 'fechado'
+  | 'carrinho'
+  | 'checkout'
+  | 'confirmando'
+  | 'aguardando'
+  | 'sucesso'
+  | 'conta-login'
+  | 'conta-registrar';
 
 interface PedidoAguardando {
   id: number;
@@ -80,6 +89,7 @@ export class CardapioPublicoComponent implements OnInit {
   readonly pedidoAguardando = signal<PedidoAguardando | null>(null);
   readonly frete = signal<FretePublico | null>(null);
   readonly cotandoFrete = signal(false);
+  readonly contaEnviando = signal(false);
 
   clienteNome = '';
   telefone = '';
@@ -91,10 +101,16 @@ export class CardapioPublicoComponent implements OnInit {
   cidade = '';
   uf = '';
   observacao = '';
+  contaSenha = '';
+  contaSenha2 = '';
+  contaPedidoId = '';
+  readonly modoEntrega = signal<'ENTREGA' | 'RETIRADA'>('ENTREGA');
 
   readonly lojaInfo = computed(() => this.data()?.loja ?? null);
   readonly categorias = computed(() => this.data()?.categorias ?? []);
   readonly pagamentoOnline = computed(() => !!this.lojaInfo()?.pagamentoOnline);
+  readonly clienteLogado = computed(() => this.conta.logado());
+  readonly clienteNomeCurto = computed(() => this.conta.nomeCurto());
 
   readonly itensVisiveis = computed(() => {
     const cats = this.categorias();
@@ -134,15 +150,19 @@ export class CardapioPublicoComponent implements OnInit {
 
   /** Menor taxa do cardápio ("a partir de") — só estimativa até cotar o CEP. */
   readonly taxaMinima = computed(() => Number(this.lojaInfo()?.taxaEntrega ?? 0));
-  /** Taxa confirmada pela cotação; 0 enquanto o CEP não cobrir a área. */
+  /** Taxa confirmada pela cotação; 0 na retirada ou enquanto o CEP não cobrir. */
   readonly taxa = computed(() => {
+    if (this.modoEntrega() === 'RETIRADA') return 0;
     const f = this.frete();
     if (f?.coberta) return Number(f.taxa ?? 0);
     return 0;
   });
-  readonly freteConfirmado = computed(() => !!this.frete()?.coberta);
+  readonly freteConfirmado = computed(
+    () => this.modoEntrega() === 'RETIRADA' || !!this.frete()?.coberta,
+  );
   readonly total = computed(() => this.subtotal() + this.taxa());
   readonly freteBloqueado = computed(() => {
+    if (this.modoEntrega() === 'RETIRADA') return false;
     const f = this.frete();
     return !!f && !f.coberta;
   });
@@ -156,6 +176,7 @@ export class CardapioPublicoComponent implements OnInit {
   constructor(
     private readonly http: HttpClient,
     private readonly route: ActivatedRoute,
+    readonly conta: ContaClienteService,
   ) {
     effect(() => {
       const p = this.painel();
@@ -184,6 +205,13 @@ export class CardapioPublicoComponent implements OnInit {
 
   ngOnInit(): void {
     this.carregar();
+    if (this.conta.logado()) {
+      this.aplicarPerfilNaCheckout();
+      this.conta.recarregarMe().subscribe({
+        next: () => this.aplicarPerfilNaCheckout(),
+        error: () => this.conta.logout(),
+      });
+    }
     this.route.queryParamMap.subscribe((params) => {
       if (params.get('pago') !== '1') return;
       const id = params.get('pedido') || params.get('order_nsu');
@@ -486,6 +514,11 @@ export class CardapioPublicoComponent implements OnInit {
       this.checkoutErro.set('A loja está fechada no momento.');
       return;
     }
+    // Renova/invalida sessão vencida antes de preencher.
+    this.conta.token();
+    if (this.conta.logado()) {
+      this.aplicarPerfilNaCheckout();
+    }
     this.checkoutErro.set(null);
     this.checkoutPasso.set(1);
     this.painel.set('checkout');
@@ -529,7 +562,8 @@ export class CardapioPublicoComponent implements OnInit {
     if (this.enviando()) return;
     const nome = this.clienteNome.trim();
     const telefone = this.telefone.trim();
-    const endereco = this.montarEndereco();
+    const retirada = this.modoEntrega() === 'RETIRADA';
+    const endereco = retirada ? 'Retirada na loja' : this.montarEndereco();
     if (!nome) {
       this.checkoutErro.set('Informe seu nome.');
       this.checkoutPasso.set(1);
@@ -540,26 +574,28 @@ export class CardapioPublicoComponent implements OnInit {
       this.checkoutPasso.set(1);
       return;
     }
-    if (this.cep.replace(/\D/g, '').length !== 8) {
-      this.checkoutErro.set('Informe um CEP válido.');
-      return;
-    }
-    if (this.freteBloqueado()) {
-      this.checkoutErro.set(this.frete()?.mensagem || 'CEP fora da área de entrega.');
-      return;
-    }
-    if (!this.frete()?.coberta) {
-      this.cotarFrete();
-      this.checkoutErro.set('Aguarde o cálculo da taxa de entrega.');
-      return;
-    }
-    if (!this.logradouro.trim() || !this.bairro.trim() || !this.cidade.trim()) {
-      this.checkoutErro.set('Complete o endereço (rua, bairro e cidade).');
-      return;
-    }
-    if (!this.numero.trim()) {
-      this.checkoutErro.set('Informe o número do endereço.');
-      return;
+    if (!retirada) {
+      if (this.cep.replace(/\D/g, '').length !== 8) {
+        this.checkoutErro.set('Informe um CEP válido.');
+        return;
+      }
+      if (this.freteBloqueado()) {
+        this.checkoutErro.set(this.frete()?.mensagem || 'CEP fora da área de entrega.');
+        return;
+      }
+      if (!this.frete()?.coberta) {
+        this.cotarFrete();
+        this.checkoutErro.set('Aguarde o cálculo da taxa de entrega.');
+        return;
+      }
+      if (!this.logradouro.trim() || !this.bairro.trim() || !this.cidade.trim()) {
+        this.checkoutErro.set('Complete o endereço (rua, bairro e cidade).');
+        return;
+      }
+      if (!this.numero.trim()) {
+        this.checkoutErro.set('Informe o número do endereço.');
+        return;
+      }
     }
     if (!this.pagamentoOnline()) {
       this.checkoutErro.set(
@@ -577,12 +613,15 @@ export class CardapioPublicoComponent implements OnInit {
     const body = {
       clienteNome: nome,
       telefone,
+      tipo: this.modoEntrega(),
       enderecoEntrega: endereco,
-      cep: this.cep.replace(/\D/g, ''),
-      bairro: this.bairro.trim() || null,
-      logradouro: this.logradouro.trim() || null,
-      numero: this.numero.trim() || null,
-      complemento: this.complemento.trim() || null,
+      cep: retirada ? null : this.cep.replace(/\D/g, ''),
+      bairro: retirada ? null : this.bairro.trim() || null,
+      logradouro: retirada ? null : this.logradouro.trim() || null,
+      numero: retirada ? null : this.numero.trim() || null,
+      complemento: retirada ? null : this.complemento.trim() || null,
+      cidade: retirada ? null : this.cidade.trim() || null,
+      uf: retirada ? null : this.uf.trim() || null,
       observacao: this.observacao.trim() || null,
       itens: this.carrinho().map((l) => ({
         tipo: l.tipo,
@@ -617,6 +656,131 @@ export class CardapioPublicoComponent implements OnInit {
       });
   }
 
+  abrirContaLogin(): void {
+    this.checkoutErro.set(null);
+    this.contaSenha = '';
+    if (!this.telefone.trim() && this.conta.perfil()?.telefone) {
+      this.telefone = this.conta.perfil()!.telefone;
+    }
+    this.painel.set('conta-login');
+  }
+
+  abrirContaRegistrar(): void {
+    this.checkoutErro.set(null);
+    this.contaSenha = '';
+    this.contaSenha2 = '';
+    if (!this.contaPedidoId) {
+      const ok = this.pedidoOk();
+      const ag = this.pedidoAguardando();
+      if (ok?.id) this.contaPedidoId = String(ok.id);
+      else if (ag?.id && ag.id > 0) this.contaPedidoId = String(ag.id);
+    }
+    this.painel.set('conta-registrar');
+  }
+
+  sairConta(): void {
+    this.conta.logout();
+    this.checkoutErro.set(null);
+  }
+
+  enviarLoginConta(): void {
+    if (this.contaEnviando()) return;
+    const telefone = this.telefone.trim();
+    if (telefone.replace(/\D/g, '').length < 10) {
+      this.checkoutErro.set('Informe um WhatsApp com DDD.');
+      return;
+    }
+    if (this.contaSenha.length < 4) {
+      this.checkoutErro.set('Informe sua senha.');
+      return;
+    }
+    this.contaEnviando.set(true);
+    this.checkoutErro.set(null);
+    this.conta.login(telefone, this.contaSenha).subscribe({
+      next: () => {
+        this.contaEnviando.set(false);
+        this.contaSenha = '';
+        this.aplicarPerfilNaCheckout();
+        this.painel.set('fechado');
+      },
+      error: (err: HttpErrorResponse) => {
+        this.contaEnviando.set(false);
+        this.checkoutErro.set(err.error?.erro || 'Não foi possível entrar. Confira WhatsApp e senha.');
+      },
+    });
+  }
+
+  enviarRegistrarConta(): void {
+    if (this.contaEnviando()) return;
+    const nome = this.clienteNome.trim();
+    const telefone = this.telefone.trim();
+    if (!nome) {
+      this.checkoutErro.set('Informe seu nome.');
+      return;
+    }
+    if (telefone.replace(/\D/g, '').length < 10) {
+      this.checkoutErro.set('Informe um WhatsApp com DDD.');
+      return;
+    }
+    if (this.contaSenha.length < 4) {
+      this.checkoutErro.set('A senha precisa ter pelo menos 4 caracteres.');
+      return;
+    }
+    if (this.contaSenha !== this.contaSenha2) {
+      this.checkoutErro.set('As senhas não são iguais.');
+      return;
+    }
+    this.contaEnviando.set(true);
+    this.checkoutErro.set(null);
+    const pedidoDigits = this.contaPedidoId.replace(/\D/g, '');
+    const pedidoIdNum = pedidoDigits ? Number(pedidoDigits) : NaN;
+    this.conta
+      .registrar({
+        nome,
+        telefone,
+        senha: this.contaSenha,
+        pedidoId: Number.isFinite(pedidoIdNum) && pedidoIdNum > 0 ? pedidoIdNum : null,
+        cep: this.cep.replace(/\D/g, '').length === 8 ? this.cep : null,
+        logradouro: this.logradouro.trim() || null,
+        numero: this.numero.trim() || null,
+        complemento: this.complemento.trim() || null,
+        bairro: this.bairro.trim() || null,
+        cidade: this.cidade.trim() || null,
+        uf: this.uf.trim() || null,
+      })
+      .subscribe({
+        next: () => {
+          this.contaEnviando.set(false);
+          this.contaSenha = '';
+          this.contaSenha2 = '';
+          this.contaPedidoId = '';
+          this.aplicarPerfilNaCheckout();
+          this.painel.set('fechado');
+        },
+        error: (err: HttpErrorResponse) => {
+          this.contaEnviando.set(false);
+          this.checkoutErro.set(err.error?.erro || 'Não foi possível criar a conta.');
+        },
+      });
+  }
+
+  private aplicarPerfilNaCheckout(): void {
+    const p = this.conta.perfil();
+    if (!p) return;
+    this.clienteNome = p.nome || this.clienteNome;
+    this.telefone = p.telefone || this.telefone;
+    if (p.cep) this.cep = p.cep;
+    if (p.logradouro) this.logradouro = p.logradouro;
+    if (p.numero) this.numero = p.numero;
+    if (p.complemento) this.complemento = p.complemento;
+    if (p.bairro) this.bairro = p.bairro;
+    if (p.cidade) this.cidade = p.cidade;
+    if (p.uf) this.uf = p.uf;
+    if (this.cep.replace(/\D/g, '').length === 8) {
+      this.cotarFrete();
+    }
+  }
+
   private limparCheckout(): void {
     this.clienteNome = '';
     this.telefone = '';
@@ -628,5 +792,6 @@ export class CardapioPublicoComponent implements OnInit {
     this.cidade = '';
     this.uf = '';
     this.observacao = '';
+    this.modoEntrega.set('ENTREGA');
   }
 }

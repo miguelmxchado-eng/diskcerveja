@@ -45,6 +45,7 @@ public class PedidoPublicoService {
     private final InfinitePayService infinitePayService;
     private final ZonaEntregaService zonaEntregaService;
     private final EntregaRepository entregaRepository;
+    private final ContaClientePublicoService contaClientePublicoService;
     private final TransactionTemplate transactionTemplate;
 
     public PedidoPublicoService(
@@ -57,6 +58,7 @@ public class PedidoPublicoService {
             InfinitePayService infinitePayService,
             ZonaEntregaService zonaEntregaService,
             EntregaRepository entregaRepository,
+            ContaClientePublicoService contaClientePublicoService,
             PlatformTransactionManager transactionManager) {
         this.configSistemaService = configSistemaService;
         this.pedidoService = pedidoService;
@@ -67,6 +69,7 @@ public class PedidoPublicoService {
         this.infinitePayService = infinitePayService;
         this.zonaEntregaService = zonaEntregaService;
         this.entregaRepository = entregaRepository;
+        this.contaClientePublicoService = contaClientePublicoService;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -75,7 +78,11 @@ public class PedidoPublicoService {
      * transação do banco durante a HTTP externa.
      */
     public PedidoPublicoResponse criar(PedidoPublicoRequest req) {
-        Pedido salvo = transactionTemplate.execute(status -> persistirPedido(req));
+        return criar(req, null);
+    }
+
+    public PedidoPublicoResponse criar(PedidoPublicoRequest req, String authorizationHeader) {
+        Pedido salvo = transactionTemplate.execute(status -> persistirPedido(req, authorizationHeader));
         if (salvo == null) {
             throw new IllegalStateException("Não foi possível criar o pedido.");
         }
@@ -91,6 +98,7 @@ public class PedidoPublicoService {
         }
 
         String base = resolverBaseUrl();
+        boolean retirada = paraCheckout.getTipo() == TipoPedido.RETIRADA;
         String checkoutUrl;
         try {
             checkoutUrl = infinitePayService.criarLinkCheckout(
@@ -98,11 +106,11 @@ public class PedidoPublicoService {
                     paraCheckout.getClienteNome(),
                     paraCheckout.getTelefone(),
                     base,
-                    req.cep(),
-                    req.logradouro(),
-                    req.bairro(),
-                    req.numero(),
-                    req.complemento());
+                    retirada ? null : req.cep(),
+                    retirada ? null : req.logradouro(),
+                    retirada ? null : req.bairro(),
+                    retirada ? null : req.numero(),
+                    retirada ? null : req.complemento());
         } catch (RuntimeException ex) {
             try {
                 pedidoService.mudarStatus(salvo.getId(), StatusPedido.CANCELADO, null);
@@ -128,7 +136,7 @@ public class PedidoPublicoService {
                 true);
     }
 
-    private Pedido persistirPedido(PedidoPublicoRequest req) {
+    private Pedido persistirPedido(PedidoPublicoRequest req, String authorizationHeader) {
         LojaConfigResponse loja = configSistemaService.getLoja();
         if (!loja.aberta()) {
             throw new IllegalStateException("A loja está fechada no momento. Tente mais tarde.");
@@ -144,13 +152,34 @@ public class PedidoPublicoService {
 
         String nome = req.clienteNome().trim();
         String telefone = req.telefone().trim();
-        String endereco = req.enderecoEntrega().trim();
+        var autenticadoOpt = contaClientePublicoService.clienteAutenticado(authorizationHeader);
+        if (autenticadoOpt.isPresent()) {
+            // Pedido logado usa o WhatsApp da conta — evita divergir do cadastro.
+            telefone = autenticadoOpt.get().getTelefone() != null
+                    ? autenticadoOpt.get().getTelefone().trim()
+                    : telefone;
+        }
         String digits = soDigitos(telefone);
         if (digits.length() < 10) {
             throw new IllegalArgumentException("Informe um telefone válido com DDD.");
         }
-        if (endereco.length() < 8) {
-            throw new IllegalArgumentException("Informe o endereço completo para entrega.");
+
+        TipoPedido tipoPedido = req.tipo() == TipoPedido.RETIRADA ? TipoPedido.RETIRADA : TipoPedido.ENTREGA;
+        if (req.tipo() != null && req.tipo() != TipoPedido.ENTREGA && req.tipo() != TipoPedido.RETIRADA) {
+            throw new IllegalArgumentException("Tipo de pedido inválido no cardápio.");
+        }
+
+        String endereco;
+        BigDecimal taxaEntrega;
+        if (tipoPedido == TipoPedido.RETIRADA) {
+            endereco = "Retirada na loja";
+            taxaEntrega = BigDecimal.ZERO;
+        } else {
+            endereco = req.enderecoEntrega() != null ? req.enderecoEntrega().trim() : "";
+            if (endereco.length() < 8) {
+                throw new IllegalArgumentException("Informe o endereço completo para entrega.");
+            }
+            taxaEntrega = zonaEntregaService.taxaObrigatoria(req.cep(), req.bairro());
         }
 
         if (req.observacao() != null && !req.observacao().isBlank()) {
@@ -196,15 +225,18 @@ public class PedidoPublicoService {
                     "Pedido mínimo é R$ " + loja.pedidoMinimo().toPlainString() + ".");
         }
 
-        BigDecimal taxaEntrega = zonaEntregaService.taxaObrigatoria(req.cep(), req.bairro());
-
-        Long clienteId = upsertCliente(nome, telefone, req.enderecoEntrega().trim(), req.observacao());
+        String enderecoCliente =
+                tipoPedido == TipoPedido.RETIRADA
+                        ? null
+                        : (req.enderecoEntrega() != null ? req.enderecoEntrega().trim() : null);
+        Long clienteId = resolverClienteId(
+                req, autenticadoOpt.orElse(null), nome, telefone, enderecoCliente);
 
         PedidoRequest pedidoReq = new PedidoRequest(
                 clienteId,
                 nome,
                 telefone,
-                TipoPedido.ENTREGA,
+                tipoPedido,
                 req.formaPagamento() != null ? req.formaPagamento() : FormaPagamento.PIX,
                 endereco,
                 taxaEntrega,
@@ -422,8 +454,61 @@ public class PedidoPublicoService {
     }
 
     /**
-     * Vincula pedido a cliente pelo telefone sem sobrescrever PII de cadastro existente.
+     * Vincula pedido a cliente autenticado (atualiza endereço) ou faz upsert por telefone.
      */
+    private Long resolverClienteId(
+            PedidoPublicoRequest req,
+            Cliente autenticado,
+            String nome,
+            String telefone,
+            String enderecoCliente) {
+        if (autenticado != null) {
+            Cliente c = autenticado;
+            if (nome != null && !nome.isBlank()) {
+                c.setNome(nome.trim());
+            }
+            if (tipoEntregaComEndereco(req) && enderecoCliente != null && !enderecoCliente.isBlank()) {
+                c.setEndereco(enderecoCliente);
+                if (req.cep() != null) {
+                    String cepDigits = soDigitos(req.cep());
+                    c.setCep(
+                            cepDigits.length() == 8
+                                    ? cepDigits.substring(0, 5) + "-" + cepDigits.substring(5)
+                                    : req.cep());
+                }
+                if (req.logradouro() != null && !req.logradouro().isBlank()) {
+                    c.setLogradouro(req.logradouro().trim());
+                }
+                if (req.numero() != null && !req.numero().isBlank()) {
+                    c.setNumero(req.numero().trim());
+                }
+                if (req.complemento() != null) {
+                    c.setComplemento(req.complemento().isBlank() ? null : req.complemento().trim());
+                }
+                if (req.bairro() != null && !req.bairro().isBlank()) {
+                    c.setBairro(req.bairro().trim());
+                }
+                if (req.cidade() != null && !req.cidade().isBlank()) {
+                    c.setCidade(req.cidade().trim());
+                }
+                if (req.uf() != null && !req.uf().isBlank()) {
+                    c.setUf(req.uf().trim().toUpperCase(Locale.ROOT));
+                }
+            }
+            if (req.observacao() != null
+                    && !req.observacao().isBlank()
+                    && (c.getObservacao() == null || c.getObservacao().isBlank())) {
+                c.setObservacao(req.observacao().trim());
+            }
+            return clienteRepository.save(c).getId();
+        }
+        return upsertCliente(nome, telefone, enderecoCliente, req.observacao());
+    }
+
+    private static boolean tipoEntregaComEndereco(PedidoPublicoRequest req) {
+        return req.tipo() != TipoPedido.RETIRADA;
+    }
+
     private Long upsertCliente(String nome, String telefone, String endereco, String observacao) {
         String digits = soDigitos(telefone);
         return clienteRepository

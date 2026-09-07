@@ -280,4 +280,29 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
             @Param("fim") java.sql.Timestamp fim,
             @Param("ids") Collection<Long> ids,
             @Param("limite") int limite);
+
+    /**
+     * Pedido pago (ou entregue) do WhatsApp — prova para reivindicar conta sem OTP.
+     * Normaliza DDI 55 nos dois lados da comparação.
+     */
+    @Query(
+            value =
+                    """
+                    SELECT * FROM pedido p
+                    WHERE p.id = :pedidoId
+                      AND p.status <> 'CANCELADO'
+                      AND (p.pagamento_confirmado = true OR p.status = 'ENTREGUE')
+                      AND (
+                        CASE
+                          WHEN length(regexp_replace(COALESCE(p.telefone, ''), '[^0-9]', '', 'g')) >= 12
+                           AND regexp_replace(COALESCE(p.telefone, ''), '[^0-9]', '', 'g') LIKE '55%'
+                          THEN substring(regexp_replace(COALESCE(p.telefone, ''), '[^0-9]', '', 'g') from 3)
+                          ELSE regexp_replace(COALESCE(p.telefone, ''), '[^0-9]', '', 'g')
+                        END
+                      ) = :digits
+                    LIMIT 1
+                    """,
+            nativeQuery = true)
+    Optional<Pedido> findPedidoPagoPorIdETelefone(
+            @Param("pedidoId") Long pedidoId, @Param("digits") String digits);
 }

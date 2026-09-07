@@ -2,9 +2,11 @@ import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { catchError, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
+import { ContaClienteService } from './conta-cliente.service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
+  const contaCliente = inject(ContaClienteService);
   const isLogin = req.url.includes('/api/auth/login');
   const isPublico = req.url.includes('/api/publico/');
   let token = auth.token() ?? localStorage.getItem('dcm_token');
@@ -16,7 +18,17 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     token = null;
   }
 
-  if (token) {
+  if (isPublico) {
+    // Não manda token velho em login/registro.
+    const isContaAuth =
+      req.url.includes('/api/publico/conta/login') || req.url.includes('/api/publico/conta/registrar');
+    if (!isContaAuth) {
+      const clienteToken = contaCliente.token();
+      if (clienteToken) {
+        req = req.clone({ setHeaders: { Authorization: `Bearer ${clienteToken}` } });
+      }
+    }
+  } else if (token) {
     req = req.clone({ setHeaders: { Authorization: `Bearer ${token}` } });
   }
 
