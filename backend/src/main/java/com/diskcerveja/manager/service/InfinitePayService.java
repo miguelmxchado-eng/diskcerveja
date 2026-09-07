@@ -2,6 +2,7 @@ package com.diskcerveja.manager.service;
 
 import com.diskcerveja.manager.domain.entity.Pedido;
 import com.diskcerveja.manager.domain.entity.PedidoItem;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -23,6 +24,7 @@ public class InfinitePayService {
 
     private static final Logger log = LoggerFactory.getLogger(InfinitePayService.class);
     private static final String LINKS_URL = "https://api.checkout.infinitepay.io/links";
+    private static final String PAYMENT_CHECK_URL = "https://api.checkout.infinitepay.io/payment_check";
 
     private final ConfigSistemaService configSistemaService;
     private final ObjectMapper objectMapper;
@@ -48,30 +50,52 @@ public class InfinitePayService {
             body.put("webhook_url", baseUrl + "/api/publico/infinitepay/webhook");
 
             List<Map<String, Object>> items = new ArrayList<>();
-            BigDecimal subtotalItens = BigDecimal.ZERO;
+            int itensCents = 0;
             for (PedidoItem item : pedido.getItens()) {
                 Map<String, Object> line = new LinkedHashMap<>();
+                int unitCents = toCents(item.getPrecoUnitario());
                 line.put("quantity", item.getQuantidade());
-                line.put("price", toCents(item.getPrecoUnitario()));
+                line.put("price", unitCents);
                 line.put(
                         "description",
                         item.getDescricao() != null
                                 ? item.getDescricao()
                                 : (item.isCombo() ? "Combo" : "Produto"));
                 items.add(line);
-                subtotalItens = subtotalItens.add(
-                        item.getPrecoUnitario().multiply(BigDecimal.valueOf(item.getQuantidade())));
+                itensCents += unitCents * item.getQuantidade();
             }
-            BigDecimal desconto = pedido.getDesconto() != null ? pedido.getDesconto() : BigDecimal.ZERO;
-            BigDecimal taxa = pedido.getTotal().subtract(subtotalItens.subtract(desconto));
-            if (taxa.compareTo(BigDecimal.ZERO) > 0) {
+            int descontoCents = toCents(
+                    pedido.getDesconto() != null ? pedido.getDesconto() : BigDecimal.ZERO);
+            int totalCents = toCents(pedido.getTotal());
+            int taxaCents = totalCents - (itensCents - descontoCents);
+            if (taxaCents > 0) {
                 Map<String, Object> taxaLine = new LinkedHashMap<>();
                 taxaLine.put("quantity", 1);
-                taxaLine.put("price", toCents(taxa));
+                taxaLine.put("price", taxaCents);
                 taxaLine.put("description", "Taxa de entrega");
                 items.add(taxaLine);
+            } else if (taxaCents < 0) {
+                log.error(
+                        "Total do pedido #{} menor que itens (itens={} desconto={} total={})",
+                        pedido.getId(),
+                        itensCents,
+                        descontoCents,
+                        totalCents);
+                throw new IllegalStateException("Inconsistência no valor do checkout. Tente de novo.");
             }
             body.put("items", items);
+
+            int somaLink = items.stream()
+                    .mapToInt(it -> ((Integer) it.get("price")) * ((Integer) it.get("quantity")))
+                    .sum();
+            if (somaLink != totalCents) {
+                log.error(
+                        "Soma InfinitePay ({}) != total pedido #{} ({})",
+                        somaLink,
+                        pedido.getId(),
+                        totalCents);
+                throw new IllegalStateException("Inconsistência no valor do checkout. Tente de novo.");
+            }
 
             Map<String, Object> customer = new LinkedHashMap<>();
             customer.put("name", clienteNome);
@@ -96,19 +120,67 @@ public class InfinitePayService {
                 log.warn("InfinitePay link falhou ({}): {}", response.statusCode(), response.body());
                 throw new IllegalStateException("Não foi possível gerar o link de pagamento. Tente de novo.");
             }
-            @SuppressWarnings("unchecked")
-            Map<String, Object> parsed = objectMapper.readValue(response.body(), Map.class);
-            Object url = parsed.get("url");
-            if (url == null || url.toString().isBlank()) {
+            JsonNode parsed = objectMapper.readTree(response.body());
+            String url = firstText(parsed, "checkout_url", "url", "link");
+            if (url == null || url.isBlank()) {
+                log.warn("InfinitePay resposta sem URL: {}", response.body());
                 throw new IllegalStateException("InfinitePay não retornou URL de checkout.");
             }
-            return url.toString();
+            return url;
         } catch (IllegalStateException e) {
             throw e;
         } catch (Exception e) {
             log.error("Erro ao criar link InfinitePay", e);
             throw new IllegalStateException("Falha ao conectar com InfinitePay. Tente de novo.");
         }
+    }
+
+    /**
+     * Confirma pagamento no retorno do redirect (quando o webhook ainda não chegou).
+     * Retorna true se a InfinitePay confirmar paid=true.
+     */
+    public boolean verificarPagamento(String orderNsu, String transactionNsu, String slug) {
+        String handle = configSistemaService.getInfinitepayHandle();
+        if (handle.isBlank() || orderNsu == null || transactionNsu == null || slug == null) {
+            return false;
+        }
+        if (orderNsu.isBlank() || transactionNsu.isBlank() || slug.isBlank()) {
+            return false;
+        }
+        try {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("handle", handle);
+            body.put("order_nsu", orderNsu);
+            body.put("transaction_nsu", transactionNsu);
+            body.put("slug", slug);
+            String payload = objectMapper.writeValueAsString(body);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(PAYMENT_CHECK_URL))
+                    .timeout(Duration.ofSeconds(15))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(payload))
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                log.warn("InfinitePay payment_check falhou ({}): {}", response.statusCode(), response.body());
+                return false;
+            }
+            JsonNode parsed = objectMapper.readTree(response.body());
+            return parsed.path("paid").asBoolean(false);
+        } catch (Exception e) {
+            log.warn("Falha ao consultar payment_check", e);
+            return false;
+        }
+    }
+
+    private static String firstText(JsonNode node, String... fields) {
+        for (String f : fields) {
+            JsonNode v = node.get(f);
+            if (v != null && v.isTextual() && !v.asText().isBlank()) {
+                return v.asText();
+            }
+        }
+        return null;
     }
 
     private static int toCents(BigDecimal value) {

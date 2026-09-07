@@ -19,7 +19,7 @@ import org.springframework.data.repository.query.Param;
 public interface PedidoRepository extends JpaRepository<Pedido, Long> {
 
     @Query(
-            "select distinct p from Pedido p left join fetch p.itens i left join fetch i.produto left join fetch p.entrega where p.id = :id")
+            "select distinct p from Pedido p left join fetch p.itens i left join fetch i.produto left join fetch i.combo left join fetch p.entrega where p.id = :id")
     Optional<Pedido> findByIdWithItens(@Param("id") Long id);
 
     @Query(

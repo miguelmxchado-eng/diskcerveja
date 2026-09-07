@@ -1,6 +1,9 @@
 package com.diskcerveja.manager.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 /** Webhook InfinitePay (campos relevantes). */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record InfinitePayWebhookRequest(
         String invoice_slug,
         Integer amount,

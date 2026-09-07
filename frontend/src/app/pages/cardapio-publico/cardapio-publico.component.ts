@@ -128,21 +128,98 @@ export class CardapioPublicoComponent implements OnInit {
   ngOnInit(): void {
     this.carregar();
     this.route.queryParamMap.subscribe((params) => {
-      if (params.get('pago') === '1') {
-        const id = params.get('pedido');
-        this.pedidoOk.set({
-          id: id ? Number(id) : 0,
-          total: 0,
-          taxaEntrega: 0,
-          mensagem: id
-            ? `Pagamento do pedido #${id} recebido! Em breve saímos para entrega.`
-            : 'Pagamento recebido! Em breve saímos para entrega.',
-          formaPagamento: 'PIX',
-        });
-        this.carrinho.set([]);
-        this.painel.set('sucesso');
+      if (params.get('pago') !== '1') return;
+      const id = params.get('pedido') || params.get('order_nsu');
+      const transactionNsu = params.get('transaction_nsu');
+      const slug = params.get('slug');
+      const captureMethod = params.get('capture_method');
+      if (!id) {
+        this.checkoutErro.set('Pagamento retornou sem número do pedido.');
+        this.painel.set('checkout');
+        return;
       }
+      // InfinitePay anexa transaction_nsu + slug; confirmamos no servidor.
+      if (transactionNsu && slug) {
+        this.http
+          .post<PedidoPublicoOk>(`${environment.apiUrl}/api/publico/pedidos/${id}/confirmar-pagamento`, {
+            transactionNsu,
+            slug,
+            captureMethod,
+          })
+          .subscribe({
+            next: (res) => {
+              this.pedidoOk.set(res);
+              this.carrinho.set([]);
+              this.painel.set('sucesso');
+            },
+            // Confirmação falhou: não mostrar “sucesso” como se tivesse pago.
+            error: (err: HttpErrorResponse) => {
+              this.checkoutErro.set(
+                err.error?.erro ||
+                  'Não confirmamos o pagamento ainda. Se já pagou, aguarde e atualize a página.',
+              );
+              this.painel.set('checkout');
+            },
+          });
+        return;
+      }
+      // Sem params: webhook confirma; fazemos polling do status.
+      this.aguardarConfirmacaoPagamento(Number(id));
     });
+  }
+
+  private aguardarConfirmacaoPagamento(id: number): void {
+    this.checkoutErro.set(`Pedido #${id} registrado. Confirmando pagamento…`);
+    this.painel.set('checkout');
+    let tentativas = 0;
+    const max = 20;
+    const tick = () => {
+      this.http
+        .get<{
+          id: number;
+          pagamentoConfirmado: boolean;
+          cancelado: boolean;
+          total: number;
+          taxaEntrega: number;
+          formaPagamento: string;
+          mensagem: string;
+        }>(`${environment.apiUrl}/api/publico/pedidos/${id}/status-pagamento`)
+        .subscribe({
+          next: (s) => {
+            if (s.cancelado) {
+              this.checkoutErro.set('Este pedido foi cancelado. Faça um novo pedido.');
+              return;
+            }
+            if (s.pagamentoConfirmado) {
+              this.pedidoOk.set({
+                id: s.id,
+                total: Number(s.total),
+                taxaEntrega: Number(s.taxaEntrega),
+                mensagem: s.mensagem,
+                formaPagamento: s.formaPagamento,
+              });
+              this.carrinho.set([]);
+              this.checkoutErro.set(null);
+              this.painel.set('sucesso');
+              return;
+            }
+            tentativas += 1;
+            if (tentativas >= max) {
+              this.checkoutErro.set(
+                `Pedido #${id} ainda aguarda confirmação. Se já pagou, em breve a entrega recebe automaticamente.`,
+              );
+              return;
+            }
+            setTimeout(tick, 2000);
+          },
+          error: () => {
+            this.checkoutErro.set(
+              `Pedido #${id} registrado. Se já pagou, aguarde — a confirmação chega em breve.`,
+            );
+          },
+        });
+    };
+    tick();
   }
 
   carregar(): void {

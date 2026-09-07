@@ -7,6 +7,7 @@ import com.diskcerveja.manager.domain.entity.Produto;
 import com.diskcerveja.manager.domain.enums.FormaPagamento;
 import com.diskcerveja.manager.domain.enums.StatusPedido;
 import com.diskcerveja.manager.domain.enums.TipoPedido;
+import com.diskcerveja.manager.dto.ConfirmarPagamentoPublicoRequest;
 import com.diskcerveja.manager.dto.InfinitePayWebhookRequest;
 import com.diskcerveja.manager.dto.LojaConfigResponse;
 import com.diskcerveja.manager.dto.PedidoItemRequest;
@@ -18,14 +19,21 @@ import com.diskcerveja.manager.repository.ComboRepository;
 import com.diskcerveja.manager.repository.PedidoRepository;
 import com.diskcerveja.manager.repository.ProdutoRepository;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class PedidoPublicoService {
+
+    private static final Logger log = LoggerFactory.getLogger(PedidoPublicoService.class);
 
     private final ConfigSistemaService configSistemaService;
     private final PedidoService pedidoService;
@@ -34,6 +42,7 @@ public class PedidoPublicoService {
     private final ClienteRepository clienteRepository;
     private final PedidoRepository pedidoRepository;
     private final InfinitePayService infinitePayService;
+    private final TransactionTemplate transactionTemplate;
 
     public PedidoPublicoService(
             ConfigSistemaService configSistemaService,
@@ -42,7 +51,8 @@ public class PedidoPublicoService {
             ComboRepository comboRepository,
             ClienteRepository clienteRepository,
             PedidoRepository pedidoRepository,
-            InfinitePayService infinitePayService) {
+            InfinitePayService infinitePayService,
+            PlatformTransactionManager transactionManager) {
         this.configSistemaService = configSistemaService;
         this.pedidoService = pedidoService;
         this.produtoRepository = produtoRepository;
@@ -50,10 +60,61 @@ public class PedidoPublicoService {
         this.clienteRepository = clienteRepository;
         this.pedidoRepository = pedidoRepository;
         this.infinitePayService = infinitePayService;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
-    @Transactional
+    /**
+     * Cria o pedido (commit) e só então chama a InfinitePay — evita segurar a
+     * transação do banco durante a HTTP externa.
+     */
     public PedidoPublicoResponse criar(PedidoPublicoRequest req, String publicBaseUrl) {
+        Pedido salvo = transactionTemplate.execute(status -> persistirPedido(req));
+        if (salvo == null) {
+            throw new IllegalStateException("Não foi possível criar o pedido.");
+        }
+        BigDecimal taxa = configSistemaService.getLoja().taxaEntrega() != null
+                ? configSistemaService.getLoja().taxaEntrega()
+                : BigDecimal.ZERO;
+
+        // Reabre leitura com itens inicializados (evita LazyInitialization fora da TX).
+        Pedido paraCheckout = transactionTemplate.execute(status -> pedidoRepository
+                .findByIdWithItens(salvo.getId())
+                .orElseThrow(() -> new IllegalStateException("Pedido não encontrado após criar.")));
+        if (paraCheckout == null) {
+            throw new IllegalStateException("Pedido não encontrado após criar.");
+        }
+
+        String base = resolverBaseUrl(publicBaseUrl);
+        String checkoutUrl;
+        try {
+            checkoutUrl = infinitePayService.criarLinkCheckout(
+                    paraCheckout, paraCheckout.getClienteNome(), paraCheckout.getTelefone(), base);
+        } catch (RuntimeException ex) {
+            try {
+                pedidoService.mudarStatus(salvo.getId(), StatusPedido.CANCELADO, null);
+            } catch (Exception cancelEx) {
+                log.warn("Falha ao cancelar pedido {} após erro InfinitePay", salvo.getId(), cancelEx);
+            }
+            throw ex;
+        }
+        if (checkoutUrl == null || checkoutUrl.isBlank()) {
+            pedidoService.mudarStatus(salvo.getId(), StatusPedido.CANCELADO, null);
+            throw new IllegalStateException("Não foi possível gerar o link de pagamento.");
+        }
+
+        return new PedidoPublicoResponse(
+                salvo.getId(),
+                salvo.getDataHora(),
+                salvo.getStatus(),
+                salvo.getTotal(),
+                taxa,
+                salvo.getFormaPagamento(),
+                "Pedido #" + salvo.getId() + " criado. Finalize o pagamento no InfinitePay.",
+                checkoutUrl,
+                true);
+    }
+
+    private Pedido persistirPedido(PedidoPublicoRequest req) {
         LojaConfigResponse loja = configSistemaService.getLoja();
         if (!loja.aberta()) {
             throw new IllegalStateException("A loja está fechada no momento. Tente mais tarde.");
@@ -128,69 +189,155 @@ public class PedidoPublicoService {
                 nome,
                 telefone,
                 TipoPedido.ENTREGA,
-                req.formaPagamento(),
+                req.formaPagamento() != null ? req.formaPagamento() : FormaPagamento.PIX,
                 endereco,
                 loja.taxaEntrega() != null ? loja.taxaEntrega() : BigDecimal.ZERO,
                 BigDecimal.ZERO,
                 null,
                 itens);
 
-        Pedido salvo = pedidoService.criar(pedidoReq, null, false);
-        BigDecimal taxa = loja.taxaEntrega() != null ? loja.taxaEntrega() : BigDecimal.ZERO;
-
-        String base = resolverBaseUrl(publicBaseUrl);
-        String checkoutUrl;
-        try {
-            checkoutUrl = infinitePayService.criarLinkCheckout(salvo, nome, telefone, base);
-        } catch (RuntimeException ex) {
-            pedidoService.mudarStatus(salvo.getId(), StatusPedido.CANCELADO, null);
-            throw ex;
-        }
-        if (checkoutUrl == null || checkoutUrl.isBlank()) {
-            pedidoService.mudarStatus(salvo.getId(), StatusPedido.CANCELADO, null);
-            throw new IllegalStateException("Não foi possível gerar o link de pagamento.");
-        }
-
-        return new PedidoPublicoResponse(
-                salvo.getId(),
-                salvo.getDataHora(),
-                salvo.getStatus(),
-                salvo.getTotal(),
-                taxa,
-                salvo.getFormaPagamento(),
-                "Pedido #" + salvo.getId() + " criado. Finalize o pagamento no InfinitePay.",
-                checkoutUrl,
-                true);
+        return pedidoService.criar(pedidoReq, null, false);
     }
 
-    @Transactional
     public void confirmarPagamentoWebhook(InfinitePayWebhookRequest body) {
         if (body == null || body.order_nsu() == null || body.order_nsu().isBlank()) {
             throw new IllegalArgumentException("Webhook sem order_nsu.");
         }
+        if (body.transaction_nsu() == null
+                || body.transaction_nsu().isBlank()
+                || body.invoice_slug() == null
+                || body.invoice_slug().isBlank()) {
+            throw new IllegalArgumentException("Webhook incompleto (transaction_nsu/invoice_slug).");
+        }
+
+        // Confirma na InfinitePay antes de marcar pago (webhook não tem assinatura).
+        boolean pagoNaInfinite = infinitePayService.verificarPagamento(
+                body.order_nsu().trim(), body.transaction_nsu().trim(), body.invoice_slug().trim());
+        if (!pagoNaInfinite) {
+            throw new IllegalArgumentException("Pagamento não confirmado na InfinitePay.");
+        }
+
+        transactionTemplate.executeWithoutResult(status -> confirmarPagamentoWebhookTx(body));
+    }
+
+    private void confirmarPagamentoWebhookTx(InfinitePayWebhookRequest body) {
         Long id;
         try {
             id = Long.valueOf(body.order_nsu().trim());
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("order_nsu inválido.");
         }
-        Pedido p = pedidoRepository
-                .findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado."));
+        Pedido p = pedidoRepository.findById(id).orElse(null);
+        if (p == null) {
+            log.warn("Webhook InfinitePay para pedido inexistente: {}", body.order_nsu());
+            return;
+        }
         if (p.getStatus() == StatusPedido.CANCELADO) {
-            throw new IllegalStateException("Pedido cancelado.");
+            log.warn("Webhook InfinitePay para pedido cancelado #{}", id);
+            return;
         }
         if (p.isPagamentoConfirmado()) {
             return;
         }
-        p.setPagamentoConfirmado(true);
-        if (body.transaction_nsu() != null) {
-            p.setPagamentoRef(body.transaction_nsu());
+        int esperado = toCents(p.getTotal());
+        Integer informado = body.paid_amount() != null ? body.paid_amount() : body.amount();
+        if (informado != null && informado < esperado) {
+            log.error(
+                    "Webhook InfinitePay com valor menor que o pedido #{}: informado={} esperado={}",
+                    id,
+                    informado,
+                    esperado);
+            throw new IllegalArgumentException("Valor pago inferior ao pedido.");
         }
-        if (body.capture_method() != null) {
-            if ("pix".equalsIgnoreCase(body.capture_method())) {
+        marcarPago(p, body.transaction_nsu(), body.capture_method());
+    }
+
+    public Map<String, Object> statusPagamentoPublico(Long pedidoId) {
+        if (pedidoId == null) {
+            throw new IllegalArgumentException("Pedido inválido.");
+        }
+        Pedido p = pedidoRepository
+                .findById(pedidoId)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado."));
+        // Só pedidos do cardápio (sem usuário de balcão).
+        if (p.getUsuario() != null) {
+            throw new IllegalArgumentException("Pedido não encontrado.");
+        }
+        BigDecimal taxa = configSistemaService.getLoja().taxaEntrega() != null
+                ? configSistemaService.getLoja().taxaEntrega()
+                : BigDecimal.ZERO;
+        return Map.of(
+                "id",
+                p.getId(),
+                "pagamentoConfirmado",
+                p.isPagamentoConfirmado(),
+                "cancelado",
+                p.getStatus() == StatusPedido.CANCELADO,
+                "total",
+                p.getTotal(),
+                "taxaEntrega",
+                taxa,
+                "formaPagamento",
+                p.getFormaPagamento() != null ? p.getFormaPagamento().name() : "PIX",
+                "mensagem",
+                p.isPagamentoConfirmado()
+                        ? "Pagamento confirmado! Em breve saímos para entrega."
+                        : "Aguardando confirmação do pagamento.");
+    }
+
+    public PedidoPublicoResponse confirmarPagamentoRetorno(Long pedidoId, ConfirmarPagamentoPublicoRequest req) {
+        if (pedidoId == null) {
+            throw new IllegalArgumentException("Pedido inválido.");
+        }
+        String tx = req != null ? req.transactionNsu() : null;
+        String slug = req != null ? req.slug() : null;
+        String capture = req != null ? req.captureMethod() : null;
+        if (tx == null || tx.isBlank() || slug == null || slug.isBlank()) {
+            throw new IllegalArgumentException("Dados de pagamento incompletos. Aguarde a confirmação.");
+        }
+
+        PedidoPublicoResponse jaPago = transactionTemplate.execute(status -> {
+            Pedido p = pedidoRepository
+                    .findById(pedidoId)
+                    .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado."));
+            if (p.getStatus() == StatusPedido.CANCELADO) {
+                throw new IllegalStateException("Este pedido foi cancelado.");
+            }
+            if (p.isPagamentoConfirmado()) {
+                return toPublicoOk(p, "Pagamento já confirmado. Em breve saímos para entrega.");
+            }
+            return null;
+        });
+        if (jaPago != null) {
+            return jaPago;
+        }
+
+        boolean ok = infinitePayService.verificarPagamento(String.valueOf(pedidoId), tx, slug);
+        if (!ok) {
+            throw new IllegalStateException(
+                    "Pagamento ainda não confirmado. Se já pagou, aguarde alguns segundos.");
+        }
+
+        return transactionTemplate.execute(status -> {
+            Pedido p = pedidoRepository
+                    .findById(pedidoId)
+                    .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado."));
+            if (!p.isPagamentoConfirmado()) {
+                marcarPago(p, tx, capture);
+            }
+            return toPublicoOk(p, "Pagamento do pedido #" + p.getId() + " confirmado! Em breve saímos para entrega.");
+        });
+    }
+
+    private void marcarPago(Pedido p, String transactionNsu, String captureMethod) {
+        p.setPagamentoConfirmado(true);
+        if (transactionNsu != null && !transactionNsu.isBlank()) {
+            p.setPagamentoRef(transactionNsu);
+        }
+        if (captureMethod != null) {
+            if ("pix".equalsIgnoreCase(captureMethod)) {
                 p.setFormaPagamento(FormaPagamento.PIX);
-            } else if ("credit_card".equalsIgnoreCase(body.capture_method())) {
+            } else if ("credit_card".equalsIgnoreCase(captureMethod)) {
                 p.setFormaPagamento(FormaPagamento.CARTAO);
             }
         }
@@ -198,6 +345,22 @@ public class PedidoPublicoService {
             p.setStatus(StatusPedido.EM_PREPARO);
         }
         pedidoRepository.save(p);
+    }
+
+    private PedidoPublicoResponse toPublicoOk(Pedido p, String mensagem) {
+        BigDecimal taxa = configSistemaService.getLoja().taxaEntrega() != null
+                ? configSistemaService.getLoja().taxaEntrega()
+                : BigDecimal.ZERO;
+        return new PedidoPublicoResponse(
+                p.getId(),
+                p.getDataHora(),
+                p.getStatus(),
+                p.getTotal(),
+                taxa,
+                p.getFormaPagamento(),
+                mensagem,
+                null,
+                true);
     }
 
     private String resolverBaseUrl(String fromRequest) {
@@ -261,5 +424,9 @@ public class PedidoPublicoService {
             return "";
         }
         return raw.replaceAll("\\D", "");
+    }
+
+    private static int toCents(BigDecimal value) {
+        return value.movePointRight(2).setScale(0, RoundingMode.HALF_UP).intValueExact();
     }
 }
