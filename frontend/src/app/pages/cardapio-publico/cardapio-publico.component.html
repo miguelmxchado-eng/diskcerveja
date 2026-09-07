@@ -196,8 +196,26 @@
           }
           <div class="cardapio__totais">
             <div><span>Subtotal</span><strong>R$ {{ subtotal() | number: '1.2-2' }}</strong></div>
-            <div><span>Taxa de entrega</span><strong>R$ {{ taxa() | number: '1.2-2' }}</strong></div>
-            <div class="is-total"><span>Total</span><strong>R$ {{ total() | number: '1.2-2' }}</strong></div>
+            <div>
+              <span>Taxa de entrega</span>
+              <strong>
+                @if (freteConfirmado()) {
+                  R$ {{ taxa() | number: '1.2-2' }}
+                } @else {
+                  a partir de R$ {{ taxaMinima() | number: '1.2-2' }}
+                }
+              </strong>
+            </div>
+            <div class="is-total">
+              <span>Total</span>
+              <strong>
+                @if (freteConfirmado()) {
+                  R$ {{ total() | number: '1.2-2' }}
+                } @else {
+                  R$ {{ subtotal() | number: '1.2-2' }} + frete
+                }
+              </strong>
+            </div>
             @if (faltaMinimo() > 0) {
               <p class="cardapio__min">
                 Falta R$ {{ faltaMinimo() | number: '1.2-2' }} para o pedido mínimo
@@ -264,7 +282,11 @@
             </p>
           </div>
           <div class="cardapio__totais">
-            <div class="is-total"><span>Total</span><strong>R$ {{ total() | number: '1.2-2' }}</strong></div>
+            <div><span>Itens</span><strong>R$ {{ subtotal() | number: '1.2-2' }}</strong></div>
+            <div class="is-total">
+              <span>Total</span>
+              <strong>R$ {{ subtotal() | number: '1.2-2' }} + frete</strong>
+            </div>
           </div>
         </div>
         <div class="cardapio__sheet-foot">
@@ -334,11 +356,42 @@
           </label>
 
           <div class="cardapio__totais">
-            <div class="is-total"><span>Total</span><strong>R$ {{ total() | number: '1.2-2' }}</strong></div>
+            <div>
+              <span>Taxa de entrega</span>
+              <strong>
+                @if (cotandoFrete()) {
+                  …
+                } @else if (frete()?.coberta) {
+                  R$ {{ taxa() | number: '1.2-2' }}
+                  @if (frete()?.zona) {
+                    <small> ({{ frete()!.zona }})</small>
+                  }
+                } @else if (freteBloqueado()) {
+                  —
+                } @else {
+                  Informe o CEP
+                }
+              </strong>
+            </div>
+            <div class="is-total">
+              <span>Total</span>
+              <strong>
+                @if (freteConfirmado()) {
+                  R$ {{ total() | number: '1.2-2' }}
+                } @else {
+                  R$ {{ subtotal() | number: '1.2-2' }} + frete
+                }
+              </strong>
+            </div>
           </div>
         </div>
         <div class="cardapio__sheet-foot">
-          <button type="button" class="cardapio__cta" [disabled]="enviando() || !pagamentoOnline()" (click)="enviarPedido()">
+          <button
+            type="button"
+            class="cardapio__cta"
+            [disabled]="enviando() || !pagamentoOnline() || freteBloqueado() || !frete()?.coberta"
+            (click)="enviarPedido()"
+          >
             @if (enviando()) {
               Abrindo pagamento…
             } @else if (formaPagamento === 'CARTAO') {

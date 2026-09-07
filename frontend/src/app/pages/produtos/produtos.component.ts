@@ -1066,7 +1066,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.novoVisivelCardapio = p.visivelCardapio !== false;
     this.novoPromocaoCardapio = !!p.promocaoCardapio;
     this.novoDescricaoCardapio = p.descricaoCardapio ?? '';
-    this.imagemPreview.set(null);
+    this.imagemPreview.set(this.produtoImagem(p));
     this.ultimaLeituraPreview.set(null);
     this.codigoDuplicadoMsg.set(null);
     this.codigoSomenteLeitura = false;
@@ -1131,7 +1131,7 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       visivelCardapio: this.novoVisivelCardapio,
       promocaoCardapio: this.novoPromocaoCardapio,
       descricaoCardapio: this.novoDescricaoCardapio.trim() || null,
-      imagemUrl: editando?.imagemUrl ?? null,
+      imagemUrl: this.imagemPreview() || null,
     };
     this.salvando.set(true);
     const req = editando

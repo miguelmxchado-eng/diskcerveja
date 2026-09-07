@@ -16,6 +16,7 @@ import com.diskcerveja.manager.dto.PedidoPublicoResponse;
 import com.diskcerveja.manager.dto.PedidoRequest;
 import com.diskcerveja.manager.repository.ClienteRepository;
 import com.diskcerveja.manager.repository.ComboRepository;
+import com.diskcerveja.manager.repository.EntregaRepository;
 import com.diskcerveja.manager.repository.PedidoRepository;
 import com.diskcerveja.manager.repository.ProdutoRepository;
 import java.math.BigDecimal;
@@ -42,6 +43,8 @@ public class PedidoPublicoService {
     private final ClienteRepository clienteRepository;
     private final PedidoRepository pedidoRepository;
     private final InfinitePayService infinitePayService;
+    private final ZonaEntregaService zonaEntregaService;
+    private final EntregaRepository entregaRepository;
     private final TransactionTemplate transactionTemplate;
 
     public PedidoPublicoService(
@@ -52,6 +55,8 @@ public class PedidoPublicoService {
             ClienteRepository clienteRepository,
             PedidoRepository pedidoRepository,
             InfinitePayService infinitePayService,
+            ZonaEntregaService zonaEntregaService,
+            EntregaRepository entregaRepository,
             PlatformTransactionManager transactionManager) {
         this.configSistemaService = configSistemaService;
         this.pedidoService = pedidoService;
@@ -60,6 +65,8 @@ public class PedidoPublicoService {
         this.clienteRepository = clienteRepository;
         this.pedidoRepository = pedidoRepository;
         this.infinitePayService = infinitePayService;
+        this.zonaEntregaService = zonaEntregaService;
+        this.entregaRepository = entregaRepository;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -72,9 +79,8 @@ public class PedidoPublicoService {
         if (salvo == null) {
             throw new IllegalStateException("Não foi possível criar o pedido.");
         }
-        BigDecimal taxa = configSistemaService.getLoja().taxaEntrega() != null
-                ? configSistemaService.getLoja().taxaEntrega()
-                : BigDecimal.ZERO;
+        // Usa a taxa já gravada na entrega — não recalcula (evita divergir do total pago).
+        BigDecimal taxa = taxaEntregaDoPedido(salvo.getId());
 
         // Reabre leitura com itens inicializados (evita LazyInitialization fora da TX).
         Pedido paraCheckout = transactionTemplate.execute(status -> pedidoRepository
@@ -182,6 +188,8 @@ public class PedidoPublicoService {
                     "Pedido mínimo é R$ " + loja.pedidoMinimo().toPlainString() + ".");
         }
 
+        BigDecimal taxaEntrega = zonaEntregaService.taxaObrigatoriaParaCep(req.cep());
+
         Long clienteId = upsertCliente(nome, telefone, req.enderecoEntrega().trim(), req.observacao());
 
         PedidoRequest pedidoReq = new PedidoRequest(
@@ -191,7 +199,7 @@ public class PedidoPublicoService {
                 TipoPedido.ENTREGA,
                 req.formaPagamento() != null ? req.formaPagamento() : FormaPagamento.PIX,
                 endereco,
-                loja.taxaEntrega() != null ? loja.taxaEntrega() : BigDecimal.ZERO,
+                taxaEntrega,
                 BigDecimal.ZERO,
                 null,
                 itens,
@@ -260,9 +268,6 @@ public class PedidoPublicoService {
         if (p.getUsuario() != null) {
             throw new IllegalArgumentException("Pedido não encontrado.");
         }
-        BigDecimal taxa = configSistemaService.getLoja().taxaEntrega() != null
-                ? configSistemaService.getLoja().taxaEntrega()
-                : BigDecimal.ZERO;
         return Map.of(
                 "id",
                 p.getId(),
@@ -273,7 +278,7 @@ public class PedidoPublicoService {
                 "total",
                 p.getTotal(),
                 "taxaEntrega",
-                taxa,
+                taxaEntregaDoPedido(p.getId()),
                 "formaPagamento",
                 p.getFormaPagamento() != null ? p.getFormaPagamento().name() : "PIX",
                 "mensagem",
@@ -379,19 +384,23 @@ public class PedidoPublicoService {
     }
 
     private PedidoPublicoResponse toPublicoOk(Pedido p, String mensagem) {
-        BigDecimal taxa = configSistemaService.getLoja().taxaEntrega() != null
-                ? configSistemaService.getLoja().taxaEntrega()
-                : BigDecimal.ZERO;
         return new PedidoPublicoResponse(
                 p.getId(),
                 p.getDataHora(),
                 p.getStatus(),
                 p.getTotal(),
-                taxa,
+                taxaEntregaDoPedido(p.getId()),
                 p.getFormaPagamento(),
                 mensagem,
                 null,
                 true);
+    }
+
+    private BigDecimal taxaEntregaDoPedido(Long pedidoId) {
+        return entregaRepository
+                .findByPedido_Id(pedidoId)
+                .map(e -> e.getTaxaEntrega() != null ? e.getTaxaEntrega() : BigDecimal.ZERO)
+                .orElse(BigDecimal.ZERO);
     }
 
     private String resolverBaseUrl() {

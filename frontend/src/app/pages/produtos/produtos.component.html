@@ -232,8 +232,13 @@
                 (change)="onImagemSelecionada($event)"
               />
               <button mat-flat-button type="button" class="produtos-btn-primary produtos-image__btn" (click)="fileInput.click()">
-                Adicione uma imagem
+                {{ imagemPreview() ? 'Trocar imagem' : 'Adicione uma imagem' }}
               </button>
+              @if (imagemPreview()) {
+                <button mat-stroked-button type="button" class="produtos-image__btn" (click)="imagemPreview.set(null)">
+                  Remover imagem
+                </button>
+              }
               <p class="produtos-image__hint">PNG, JPG ou WEBP até 1MB.</p>
             </div>
           </div>

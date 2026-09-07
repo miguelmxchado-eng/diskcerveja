@@ -3,11 +3,13 @@ package com.diskcerveja.manager.web;
 import com.diskcerveja.manager.dto.CatalogoPublicoResponse;
 import com.diskcerveja.manager.dto.CatalogoPublicoResponse.LojaPublicaDto;
 import com.diskcerveja.manager.dto.ConfirmarPagamentoPublicoRequest;
+import com.diskcerveja.manager.dto.FretePublicoResponse;
 import com.diskcerveja.manager.dto.InfinitePayWebhookRequest;
 import com.diskcerveja.manager.dto.PedidoPublicoRequest;
 import com.diskcerveja.manager.dto.PedidoPublicoResponse;
 import com.diskcerveja.manager.service.CatalogoPublicoService;
 import com.diskcerveja.manager.service.PedidoPublicoService;
+import com.diskcerveja.manager.service.ZonaEntregaService;
 import jakarta.validation.Valid;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -27,11 +29,15 @@ public class PublicoController {
 
     private final CatalogoPublicoService catalogoPublicoService;
     private final PedidoPublicoService pedidoPublicoService;
+    private final ZonaEntregaService zonaEntregaService;
 
     public PublicoController(
-            CatalogoPublicoService catalogoPublicoService, PedidoPublicoService pedidoPublicoService) {
+            CatalogoPublicoService catalogoPublicoService,
+            PedidoPublicoService pedidoPublicoService,
+            ZonaEntregaService zonaEntregaService) {
         this.catalogoPublicoService = catalogoPublicoService;
         this.pedidoPublicoService = pedidoPublicoService;
+        this.zonaEntregaService = zonaEntregaService;
     }
 
     @GetMapping("/loja")
@@ -44,10 +50,14 @@ public class PublicoController {
         return catalogoPublicoService.catalogo(q);
     }
 
+    @GetMapping("/frete")
+    public FretePublicoResponse frete(@RequestParam String cep) {
+        return zonaEntregaService.cotar(cep);
+    }
+
     @PostMapping("/pedidos")
     @ResponseStatus(HttpStatus.CREATED)
     public PedidoPublicoResponse criarPedido(@RequestBody @Valid PedidoPublicoRequest req) {
-        // Base URL só da config (não confiar em Host/X-Forwarded-* do cliente).
         return pedidoPublicoService.criar(req);
     }
 
@@ -58,7 +68,6 @@ public class PublicoController {
             pedidoPublicoService.confirmarPagamentoWebhook(body);
             return ResponseEntity.ok(Map.of("status", "ok"));
         } catch (IllegalArgumentException ex) {
-            // Valor inválido: pede retry da InfinitePay
             return ResponseEntity.badRequest().body(Map.of("erro", ex.getMessage()));
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body(Map.of("erro", "falha"));
@@ -71,7 +80,6 @@ public class PublicoController {
         return pedidoPublicoService.confirmarPagamentoRetorno(id, req);
     }
 
-    /** Polling no retorno do checkout quando a InfinitePay não envia transaction_nsu/slug. */
     @GetMapping("/pedidos/{id}/status-pagamento")
     public Map<String, Object> statusPagamento(@PathVariable Long id) {
         return pedidoPublicoService.statusPagamentoPublico(id);

@@ -74,7 +74,7 @@ public class Produto {
     @Column(name = "descricao_cardapio", length = 500)
     private String descricaoCardapio;
 
-    @Column(name = "imagem_url", length = 500)
+    @Column(name = "imagem_url", columnDefinition = "text")
     private String imagemUrl;
 
     public Long getId() {

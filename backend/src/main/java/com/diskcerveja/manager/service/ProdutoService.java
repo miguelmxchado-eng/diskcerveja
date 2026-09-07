@@ -99,8 +99,16 @@ public class ProdutoService {
         p.setVisivelCardapio(dto.visivelCardapio() == null || dto.visivelCardapio());
         p.setPromocaoCardapio(Boolean.TRUE.equals(dto.promocaoCardapio()));
         p.setDescricaoCardapio(normalizeTexto(dto.descricaoCardapio(), 500));
-        p.setImagemUrl(normalizeTexto(dto.imagemUrl(), 500));
+        // Imagem pode ser data URL (base64) — não truncar.
+        p.setImagemUrl(blankToNull(dto.imagemUrl()));
         return produtoRepository.save(p);
+    }
+
+    private static String blankToNull(String v) {
+        if (v == null || v.isBlank()) {
+            return null;
+        }
+        return v.trim();
     }
 
     private static String normalizeTexto(String v, int max) {

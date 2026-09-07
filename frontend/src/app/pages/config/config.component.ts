@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
-import { ConfigCaixaResponse, LojaConfig } from '../../core/models';
+import { ConfigCaixaResponse, LojaConfig, ZonaEntrega } from '../../core/models';
 
 @Component({
   selector: 'app-config',
@@ -15,6 +15,7 @@ export class ConfigComponent implements OnInit {
   private http = inject(HttpClient);
   private apiCaixa = `${environment.apiUrl}/api/config/caixa`;
   private apiLoja = `${environment.apiUrl}/api/config/loja`;
+  private apiZonas = `${environment.apiUrl}/api/config/zonas-entrega`;
 
   caixaObrigatorio = signal(false);
   loja = signal<LojaConfig>({
@@ -28,6 +29,7 @@ export class ConfigComponent implements OnInit {
     infinitepayHandle: '',
     publicBaseUrl: '',
   });
+  zonas = signal<ZonaEntrega[]>([]);
   loading = signal(false);
   salvando = signal(false);
   sucesso = signal<string | null>(null);
@@ -45,12 +47,16 @@ export class ConfigComponent implements OnInit {
       error: () => this.erro.set('Erro ao carregar configurações.'),
     });
     this.http.get<LojaConfig>(this.apiLoja).subscribe({
+      next: (res) => this.loja.set(res),
+      error: () => this.erro.set('Erro ao carregar configurações da loja.'),
+    });
+    this.http.get<ZonaEntrega[]>(this.apiZonas).subscribe({
       next: (res) => {
-        this.loja.set(res);
+        this.zonas.set(res ?? []);
         this.loading.set(false);
       },
       error: () => {
-        this.erro.set('Erro ao carregar configurações da loja.');
+        this.erro.set('Erro ao carregar zonas de entrega.');
         this.loading.set(false);
       },
     });
@@ -60,11 +66,41 @@ export class ConfigComponent implements OnInit {
     this.loja.update((l) => ({ ...l, ...partial }));
   }
 
+  adicionarZona() {
+    this.zonas.update((z) => [
+      ...z,
+      {
+        nome: '',
+        taxa: Number(this.loja().taxaEntrega) || 10,
+        cepPrefixos: '',
+        ativo: true,
+        ordem: z.length,
+      },
+    ]);
+  }
+
+  removerZona(idx: number) {
+    this.zonas.update((z) => z.filter((_, i) => i !== idx));
+  }
+
+  patchZona(idx: number, partial: Partial<ZonaEntrega>) {
+    this.zonas.update((list) => list.map((z, i) => (i === idx ? { ...z, ...partial } : z)));
+  }
+
   salvar() {
     this.salvando.set(true);
     this.sucesso.set(null);
     this.erro.set(null);
     const l = this.loja();
+    const zonasPayload = this.zonas().map((z, i) => ({
+      id: z.id ?? null,
+      nome: z.nome,
+      taxa: Number(z.taxa) || 0,
+      cepPrefixos: z.cepPrefixos,
+      ativo: !!z.ativo,
+      ordem: i,
+    }));
+
     this.http.patch<ConfigCaixaResponse>(this.apiCaixa, { caixaObrigatorio: this.caixaObrigatorio() }).subscribe({
       next: (res) => this.caixaObrigatorio.set(res.caixaObrigatorio),
       error: () => {
@@ -73,13 +109,20 @@ export class ConfigComponent implements OnInit {
       },
     });
     this.http.patch<LojaConfig>(this.apiLoja, l).subscribe({
+      next: (res) => this.loja.set(res),
+      error: () => {
+        this.erro.set('Erro ao salvar loja.');
+        this.salvando.set(false);
+      },
+    });
+    this.http.put<ZonaEntrega[]>(this.apiZonas, zonasPayload).subscribe({
       next: (res) => {
-        this.loja.set(res);
+        this.zonas.set(res ?? []);
         this.sucesso.set('Configuração salva com sucesso!');
         this.salvando.set(false);
       },
-      error: () => {
-        this.erro.set('Erro ao salvar loja.');
+      error: (e) => {
+        this.erro.set(e?.error?.erro || 'Erro ao salvar zonas de entrega.');
         this.salvando.set(false);
       },
     });

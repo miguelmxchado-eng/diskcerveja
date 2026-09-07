@@ -27,14 +27,17 @@ public class CatalogoPublicoService {
     private final ConfigSistemaService configSistemaService;
     private final ProdutoRepository produtoRepository;
     private final ComboRepository comboRepository;
+    private final ZonaEntregaService zonaEntregaService;
 
     public CatalogoPublicoService(
             ConfigSistemaService configSistemaService,
             ProdutoRepository produtoRepository,
-            ComboRepository comboRepository) {
+            ComboRepository comboRepository,
+            ZonaEntregaService zonaEntregaService) {
         this.configSistemaService = configSistemaService;
         this.produtoRepository = produtoRepository;
         this.comboRepository = comboRepository;
+        this.zonaEntregaService = zonaEntregaService;
     }
 
     @Transactional(readOnly = true)
@@ -45,7 +48,7 @@ public class CatalogoPublicoService {
                 c.whatsapp(),
                 c.aberta(),
                 c.horario(),
-                c.taxaEntrega(),
+                zonaEntregaService.taxaExibidaCardapio(),
                 c.pedidoMinimo(),
                 c.info(),
                 configSistemaService.isPagamentoOnlineAtivo());

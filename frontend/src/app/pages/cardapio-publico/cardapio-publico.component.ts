@@ -14,7 +14,7 @@ import { DecimalPipe } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute } from '@angular/router';
 import { environment } from '../../../environments/environment';
-import { CatalogoItemPublico, CatalogoPublico, LojaConfig } from '../../core/models';
+import { CatalogoItemPublico, CatalogoPublico, FretePublico, LojaConfig } from '../../core/models';
 import { produtoFotoUrl } from '../../shared/produto-foto';
 
 interface CartLine {
@@ -78,6 +78,8 @@ export class CardapioPublicoComponent implements OnInit {
   readonly checkoutErro = signal<string | null>(null);
   readonly pedidoOk = signal<PedidoPublicoOk | null>(null);
   readonly pedidoAguardando = signal<PedidoAguardando | null>(null);
+  readonly frete = signal<FretePublico | null>(null);
+  readonly cotandoFrete = signal(false);
 
   clienteNome = '';
   telefone = '';
@@ -131,8 +133,20 @@ export class CardapioPublicoComponent implements OnInit {
     this.carrinho().reduce((acc, l) => acc + l.preco * l.quantidade, 0),
   );
 
-  readonly taxa = computed(() => Number(this.lojaInfo()?.taxaEntrega ?? 0));
+  /** Menor taxa do cardápio ("a partir de") — só estimativa até cotar o CEP. */
+  readonly taxaMinima = computed(() => Number(this.lojaInfo()?.taxaEntrega ?? 0));
+  /** Taxa confirmada pela cotação; 0 enquanto o CEP não cobrir a área. */
+  readonly taxa = computed(() => {
+    const f = this.frete();
+    if (f?.coberta) return Number(f.taxa ?? 0);
+    return 0;
+  });
+  readonly freteConfirmado = computed(() => !!this.frete()?.coberta);
   readonly total = computed(() => this.subtotal() + this.taxa());
+  readonly freteBloqueado = computed(() => {
+    const f = this.frete();
+    return !!f && !f.coberta;
+  });
 
   readonly faltaMinimo = computed(() => {
     const min = Number(this.lojaInfo()?.pedidoMinimo ?? 0);
@@ -332,7 +346,35 @@ export class CardapioPublicoComponent implements OnInit {
     this.cep = d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d;
     if (d.length === 8) {
       this.buscarCep(d);
+      this.cotarFrete(d);
+    } else {
+      this.frete.set(null);
     }
+  }
+
+  cotarFrete(digits?: string): void {
+    const cep = (digits ?? this.cep).replace(/\D/g, '');
+    if (cep.length !== 8) {
+      this.frete.set(null);
+      return;
+    }
+    this.cotandoFrete.set(true);
+    this.http.get<FretePublico>(`${environment.apiUrl}/api/publico/frete`, { params: { cep } }).subscribe({
+      next: (r) => {
+        this.cotandoFrete.set(false);
+        this.frete.set(r);
+        if (!r.coberta) {
+          this.checkoutErro.set(r.mensagem || 'CEP fora da área de entrega.');
+        } else {
+          this.checkoutErro.set(null);
+        }
+      },
+      error: () => {
+        this.cotandoFrete.set(false);
+        this.frete.set(null);
+        this.checkoutErro.set('Não foi possível calcular a taxa de entrega.');
+      },
+    });
   }
 
   buscarCep(digits?: string): void {
@@ -493,6 +535,15 @@ export class CardapioPublicoComponent implements OnInit {
       this.checkoutErro.set('Informe um CEP válido.');
       return;
     }
+    if (this.freteBloqueado()) {
+      this.checkoutErro.set(this.frete()?.mensagem || 'CEP fora da área de entrega.');
+      return;
+    }
+    if (!this.frete()?.coberta) {
+      this.cotarFrete();
+      this.checkoutErro.set('Aguarde o cálculo da taxa de entrega.');
+      return;
+    }
     if (!this.logradouro.trim() || !this.bairro.trim() || !this.cidade.trim()) {
       this.checkoutErro.set('Complete o endereço (rua, bairro e cidade).');
       return;
@@ -518,6 +569,7 @@ export class CardapioPublicoComponent implements OnInit {
       clienteNome: nome,
       telefone,
       enderecoEntrega: endereco,
+      cep: this.cep.replace(/\D/g, ''),
       formaPagamento: this.formaPagamento,
       observacao: this.observacao.trim() || null,
       itens: this.carrinho().map((l) => ({

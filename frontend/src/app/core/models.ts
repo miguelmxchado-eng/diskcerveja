@@ -107,6 +107,23 @@ export interface LojaConfig {
   pagamentoOnline?: boolean;
 }
 
+export interface ZonaEntrega {
+  id?: number | null;
+  nome: string;
+  taxa: number;
+  cepPrefixos: string;
+  ativo: boolean;
+  ordem: number;
+}
+
+export interface FretePublico {
+  coberta: boolean;
+  taxa: number;
+  zona?: string | null;
+  pedidoMinimo: number;
+  mensagem?: string | null;
+}
+
 export interface CatalogoItemPublico {
   tipo: 'PRODUTO' | 'COMBO';
   id: number;

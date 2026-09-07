@@ -30,4 +30,4 @@ public record ProdutoDto(
         Boolean visivelCardapio,
         Boolean promocaoCardapio,
         @Size(max = 500) String descricaoCardapio,
-        @Size(max = 500) String imagemUrl) {}
+        String imagemUrl) {}
