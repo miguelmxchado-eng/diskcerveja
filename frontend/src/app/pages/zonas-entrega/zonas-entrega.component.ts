@@ -219,11 +219,22 @@ export class ZonasEntregaComponent implements OnInit, AfterViewInit, OnDestroy {
     const el = document.getElementById('mapa-zonas-anapolis');
     if (!el || this.map) return;
 
-    this.map = L.map(el, { zoomControl: true }).setView([-16.3281, -48.953], 13);
+    this.map = L.map(el, { zoomControl: true }).setView([-16.329541, -48.968634], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
       attribution: '&copy; OpenStreetMap',
     }).addTo(this.map);
+
+    // Marcador da loja (Dom Pedro II)
+    const lojaIcon = L.divIcon({
+      className: 'zonas-loja-marker',
+      html: '<div class="zonas-loja-marker__pin">Loja</div>',
+      iconSize: [48, 28],
+      iconAnchor: [24, 14],
+    });
+    L.marker([-16.329541, -48.968634], { icon: lojaIcon, zIndexOffset: 1000 })
+      .addTo(this.map)
+      .bindTooltip('Empório Machado — Dom Pedro II', { permanent: false });
 
     this.geojson = await firstValueFrom(
       this.http.get<GeoJSON.FeatureCollection>('assets/geo/bairros-anapolis.geojson'),
