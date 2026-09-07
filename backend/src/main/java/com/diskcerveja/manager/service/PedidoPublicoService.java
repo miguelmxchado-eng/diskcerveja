@@ -94,7 +94,15 @@ public class PedidoPublicoService {
         String checkoutUrl;
         try {
             checkoutUrl = infinitePayService.criarLinkCheckout(
-                    paraCheckout, paraCheckout.getClienteNome(), paraCheckout.getTelefone(), base);
+                    paraCheckout,
+                    paraCheckout.getClienteNome(),
+                    paraCheckout.getTelefone(),
+                    base,
+                    req.cep(),
+                    req.logradouro(),
+                    req.bairro(),
+                    req.numero(),
+                    req.complemento());
         } catch (RuntimeException ex) {
             try {
                 pedidoService.mudarStatus(salvo.getId(), StatusPedido.CANCELADO, null);

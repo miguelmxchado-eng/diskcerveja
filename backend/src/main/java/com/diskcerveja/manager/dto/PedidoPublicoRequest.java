@@ -15,7 +15,11 @@ public record PedidoPublicoRequest(
         @NotBlank @Size(max = 400) String enderecoEntrega,
         @NotBlank @Size(max = 9) String cep,
         @Size(max = 120) String bairro,
-        @NotNull FormaPagamento formaPagamento,
+        @Size(max = 200) String logradouro,
+        @Size(max = 30) String numero,
+        @Size(max = 120) String complemento,
+        /** Opcional: a forma final vem do checkout InfinitePay (Pix/cartão). */
+        FormaPagamento formaPagamento,
         @Size(max = 240) String observacao,
         @NotEmpty @Valid List<Item> itens) {
 

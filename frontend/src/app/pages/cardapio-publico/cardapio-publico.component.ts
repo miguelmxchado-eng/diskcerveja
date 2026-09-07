@@ -91,7 +91,6 @@ export class CardapioPublicoComponent implements OnInit {
   cidade = '';
   uf = '';
   observacao = '';
-  formaPagamento: 'PIX' | 'CARTAO' = 'PIX';
 
   readonly lojaInfo = computed(() => this.data()?.loja ?? null);
   readonly categorias = computed(() => this.data()?.categorias ?? []);
@@ -581,7 +580,9 @@ export class CardapioPublicoComponent implements OnInit {
       enderecoEntrega: endereco,
       cep: this.cep.replace(/\D/g, ''),
       bairro: this.bairro.trim() || null,
-      formaPagamento: this.formaPagamento,
+      logradouro: this.logradouro.trim() || null,
+      numero: this.numero.trim() || null,
+      complemento: this.complemento.trim() || null,
       observacao: this.observacao.trim() || null,
       itens: this.carrinho().map((l) => ({
         tipo: l.tipo,

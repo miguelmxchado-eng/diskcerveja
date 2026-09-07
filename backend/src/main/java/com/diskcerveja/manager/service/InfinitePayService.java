@@ -37,7 +37,16 @@ public class InfinitePayService {
         this.objectMapper = objectMapper;
     }
 
-    public String criarLinkCheckout(Pedido pedido, String clienteNome, String telefone, String baseUrl) {
+    public String criarLinkCheckout(
+            Pedido pedido,
+            String clienteNome,
+            String telefone,
+            String baseUrl,
+            String cep,
+            String logradouro,
+            String bairro,
+            String numero,
+            String complemento) {
         String handle = configSistemaService.getInfinitepayHandle();
         if (handle.isBlank()) {
             return null;
@@ -98,7 +107,9 @@ public class InfinitePayService {
             }
 
             Map<String, Object> customer = new LinkedHashMap<>();
-            customer.put("name", clienteNome);
+            if (clienteNome != null && !clienteNome.isBlank()) {
+                customer.put("name", clienteNome.trim());
+            }
             String digits = telefone == null ? "" : telefone.replaceAll("\\D", "");
             if (!digits.isBlank()) {
                 if (!digits.startsWith("55")) {
@@ -106,7 +117,30 @@ public class InfinitePayService {
                 }
                 customer.put("phone_number", "+" + digits);
             }
-            body.put("customer", customer);
+            if (!customer.isEmpty()) {
+                body.put("customer", customer);
+            }
+
+            Map<String, Object> address = new LinkedHashMap<>();
+            String cepDigits = cep == null ? "" : cep.replaceAll("\\D", "");
+            if (cepDigits.length() == 8) {
+                address.put("cep", cepDigits);
+            }
+            if (logradouro != null && !logradouro.isBlank()) {
+                address.put("street", logradouro.trim());
+            }
+            if (bairro != null && !bairro.isBlank()) {
+                address.put("neighborhood", bairro.trim());
+            }
+            if (numero != null && !numero.isBlank()) {
+                address.put("number", numero.trim());
+            }
+            if (complemento != null && !complemento.isBlank()) {
+                address.put("complement", complemento.trim());
+            }
+            if (!address.isEmpty()) {
+                body.put("address", address);
+            }
 
             String payload = objectMapper.writeValueAsString(body);
             HttpRequest request = HttpRequest.newBuilder()
