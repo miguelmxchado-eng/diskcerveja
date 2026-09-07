@@ -50,5 +50,7 @@ class ZonaEntregaServiceTest {
         assertTrue(ZonaEntregaService.bairroCasaComZona("Jaiara", "Centro, Jaiara, Bairro JK"));
         assertTrue(ZonaEntregaService.bairroCasaComZona("bairro jaiara", "Jaiara"));
         assertFalse(ZonaEntregaService.bairroCasaComZona("Centro", "Jaiara, Maracanã"));
+        assertFalse(ZonaEntregaService.bairroCasaComZona("Chácaras Boa Vista", "Bairro Boa Vista, Centro"));
+        assertTrue(ZonaEntregaService.bairroCasaComZona("Bairro Boa Vista", "Bairro Boa Vista, Centro"));
     }
 }

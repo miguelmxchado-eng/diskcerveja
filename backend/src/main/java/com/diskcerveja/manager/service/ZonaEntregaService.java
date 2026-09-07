@@ -179,7 +179,11 @@ public class ZonaEntregaService {
                 continue;
             }
             String n = normalizarNome(token);
-            if (n.equals(alvo) || n.contains(alvo) || alvo.contains(n)) {
+            if (n.isEmpty()) {
+                continue;
+            }
+            // Match exato (após normalizar). Evita "Boa Vista" casar com "Chácaras Boa Vista".
+            if (n.equals(alvo)) {
                 return true;
             }
         }
