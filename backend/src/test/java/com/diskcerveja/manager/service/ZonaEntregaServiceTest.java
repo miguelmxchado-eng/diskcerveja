@@ -44,4 +44,11 @@ class ZonaEntregaServiceTest {
         assertFalse(ZonaEntregaService.cepCasaComZona("74810000", ""));
         assertFalse(ZonaEntregaService.cepCasaComZona(null, "74810"));
     }
+
+    @Test
+    void bairroPorNome() {
+        assertTrue(ZonaEntregaService.bairroCasaComZona("Jaiara", "Centro, Jaiara, Bairro JK"));
+        assertTrue(ZonaEntregaService.bairroCasaComZona("bairro jaiara", "Jaiara"));
+        assertFalse(ZonaEntregaService.bairroCasaComZona("Centro", "Jaiara, Maracanã"));
+    }
 }

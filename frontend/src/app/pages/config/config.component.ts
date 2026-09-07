@@ -2,13 +2,14 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
+import { RouterLink } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { ConfigCaixaResponse, LojaConfig, ZonaEntrega } from '../../core/models';
 
 @Component({
   selector: 'app-config',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './config.component.html',
 })
 export class ConfigComponent implements OnInit {
@@ -73,6 +74,7 @@ export class ConfigComponent implements OnInit {
         nome: '',
         taxa: Number(this.loja().taxaEntrega) || 10,
         cepPrefixos: '',
+        bairros: '',
         ativo: true,
         ordem: z.length,
       },
@@ -97,6 +99,7 @@ export class ConfigComponent implements OnInit {
       nome: z.nome,
       taxa: Number(z.taxa) || 0,
       cepPrefixos: z.cepPrefixos,
+      bairros: z.bairros ?? '',
       ativo: !!z.ativo,
       ordem: i,
     }));

@@ -354,12 +354,16 @@ export class CardapioPublicoComponent implements OnInit {
 
   cotarFrete(digits?: string): void {
     const cep = (digits ?? this.cep).replace(/\D/g, '');
-    if (cep.length !== 8) {
+    const bairro = this.bairro.trim();
+    if (cep.length !== 8 && !bairro) {
       this.frete.set(null);
       return;
     }
     this.cotandoFrete.set(true);
-    this.http.get<FretePublico>(`${environment.apiUrl}/api/publico/frete`, { params: { cep } }).subscribe({
+    const params: Record<string, string> = {};
+    if (cep.length === 8) params['cep'] = cep;
+    if (bairro) params['bairro'] = bairro;
+    this.http.get<FretePublico>(`${environment.apiUrl}/api/publico/frete`, { params }).subscribe({
       next: (r) => {
         this.cotandoFrete.set(false);
         this.frete.set(r);
@@ -393,12 +397,18 @@ export class CardapioPublicoComponent implements OnInit {
         this.cidade = r.localidade ?? '';
         this.uf = r.uf ?? '';
         this.checkoutErro.set(null);
+        this.cotarFrete(cep);
       },
       error: () => {
         this.buscandoCep.set(false);
         this.checkoutErro.set('Não foi possível consultar o CEP. Digite o endereço.');
       },
     });
+  }
+
+  onBairroChange(value: string): void {
+    this.bairro = value;
+    this.cotarFrete();
   }
 
   private mascaraTelefone(value: string): string {
@@ -570,6 +580,7 @@ export class CardapioPublicoComponent implements OnInit {
       telefone,
       enderecoEntrega: endereco,
       cep: this.cep.replace(/\D/g, ''),
+      bairro: this.bairro.trim() || null,
       formaPagamento: this.formaPagamento,
       observacao: this.observacao.trim() || null,
       itens: this.carrinho().map((l) => ({

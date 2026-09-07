@@ -112,6 +112,7 @@ export interface ZonaEntrega {
   nome: string;
   taxa: number;
   cepPrefixos: string;
+  bairros?: string;
   ativo: boolean;
   ordem: number;
 }

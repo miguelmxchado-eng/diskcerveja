@@ -6,8 +6,10 @@ import com.diskcerveja.manager.dto.ZonaEntregaDto;
 import com.diskcerveja.manager.repository.ZonaEntregaRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,10 +39,12 @@ public class ZonaEntregaService {
                 if (dto == null || dto.nome() == null || dto.nome().isBlank()) {
                     continue;
                 }
-                if (dto.cepPrefixos() == null || dto.cepPrefixos().isBlank()) {
-                    throw new IllegalArgumentException("Informe os CEPs da zona \"" + dto.nome().trim() + "\".");
+                String prefixos = normalizarListaOpcional(dto.cepPrefixos());
+                String bairros = normalizarListaOpcional(dto.bairros());
+                if ((prefixos == null || prefixos.isBlank()) && (bairros == null || bairros.isBlank())) {
+                    throw new IllegalArgumentException(
+                            "Informe CEPs ou bairros na zona \"" + dto.nome().trim() + "\".");
                 }
-                String prefixos = normalizarListaPrefixos(dto.cepPrefixos());
                 BigDecimal taxa = (dto.taxa() != null ? dto.taxa() : BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
                 if (taxa.compareTo(BigDecimal.ZERO) < 0) {
                     throw new IllegalArgumentException("Taxa inválida na zona \"" + dto.nome().trim() + "\".");
@@ -49,14 +53,14 @@ public class ZonaEntregaService {
                         null,
                         dto.nome().trim(),
                         taxa,
-                        prefixos,
+                        prefixos != null ? prefixos : "",
+                        bairros != null ? bairros : "",
                         dto.ativo(),
                         dto.ordem() >= 0 ? dto.ordem() : i));
                 i++;
             }
         }
 
-        // Valida tudo antes de apagar — evita perder zonas se algo falhar no meio.
         repository.deleteAllInBatch();
         if (limpas.isEmpty()) {
             return List.of();
@@ -68,7 +72,8 @@ public class ZonaEntregaService {
             ZonaEntrega z = new ZonaEntrega();
             z.setNome(dto.nome());
             z.setTaxa(dto.taxa());
-            z.setCepPrefixos(dto.cepPrefixos());
+            z.setCepPrefixos(dto.cepPrefixos() != null ? dto.cepPrefixos() : "");
+            z.setBairros(dto.bairros() != null ? dto.bairros() : "");
             z.setAtivo(dto.ativo());
             z.setOrdem(ordem++);
             salvas.add(repository.save(z));
@@ -76,9 +81,6 @@ public class ZonaEntregaService {
         return salvas.stream().map(ZonaEntregaService::toDto).toList();
     }
 
-    /**
-     * Taxa exibida no cardápio ("a partir de"): menor zona ativa, ou taxa fixa da loja.
-     */
     @Transactional(readOnly = true)
     public BigDecimal taxaExibidaCardapio() {
         List<ZonaEntrega> ativas = repository.findByAtivoTrueOrderByOrdemAscIdAsc();
@@ -93,39 +95,107 @@ public class ZonaEntregaService {
     }
 
     @Transactional(readOnly = true)
-    public FretePublicoResponse cotar(String cepRaw) {
+    public FretePublicoResponse cotar(String cepRaw, String bairroRaw) {
         String cep = soDigitos(cepRaw);
+        String bairro = bairroRaw != null ? bairroRaw.trim() : "";
         BigDecimal minimo = nz(configSistemaService.getLoja().pedidoMinimo());
-        if (cep.length() != 8) {
-            return new FretePublicoResponse(
-                    false, BigDecimal.ZERO, null, minimo, "Informe um CEP válido com 8 dígitos.");
-        }
+
         List<ZonaEntrega> ativas = repository.findByAtivoTrueOrderByOrdemAscIdAsc();
         if (ativas.isEmpty()) {
+            if (cep.length() != 8 && bairro.isEmpty()) {
+                return new FretePublicoResponse(
+                        false, BigDecimal.ZERO, null, minimo, "Informe o CEP ou o bairro.");
+            }
             BigDecimal taxa = nz(configSistemaService.getLoja().taxaEntrega());
             return new FretePublicoResponse(
-                    true, taxa, "Taxa padrão", minimo, "Taxa de entrega para este CEP.");
+                    true, taxa, "Taxa padrão", minimo, "Taxa de entrega padrão da loja.");
         }
-        Optional<ZonaEntrega> match =
-                ativas.stream().filter(z -> cepCasaComZona(cep, z.getCepPrefixos())).findFirst();
-        if (match.isEmpty()) {
+
+        // Preferência: bairro (mapa). Depois CEP.
+        if (!bairro.isEmpty()) {
+            Optional<ZonaEntrega> porBairro =
+                    ativas.stream().filter(z -> bairroCasaComZona(bairro, z.getBairros())).findFirst();
+            if (porBairro.isPresent()) {
+                ZonaEntrega z = porBairro.get();
+                return new FretePublicoResponse(
+                        true, nz(z.getTaxa()), z.getNome(), minimo, "Entrega em " + z.getNome() + ".");
+            }
+        }
+
+        if (cep.length() == 8) {
+            Optional<ZonaEntrega> porCep =
+                    ativas.stream().filter(z -> cepCasaComZona(cep, z.getCepPrefixos())).findFirst();
+            if (porCep.isPresent()) {
+                ZonaEntrega z = porCep.get();
+                return new FretePublicoResponse(
+                        true, nz(z.getTaxa()), z.getNome(), minimo, "Entrega em " + z.getNome() + ".");
+            }
+        }
+
+        if (cep.length() != 8 && bairro.isEmpty()) {
             return new FretePublicoResponse(
-                    false, BigDecimal.ZERO, null, minimo, "Este CEP está fora da área de entrega.");
+                    false, BigDecimal.ZERO, null, minimo, "Informe um CEP válido ou o bairro.");
         }
-        ZonaEntrega z = match.get();
         return new FretePublicoResponse(
-                true, nz(z.getTaxa()), z.getNome(), minimo, "Entrega em " + z.getNome() + ".");
+                false,
+                BigDecimal.ZERO,
+                null,
+                minimo,
+                "Este endereço está fora da área de entrega.");
     }
 
-    /** Usado na criação do pedido — lança se fora da área. */
+    /** Compat: só CEP. */
+    @Transactional(readOnly = true)
+    public FretePublicoResponse cotar(String cepRaw) {
+        return cotar(cepRaw, null);
+    }
+
     @Transactional(readOnly = true)
     public BigDecimal taxaObrigatoriaParaCep(String cepRaw) {
-        FretePublicoResponse r = cotar(cepRaw);
+        return taxaObrigatoria(cepRaw, null);
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal taxaObrigatoria(String cepRaw, String bairro) {
+        FretePublicoResponse r = cotar(cepRaw, bairro);
         if (!r.coberta()) {
             throw new IllegalArgumentException(
-                    r.mensagem() != null ? r.mensagem() : "CEP fora da área de entrega.");
+                    r.mensagem() != null ? r.mensagem() : "Endereço fora da área de entrega.");
         }
         return nz(r.taxa());
+    }
+
+    static boolean bairroCasaComZona(String bairro, String lista) {
+        if (bairro == null || bairro.isBlank() || lista == null || lista.isBlank()) {
+            return false;
+        }
+        String alvo = normalizarNome(bairro);
+        if (alvo.isEmpty()) {
+            return false;
+        }
+        for (String raw : lista.split("[,;\\n]")) {
+            String token = raw.trim();
+            if (token.isEmpty()) {
+                continue;
+            }
+            String n = normalizarNome(token);
+            if (n.equals(alvo) || n.contains(alvo) || alvo.contains(n)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static String normalizarNome(String s) {
+        if (s == null) {
+            return "";
+        }
+        String n = Normalizer.normalize(s, Normalizer.Form.NFD).replaceAll("\\p{M}+", "");
+        n = n.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", " ").trim().replaceAll("\\s+", " ");
+        // remove prefixos comuns
+        n = n.replaceFirst("^bairro ", "");
+        n = n.replaceFirst("^jardim ", "jardim ");
+        return n;
     }
 
     static boolean cepCasaComZona(String cep8, String lista) {
@@ -143,7 +213,6 @@ public class ZonaEntregaService {
             if (token.isEmpty()) {
                 continue;
             }
-            // CEP completo formatado (74000-000) → match exato.
             if (token.matches("\\d{5}-\\d{3}")) {
                 if (cep8.equals(soDigitos(token))) {
                     return true;
@@ -180,7 +249,6 @@ public class ZonaEntregaService {
         return false;
     }
 
-    /** Completa prefixo para limite inferior/superior de 8 dígitos. */
     static String expandCepBound(String digits, boolean inicio) {
         if (digits == null || digits.isEmpty()) {
             return inicio ? "00000000" : "99999999";
@@ -195,7 +263,10 @@ public class ZonaEntregaService {
         return sb.toString();
     }
 
-    private static String normalizarListaPrefixos(String raw) {
+    private static String normalizarListaOpcional(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return "";
+        }
         String[] parts = raw.split("[,;\\n]");
         List<String> out = new ArrayList<>();
         for (String p : parts) {
@@ -204,14 +275,18 @@ public class ZonaEntregaService {
                 out.add(t);
             }
         }
-        if (out.isEmpty()) {
-            throw new IllegalArgumentException("Informe ao menos um CEP ou faixa.");
-        }
         return String.join(", ", out);
     }
 
     private static ZonaEntregaDto toDto(ZonaEntrega z) {
-        return new ZonaEntregaDto(z.getId(), z.getNome(), z.getTaxa(), z.getCepPrefixos(), z.isAtivo(), z.getOrdem());
+        return new ZonaEntregaDto(
+                z.getId(),
+                z.getNome(),
+                z.getTaxa(),
+                z.getCepPrefixos() != null ? z.getCepPrefixos() : "",
+                z.getBairros() != null ? z.getBairros() : "",
+                z.isAtivo(),
+                z.getOrdem());
     }
 
     private static String soDigitos(String raw) {

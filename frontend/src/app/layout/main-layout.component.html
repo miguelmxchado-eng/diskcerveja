@@ -124,6 +124,14 @@
           </a>
         </li>
         @if (auth.isAdmin()) {
+          <li>
+            <a routerLink="/zonas-entrega" routerLinkActive="mm-active">
+              <span class="erp-nav__ico" aria-hidden="true"><mat-icon>map</mat-icon></span>
+              <span class="nav-text">Zonas / frete</span>
+            </a>
+          </li>
+        }
+        @if (auth.isAdmin()) {
           <li class="menu-section-label">Admin</li>
           <li>
             <a routerLink="/usuarios" routerLinkActive="mm-active">

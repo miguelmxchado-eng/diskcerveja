@@ -14,6 +14,7 @@ public record PedidoPublicoRequest(
         @NotBlank @Size(max = 32) String telefone,
         @NotBlank @Size(max = 400) String enderecoEntrega,
         @NotBlank @Size(max = 9) String cep,
+        @Size(max = 120) String bairro,
         @NotNull FormaPagamento formaPagamento,
         @Size(max = 240) String observacao,
         @NotEmpty @Valid List<Item> itens) {

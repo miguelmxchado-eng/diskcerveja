@@ -188,7 +188,7 @@ public class PedidoPublicoService {
                     "Pedido mínimo é R$ " + loja.pedidoMinimo().toPlainString() + ".");
         }
 
-        BigDecimal taxaEntrega = zonaEntregaService.taxaObrigatoriaParaCep(req.cep());
+        BigDecimal taxaEntrega = zonaEntregaService.taxaObrigatoria(req.cep(), req.bairro());
 
         Long clienteId = upsertCliente(nome, telefone, req.enderecoEntrega().trim(), req.observacao());
 

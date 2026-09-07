@@ -121,8 +121,9 @@
             Zonas de entrega (CEP)
           </h6>
           <p class="text-muted small mb-3">
-            Cadastre bairros/regiões com a taxa. Use prefixo (ex. <code>74000</code>) ou faixa
-            (ex. <code>74000-74099</code>). Separe vários por vírgula. Se o CEP não casar com nenhuma zona, o pedido é bloqueado.
+            Prefira o
+            <a routerLink="/zonas-entrega">mapa de Anápolis</a>
+            para pintar bairros e definir a taxa. Aqui você ainda pode editar CEPs manualmente.
           </p>
 
           @for (z of zonas(); let i = $index; track i) {

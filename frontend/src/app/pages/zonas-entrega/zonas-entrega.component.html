@@ -1,0 +1,90 @@
+<div class="zonas-page">
+  <header class="zonas-page__head">
+    <div>
+      <h1>Mapa de entrega — Anápolis</h1>
+      <p>
+        Selecione uma zona à direita, clique nos bairros no mapa para pintar, defina o valor e salve.
+        No cardápio o frete usa o <strong>bairro</strong> do cliente.
+      </p>
+    </div>
+    <button type="button" class="btn btn-primary" [disabled]="salvando() || loading()" (click)="salvar()">
+      {{ salvando() ? 'Salvando…' : 'Salvar zonas' }}
+    </button>
+  </header>
+
+  <div class="zonas-page__grid">
+    <div class="zonas-page__map-wrap">
+      <div id="mapa-zonas-anapolis" class="zonas-page__map" role="application" aria-label="Mapa de Anápolis"></div>
+      <p class="zonas-page__hint">Cinza = sem zona · Clique de novo no mesmo bairro para remover da zona.</p>
+    </div>
+
+    <aside class="zonas-page__side">
+      <div class="zonas-page__side-head">
+        <h2>Zonas</h2>
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="adicionarZona()">+ Zona</button>
+      </div>
+
+      @for (z of zonas(); let i = $index; track i) {
+        <div
+          class="zona-card"
+          [class.zona-card--ativa]="zonaAtivaIdx() === i"
+          [style.--zona-cor]="corZona(i)"
+          (click)="selecionarZona(i)"
+        >
+          <div class="zona-card__top">
+            <span class="zona-card__swatch" aria-hidden="true"></span>
+            <input
+              class="form-control form-control-sm"
+              [ngModel]="z.nome"
+              (ngModelChange)="patchZona(i, { nome: $event })"
+              (click)="$event.stopPropagation()"
+              [name]="'zn' + i"
+              placeholder="Nome da zona"
+            />
+            <button
+              type="button"
+              class="btn btn-sm btn-link text-danger"
+              (click)="$event.stopPropagation(); removerZona(i)"
+              title="Remover zona"
+            >
+              ✕
+            </button>
+          </div>
+          <label class="zona-card__taxa">
+            Taxa (R$)
+            <input
+              class="form-control form-control-sm"
+              type="number"
+              min="0"
+              step="0.5"
+              [ngModel]="z.taxa"
+              (ngModelChange)="patchZona(i, { taxa: +$event })"
+              (click)="$event.stopPropagation()"
+              [name]="'zt' + i"
+            />
+          </label>
+          <div class="zona-card__bairros">
+            @if (bairrosDaZona(i).length === 0) {
+              <span class="text-muted">Nenhum bairro — selecione esta zona e pinte no mapa</span>
+            } @else {
+              {{ bairrosDaZona(i).length }} bairro(s):
+              {{ bairrosDaZona(i).slice(0, 6).join(', ') }}
+              @if (bairrosDaZona(i).length > 6) {
+                …
+              }
+            }
+          </div>
+          @if (zonaAtivaIdx() === i) {
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary mt-2"
+              (click)="$event.stopPropagation(); limparZonaAtiva()"
+            >
+              Limpar bairros desta zona
+            </button>
+          }
+        </div>
+      }
+    </aside>
+  </div>
+</div>

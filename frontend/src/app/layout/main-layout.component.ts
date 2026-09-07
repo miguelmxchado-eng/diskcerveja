@@ -39,6 +39,7 @@ export class MainLayoutComponent {
     estoque: { title: 'Estoque', hint: 'Entrada, ajuste e itens em falta' },
     caixa: { title: 'Caixa', hint: 'Abertura, sangria e fechamento' },
     entregas: { title: 'Entregas', hint: 'Pedidos em rota e confirmação de entrega' },
+    'zonas-entrega': { title: 'Zonas de entrega', hint: 'Mapa de Anápolis e taxa por região' },
     usuarios: { title: 'Equipe', hint: 'Acesso de operadores e entregadores' },
     config: { title: 'Ajustes', hint: 'Regras do caixa e operação' },
   };

@@ -10,6 +10,7 @@ public record ZonaEntregaDto(
         Long id,
         @NotBlank @Size(max = 80) String nome,
         @NotNull @DecimalMin("0.00") BigDecimal taxa,
-        @NotBlank @Size(max = 500) String cepPrefixos,
+        @Size(max = 500) String cepPrefixos,
+        @Size(max = 4000) String bairros,
         boolean ativo,
         int ordem) {}

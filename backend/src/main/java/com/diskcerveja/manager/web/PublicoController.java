@@ -51,8 +51,9 @@ public class PublicoController {
     }
 
     @GetMapping("/frete")
-    public FretePublicoResponse frete(@RequestParam String cep) {
-        return zonaEntregaService.cotar(cep);
+    public FretePublicoResponse frete(
+            @RequestParam(required = false) String cep, @RequestParam(required = false) String bairro) {
+        return zonaEntregaService.cotar(cep, bairro);
     }
 
     @PostMapping("/pedidos")

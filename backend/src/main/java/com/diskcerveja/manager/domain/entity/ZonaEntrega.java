@@ -24,9 +24,13 @@ public class ZonaEntrega {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal taxa = BigDecimal.ZERO;
 
-    /** Prefixos/faixas separados por vírgula. Ex: 74000-74099, 74810 */
-    @Column(name = "cep_prefixos", nullable = false, length = 500)
+    /** Prefixos/faixas separados por vírgula. Ex: 75020-75029, 75040 */
+    @Column(name = "cep_prefixos", length = 500)
     private String cepPrefixos = "";
+
+    /** Bairros separados por vírgula (mapa Anápolis). */
+    @Column(name = "bairros", columnDefinition = "text")
+    private String bairros = "";
 
     @Column(nullable = false)
     private boolean ativo = true;
@@ -74,6 +78,14 @@ public class ZonaEntrega {
 
     public void setCepPrefixos(String cepPrefixos) {
         this.cepPrefixos = cepPrefixos;
+    }
+
+    public String getBairros() {
+        return bairros;
+    }
+
+    public void setBairros(String bairros) {
+        this.bairros = bairros;
     }
 
     public boolean isAtivo() {

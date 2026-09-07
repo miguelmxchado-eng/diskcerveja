@@ -338,7 +338,12 @@
           <div class="cardapio__addr">
             <label class="cardapio__field cardapio__field--grow">
               <span>Bairro</span>
-              <input [(ngModel)]="bairro" name="bairro" autocomplete="address-level3" />
+              <input
+                [(ngModel)]="bairro"
+                (ngModelChange)="onBairroChange($event)"
+                name="bairro"
+                autocomplete="address-level3"
+              />
             </label>
             <label class="cardapio__field cardapio__field--grow">
               <span>Cidade</span>
