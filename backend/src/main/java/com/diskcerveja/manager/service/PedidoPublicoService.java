@@ -576,7 +576,11 @@ public class PedidoPublicoService {
         if (raw == null) {
             return "";
         }
-        return raw.replaceAll("\\D", "");
+        String d = raw.replaceAll("\\D", "");
+        if (d.startsWith("55") && d.length() >= 12) {
+            d = d.substring(2);
+        }
+        return d;
     }
 
     private static int toCents(BigDecimal value) {
