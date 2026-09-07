@@ -145,10 +145,18 @@ export interface PedidoResponse {
   status: string;
   total: number;
   desconto?: number;
-  formaPagamento: 'PIX' | 'DINHEIRO' | 'CARTAO';
+  formaPagamento: 'PIX' | 'DINHEIRO' | 'CARTAO' | 'MISTO';
   enderecoEntrega?: string;
   estoqueBaixado: boolean;
   itens: PedidoItemResponse[];
+  pagamentos?: PedidoPagamento[];
+}
+
+export interface PedidoPagamento {
+  formaPagamento: 'PIX' | 'DINHEIRO' | 'CARTAO';
+  valor: number;
+  valorRecebido?: number | null;
+  troco?: number;
 }
 
 export interface PontoGraficoVendas {
@@ -192,6 +200,7 @@ export interface PedidoResumoDto {
   formaPagamento: string;
   registradoNoCaixa: boolean;
   itens?: PedidoItemResponse[];
+  pagamentos?: PedidoPagamento[];
 }
 
 export interface PedidoPeriodoResponse {

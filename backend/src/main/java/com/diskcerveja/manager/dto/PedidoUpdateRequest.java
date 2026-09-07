@@ -14,4 +14,5 @@ public record PedidoUpdateRequest(
         String enderecoEntrega,
         BigDecimal taxaEntrega,
         String entregadorNome,
-        @Valid List<PedidoItemRequest> itens) {}
+        @Valid List<PedidoItemRequest> itens,
+        @Valid List<PedidoPagamentoRequest> pagamentos) {}

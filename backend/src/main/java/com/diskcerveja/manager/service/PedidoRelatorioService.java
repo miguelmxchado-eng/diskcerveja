@@ -10,6 +10,7 @@ import com.diskcerveja.manager.domain.enums.TipoPedido;
 import com.diskcerveja.manager.dto.FormaPagamentoAgg;
 import com.diskcerveja.manager.dto.PedidoItemResponse;
 import com.diskcerveja.manager.dto.PedidoMapper;
+import com.diskcerveja.manager.dto.PedidoPagamentoResponse;
 import com.diskcerveja.manager.dto.PedidoPeriodoDiaDto;
 import com.diskcerveja.manager.dto.PedidoPeriodoPagamentoDto;
 import com.diskcerveja.manager.dto.PedidoPeriodoResponse;
@@ -171,6 +172,21 @@ public class PedidoRelatorioService {
                     List<PedidoItemResponse> itens = full.getItens() == null
                             ? List.of()
                             : full.getItens().stream().map(PedidoMapper::toItem).toList();
+                    List<PedidoPagamentoResponse> pagamentos = full.getPagamentos() == null
+                            ? List.of()
+                            : full.getPagamentos().stream()
+                                    .map(pg -> {
+                                        BigDecimal recebido = pg.getValorRecebido();
+                                        BigDecimal troco = recebido != null
+                                                ? recebido.subtract(pg.getValor()).max(BigDecimal.ZERO)
+                                                : BigDecimal.ZERO;
+                                        return new PedidoPagamentoResponse(
+                                                pg.getFormaPagamento(),
+                                                pg.getValor(),
+                                                recebido,
+                                                troco);
+                                    })
+                                    .toList();
                     return new PedidoResumoDto(
                             full.getId(),
                             full.getDataHora(),
@@ -184,7 +200,8 @@ public class PedidoRelatorioService {
                             lucro,
                             full.getFormaPagamento(),
                             full.getStatus() == StatusPedido.ENTREGUE && comCaixa.contains(full.getId()),
-                            itens);
+                            itens,
+                            pagamentos);
                 })
                 .toList();
 
@@ -323,6 +340,7 @@ public class PedidoRelatorioService {
             case PIX -> "PIX";
             case CARTAO -> "Cartão";
             case DINHEIRO -> "Dinheiro";
+            case MISTO -> "Pagamento dividido";
         };
     }
 

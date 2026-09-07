@@ -16,6 +16,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
@@ -80,6 +81,10 @@ public class Pedido {
 
     @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PedidoItem> itens = new ArrayList<>();
+
+    @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OrderBy("id ASC")
+    private List<PedidoPagamento> pagamentos = new ArrayList<>();
 
     @OneToOne(mappedBy = "pedido", fetch = FetchType.LAZY)
     private Entrega entrega;
@@ -213,6 +218,14 @@ public class Pedido {
 
     public void setItens(List<PedidoItem> itens) {
         this.itens = itens;
+    }
+
+    public List<PedidoPagamento> getPagamentos() {
+        return pagamentos;
+    }
+
+    public void setPagamentos(List<PedidoPagamento> pagamentos) {
+        this.pagamentos = pagamentos;
     }
 
     public Entrega getEntrega() {

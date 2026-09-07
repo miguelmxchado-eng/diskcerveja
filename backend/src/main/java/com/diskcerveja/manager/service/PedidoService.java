@@ -5,12 +5,15 @@ import com.diskcerveja.manager.domain.entity.Combo;
 import com.diskcerveja.manager.domain.entity.Entrega;
 import com.diskcerveja.manager.domain.entity.Pedido;
 import com.diskcerveja.manager.domain.entity.PedidoItem;
+import com.diskcerveja.manager.domain.entity.PedidoPagamento;
 import com.diskcerveja.manager.domain.entity.Produto;
 import com.diskcerveja.manager.domain.entity.Usuario;
+import com.diskcerveja.manager.domain.enums.FormaPagamento;
 import com.diskcerveja.manager.domain.enums.StatusEntrega;
 import com.diskcerveja.manager.domain.enums.StatusPedido;
 import com.diskcerveja.manager.domain.enums.TipoPedido;
 import com.diskcerveja.manager.dto.PedidoItemRequest;
+import com.diskcerveja.manager.dto.PedidoPagamentoRequest;
 import com.diskcerveja.manager.dto.PedidoRequest;
 import com.diskcerveja.manager.dto.PedidoUpdateRequest;
 import com.diskcerveja.manager.repository.ClienteRepository;
@@ -19,8 +22,11 @@ import com.diskcerveja.manager.repository.EntregaRepository;
 import com.diskcerveja.manager.repository.PedidoRepository;
 import com.diskcerveja.manager.repository.ProdutoRepository;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -110,6 +116,7 @@ public class PedidoService {
         BigDecimal desconto = normalizarDesconto(dto.desconto(), subtotal);
         p.setDesconto(desconto);
         p.setTotal(subtotal.subtract(desconto).add(taxa));
+        aplicarPagamentos(p, dto.formaPagamento(), dto.pagamentos());
         Pedido salvo = pedidoRepository.save(p);
         if (dto.tipo() == TipoPedido.ENTREGA) {
             Entrega e = new Entrega();
@@ -165,6 +172,13 @@ public class PedidoService {
             entregaRepository.save(e);
         }
         p.setTotal(calcularTotalItens(p).add(taxa));
+        if (dto.pagamentos() != null && !dto.pagamentos().isEmpty()) {
+            aplicarPagamentos(p, dto.formaPagamento(), dto.pagamentos());
+        } else if (dto.formaPagamento() != null) {
+            aplicarPagamentos(p, dto.formaPagamento(), null);
+        } else {
+            validarSomaPagamentosExistentes(p);
+        }
         return pedidoRepository.save(p);
     }
 
@@ -369,6 +383,98 @@ public class PedidoService {
         return p.getItens().stream()
                 .map(i -> i.getPrecoUnitario().multiply(BigDecimal.valueOf(i.getQuantidade())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private void aplicarPagamentos(
+            Pedido pedido, FormaPagamento formaUnica, List<PedidoPagamentoRequest> solicitados) {
+        pedido.getPagamentos().clear();
+        if (dinheiro(pedido.getTotal()).compareTo(BigDecimal.ZERO) == 0) {
+            pedido.setFormaPagamento(
+                    formaUnica != null && formaUnica != FormaPagamento.MISTO
+                            ? formaUnica
+                            : FormaPagamento.PIX);
+            return;
+        }
+        if (solicitados == null || solicitados.isEmpty()) {
+            if (formaUnica == null || formaUnica == FormaPagamento.MISTO) {
+                throw new IllegalArgumentException(
+                        "Informe os valores de cada forma no pagamento dividido.");
+            }
+            adicionarPagamento(pedido, formaUnica, pedido.getTotal(), null);
+            pedido.setFormaPagamento(formaUnica);
+            return;
+        }
+        if (solicitados.size() > 3) {
+            throw new IllegalArgumentException("Use no máximo Pix, cartão e dinheiro.");
+        }
+
+        Set<FormaPagamento> formas = new HashSet<>();
+        BigDecimal soma = BigDecimal.ZERO;
+        for (PedidoPagamentoRequest req : solicitados) {
+            if (req == null
+                    || req.formaPagamento() == null
+                    || req.formaPagamento() == FormaPagamento.MISTO
+                    || req.valor() == null) {
+                throw new IllegalArgumentException("Forma de pagamento inválida.");
+            }
+            if (!formas.add(req.formaPagamento())) {
+                throw new IllegalArgumentException(
+                        "Informe cada forma de pagamento apenas uma vez.");
+            }
+            BigDecimal valor = dinheiro(req.valor());
+            if (valor.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Cada pagamento deve ser maior que zero.");
+            }
+            BigDecimal recebido = req.valorRecebido() != null
+                    ? dinheiro(req.valorRecebido())
+                    : null;
+            if (req.formaPagamento() == FormaPagamento.DINHEIRO) {
+                if (recebido != null && recebido.compareTo(valor) < 0) {
+                    throw new IllegalArgumentException(
+                            "O valor recebido em dinheiro não pode ser menor que a parte paga.");
+                }
+            } else if (recebido != null) {
+                throw new IllegalArgumentException(
+                        "Valor recebido só deve ser informado para dinheiro.");
+            }
+            adicionarPagamento(pedido, req.formaPagamento(), valor, recebido);
+            soma = soma.add(valor);
+        }
+        if (soma.compareTo(dinheiro(pedido.getTotal())) != 0) {
+            throw new IllegalArgumentException(
+                    "A soma dos pagamentos deve ser igual ao total do pedido.");
+        }
+        pedido.setFormaPagamento(
+                solicitados.size() == 1
+                        ? solicitados.get(0).formaPagamento()
+                        : FormaPagamento.MISTO);
+    }
+
+    private static void adicionarPagamento(
+            Pedido pedido,
+            FormaPagamento forma,
+            BigDecimal valor,
+            BigDecimal valorRecebido) {
+        PedidoPagamento pagamento = new PedidoPagamento();
+        pagamento.setPedido(pedido);
+        pagamento.setFormaPagamento(forma);
+        pagamento.setValor(dinheiro(valor));
+        pagamento.setValorRecebido(valorRecebido != null ? dinheiro(valorRecebido) : null);
+        pedido.getPagamentos().add(pagamento);
+    }
+
+    private static void validarSomaPagamentosExistentes(Pedido pedido) {
+        BigDecimal soma = pedido.getPagamentos().stream()
+                .map(PedidoPagamento::getValor)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (soma.compareTo(dinheiro(pedido.getTotal())) != 0) {
+            throw new IllegalArgumentException(
+                    "O total mudou. Informe novamente as formas e os valores do pagamento.");
+        }
+    }
+
+    private static BigDecimal dinheiro(BigDecimal valor) {
+        return valor.setScale(2, RoundingMode.HALF_UP);
     }
 
     private static BigDecimal normalizarDesconto(BigDecimal desconto, BigDecimal subtotal) {

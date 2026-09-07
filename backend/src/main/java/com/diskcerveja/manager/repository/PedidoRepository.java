@@ -69,7 +69,13 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
     long countPedidosNoPeriodo(@Param("inicio") Instant inicio, @Param("fim") Instant fim);
 
     @Query(
-            "select new com.diskcerveja.manager.dto.FormaPagamentoAgg(p.formaPagamento, coalesce(sum(p.total),0)) from Pedido p where p.status = 'ENTREGUE' and p.dataHora >= :inicio and p.dataHora < :fim group by p.formaPagamento")
+            """
+            select new com.diskcerveja.manager.dto.FormaPagamentoAgg(pg.formaPagamento, coalesce(sum(pg.valor),0))
+            from PedidoPagamento pg join pg.pedido p
+            where p.status = 'ENTREGUE'
+              and p.dataHora >= :inicio and p.dataHora < :fim
+            group by pg.formaPagamento
+            """)
     List<FormaPagamentoAgg> sumByFormaPagamento(@Param("inicio") Instant inicio, @Param("fim") Instant fim);
 
     long countByStatusIn(List<StatusPedido> statuses);
@@ -91,7 +97,14 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
             where p.dataHora >= :ini and p.dataHora < :fim
               and (:status is null or p.status = :status)
               and (:tipo is null or p.tipo = :tipo)
-              and (:pagamento is null or p.formaPagamento = :pagamento)
+              and (
+                :pagamento is null
+                or p.formaPagamento = :pagamento
+                or exists (
+                    select 1 from PedidoPagamento pg
+                    where pg.pedido = p and pg.formaPagamento = :pagamento
+                )
+              )
               and (
                 :q is null or :q = ''
                 or (:qId is not null and p.id = :qId)
@@ -112,7 +125,14 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
             where p.dataHora >= :ini and p.dataHora < :fim
               and (:status is null or p.status = :status)
               and (:tipo is null or p.tipo = :tipo)
-              and (:pagamento is null or p.formaPagamento = :pagamento)
+              and (
+                :pagamento is null
+                or p.formaPagamento = :pagamento
+                or exists (
+                    select 1 from PedidoPagamento pg
+                    where pg.pedido = p and pg.formaPagamento = :pagamento
+                )
+              )
               and (
                 :q is null or :q = ''
                 or (:qId is not null and p.id = :qId)

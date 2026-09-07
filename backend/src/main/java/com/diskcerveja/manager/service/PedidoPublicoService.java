@@ -194,7 +194,8 @@ public class PedidoPublicoService {
                 loja.taxaEntrega() != null ? loja.taxaEntrega() : BigDecimal.ZERO,
                 BigDecimal.ZERO,
                 null,
-                itens);
+                itens,
+                null);
 
         return pedidoService.criar(pedidoReq, null, false);
     }
@@ -334,11 +335,18 @@ public class PedidoPublicoService {
         if (transactionNsu != null && !transactionNsu.isBlank()) {
             p.setPagamentoRef(transactionNsu);
         }
+        FormaPagamento confirmada = null;
         if (captureMethod != null) {
             if ("pix".equalsIgnoreCase(captureMethod)) {
-                p.setFormaPagamento(FormaPagamento.PIX);
+                confirmada = FormaPagamento.PIX;
             } else if ("credit_card".equalsIgnoreCase(captureMethod)) {
-                p.setFormaPagamento(FormaPagamento.CARTAO);
+                confirmada = FormaPagamento.CARTAO;
+            }
+        }
+        if (confirmada != null) {
+            p.setFormaPagamento(confirmada);
+            if (p.getPagamentos().size() == 1) {
+                p.getPagamentos().get(0).setFormaPagamento(confirmada);
             }
         }
         if (p.getStatus() == StatusPedido.ABERTO) {

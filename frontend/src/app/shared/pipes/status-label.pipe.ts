@@ -15,6 +15,7 @@ const LABELS: Record<string, string> = {
   PIX:           'PIX',
   DINHEIRO:      'Dinheiro',
   CARTAO:        'Cartão',
+  MISTO:         'Pagamento dividido',
   // Movimentos estoque/caixa
   ENTRADA:       'Entrada',
   SAIDA:         'Saída',

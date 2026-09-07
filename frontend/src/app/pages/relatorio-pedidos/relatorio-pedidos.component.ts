@@ -51,6 +51,13 @@ function hojeIso(): string {
   return `${y}-${m}-${day}`;
 }
 
+function inicioMesIso(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}-01`;
+}
+
 function diasAtrasIso(dias: number): string {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -79,6 +86,8 @@ export class RelatorioPedidosComponent implements OnInit, OnDestroy {
   readonly dados = signal<PedidoPeriodoResponse | null>(null);
   readonly carregando = signal(true);
   readonly carregandoPagina = signal(false);
+  readonly dadosMesAtual = signal<PedidoPeriodoResponse | null>(null);
+  readonly carregandoProjecao = signal(true);
   readonly filtrosAbertos = signal(false);
   readonly menuPedidoId = signal<number | null>(null);
 
@@ -96,6 +105,7 @@ export class RelatorioPedidosComponent implements OnInit, OnDestroy {
   private readonly busca$ = new Subject<string>();
   private buscaSub?: Subscription;
   private loadSub?: Subscription;
+  private projecaoSub?: Subscription;
 
   readonly periodoExibicao = computed(() => {
     const d = this.dados();
@@ -210,6 +220,37 @@ export class RelatorioPedidosComponent implements OnInit, OnDestroy {
   });
 
   readonly variacaoFaturamentoResumo = computed(() => this.deltaFaturamento());
+  readonly projecaoMensal = computed(() => {
+    const d = this.dadosMesAtual();
+    if (!d) return null;
+    const hoje = new Date();
+    const diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+    const diasDecorridos = Math.max(1, hoje.getDate());
+    const diasRestantes = Math.max(0, diasNoMes - diasDecorridos);
+    const faturamentoAtual = Number(d.somaVendasEntregues) || 0;
+    const lucroAtual = Number(d.somaLucroEntregues) || 0;
+    const pedidosAtual = Number(d.quantidadePedidosPeriodo) || 0;
+    const mediaDiaria = faturamentoAtual / diasDecorridos;
+    const estimativaRestante = mediaDiaria * diasRestantes;
+    const totalProjetado = faturamentoAtual + estimativaRestante;
+    const lucroProjetado = lucroAtual + (lucroAtual / diasDecorridos) * diasRestantes;
+    const pedidosProjetados = Math.round(
+      pedidosAtual + (pedidosAtual / diasDecorridos) * diasRestantes,
+    );
+    const progressoMes = Math.round((diasDecorridos / diasNoMes) * 100);
+    return {
+      diasDecorridos,
+      diasRestantes,
+      diasNoMes,
+      faturamentoAtual,
+      mediaDiaria,
+      estimativaRestante,
+      totalProjetado,
+      lucroProjetado,
+      pedidosProjetados,
+      progressoMes,
+    };
+  });
 
   constructor(
     private readonly http: HttpClient,
@@ -225,11 +266,40 @@ export class RelatorioPedidosComponent implements OnInit, OnDestroy {
         this.carregar();
       });
     this.carregar();
+    this.carregarProjecaoMensal();
   }
 
   ngOnDestroy(): void {
     this.buscaSub?.unsubscribe();
     this.loadSub?.unsubscribe();
+    this.projecaoSub?.unsubscribe();
+  }
+
+  atualizar(): void {
+    this.carregar();
+    this.carregarProjecaoMensal();
+  }
+
+  carregarProjecaoMensal(): void {
+    const params = new HttpParams()
+      .set('inicio', inicioMesIso())
+      .set('fim', hojeIso())
+      .set('pagina', '1')
+      .set('tamanho', '1');
+    this.carregandoProjecao.set(true);
+    this.projecaoSub?.unsubscribe();
+    this.projecaoSub = this.http
+      .get<PedidoPeriodoResponse>(`${environment.apiUrl}/api/pedidos/periodo`, { params })
+      .subscribe({
+        next: (d) => {
+          this.dadosMesAtual.set(d);
+          this.carregandoProjecao.set(false);
+        },
+        error: () => {
+          this.dadosMesAtual.set(null);
+          this.carregandoProjecao.set(false);
+        },
+      });
   }
 
   selecionarPeriodo(chip: Exclude<PeriodChip, 'personalizado'>): void {
@@ -399,7 +469,7 @@ export class RelatorioPedidosComponent implements OnInit, OnDestroy {
         p.clienteNome ?? '',
         p.tipo,
         p.status,
-        p.formaPagamento,
+        this.pagamentoResumo(p),
         this.itensTexto(p),
         (p.desconto ?? 0).toFixed(2),
         p.total.toFixed(2),
@@ -479,6 +549,23 @@ export class RelatorioPedidosComponent implements OnInit, OnDestroy {
     return this.itensDoPedido(p)
       .map((i) => `${i.quantidade}x ${i.produtoNome}`)
       .join('; ');
+  }
+
+  pagamentoResumo(p: PedidoResumoDto): string {
+    if (!p.pagamentos?.length || p.formaPagamento !== 'MISTO') {
+      return p.formaPagamento;
+    }
+    return p.pagamentos
+      .map((pg) => {
+        const forma =
+          pg.formaPagamento === 'DINHEIRO'
+            ? 'Dinheiro'
+            : pg.formaPagamento === 'CARTAO'
+              ? 'Cartão'
+              : 'PIX';
+        return `${forma} R$ ${Number(pg.valor).toFixed(2).replace('.', ',')}`;
+      })
+      .join(' + ');
   }
 
   subtotalItem(i: PedidoItemResponse): number {

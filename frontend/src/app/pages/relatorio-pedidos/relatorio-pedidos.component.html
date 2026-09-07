@@ -65,7 +65,7 @@
         <mat-icon>download</mat-icon>
         Exportar
       </button>
-      <button type="button" class="em-btn em-btn--ghost" (click)="carregar()" [disabled]="carregando()">
+      <button type="button" class="em-btn em-btn--ghost" (click)="atualizar()" [disabled]="carregando()">
         <mat-icon>refresh</mat-icon>
         Atualizar
       </button>
@@ -137,6 +137,59 @@
       </article>
     </div>
 
+    <section class="hist-projection" aria-labelledby="projecao-mensal-titulo">
+      <header class="hist-projection__head">
+        <span class="hist-projection__ico"><mat-icon>insights</mat-icon></span>
+        <div>
+          <h2 id="projecao-mensal-titulo">Projeção para o restante do mês</h2>
+          <p>Estimativa baseada na média diária de vendas entregues neste mês.</p>
+        </div>
+      </header>
+
+      @if (carregandoProjecao()) {
+        <div class="hist-projection__loading">Calculando projeção…</div>
+      } @else {
+        @if (projecaoMensal(); as projecao) {
+        <div class="hist-projection__metrics">
+          <div>
+            <span>Faturado até hoje</span>
+            <strong>R$ {{ projecao.faturamentoAtual | number: '1.2-2' }}</strong>
+            <small>{{ projecao.diasDecorridos }} dias decorridos</small>
+          </div>
+          <div>
+            <span>Média diária</span>
+            <strong>R$ {{ projecao.mediaDiaria | number: '1.2-2' }}</strong>
+            <small>por dia do mês</small>
+          </div>
+          <div class="hist-projection__remaining">
+            <span>Estimado para os próximos dias</span>
+            <strong>+ R$ {{ projecao.estimativaRestante | number: '1.2-2' }}</strong>
+            <small>{{ projecao.diasRestantes }} dias restantes</small>
+          </div>
+          <div class="hist-projection__total">
+            <span>Fechamento projetado</span>
+            <strong>R$ {{ projecao.totalProjetado | number: '1.2-2' }}</strong>
+            <small>
+              {{ projecao.pedidosProjetados }} pedidos · lucro R$
+              {{ projecao.lucroProjetado | number: '1.2-2' }}
+            </small>
+          </div>
+        </div>
+        <div class="hist-projection__progress">
+          <div>
+            <span>Progresso do mês</span>
+            <strong>{{ projecao.progressoMes }}%</strong>
+          </div>
+          <div class="hist-projection__track">
+            <span [style.width.%]="projecao.progressoMes"></span>
+          </div>
+        </div>
+        } @else {
+          <p class="hist-projection__loading">Não foi possível calcular a projeção agora.</p>
+        }
+      }
+    </section>
+
     <div class="hist-toolbar">
       <label class="hist-search">
         <mat-icon>search</mat-icon>
@@ -178,6 +231,7 @@
         <option value="PIX">PIX</option>
         <option value="CARTAO">Cartão</option>
         <option value="DINHEIRO">Dinheiro</option>
+        <option value="MISTO">Pagamento dividido</option>
       </select>
       <button
         type="button"
@@ -253,7 +307,9 @@
                     <td>
                       <span class="hist-badge" [class]="statusBadge(p.status)">{{ p.status | statusLabel }}</span>
                     </td>
-                    <td class="hist-muted">{{ p.formaPagamento | statusLabel }}</td>
+                    <td class="hist-muted" [title]="pagamentoResumo(p)">
+                      {{ p.formaPagamento === 'MISTO' ? pagamentoResumo(p) : (p.formaPagamento | statusLabel) }}
+                    </td>
                     <td>
                       @if ((p.desconto ?? 0) > 0) {
                         <span class="hist-desconto">− R$ {{ p.desconto | number: '1.2-2' }}</span>

@@ -88,6 +88,7 @@ type AtalhoPdv =
   | 'favoritos';
 
 type Ordenacao = 'maisVendidos' | 'nome' | 'precoAsc' | 'precoDesc' | 'estoque';
+type FormaPagamentoPdv = 'PIX' | 'DINHEIRO' | 'CARTAO';
 
 @Component({
   selector: 'app-pdv',
@@ -155,7 +156,12 @@ export class PdvComponent implements OnInit, OnDestroy {
   clienteNome = '';
   telefone = '';
   tipo = signal<'ENTREGA' | 'RETIRADA' | 'BALCAO'>('BALCAO');
-  formaPagamento: 'PIX' | 'DINHEIRO' | 'CARTAO' = 'PIX';
+  formaPagamento: FormaPagamentoPdv = 'PIX';
+  readonly pagamentoDividido = signal(false);
+  valorPix = 0;
+  valorCartao = 0;
+  valorDinheiro = 0;
+  valorRecebidoDinheiro = 0;
   enderecoEntrega = '';
   taxaEntrega = signal(0);
   entregadorNome = '';
@@ -188,6 +194,22 @@ export class PdvComponent implements OnInit, OnDestroy {
     const taxa = this.tipo() === 'ENTREGA' ? Number(this.taxaEntrega() || 0) : 0;
     return Math.max(0, this.totalItens() - this.desconto() + taxa);
   });
+
+  totalPagamentos(): number {
+    return this.moeda(this.valorPix + this.valorCartao + this.valorDinheiro);
+  }
+
+  restantePagamento(): number {
+    return this.moeda(this.totalPedido() - this.totalPagamentos());
+  }
+
+  trocoDinheiro(): number {
+    return this.moeda(Math.max(0, this.valorRecebidoDinheiro - this.valorDinheiro));
+  }
+
+  pagamentoDivididoValido(): boolean {
+    return !this.pagamentoDividido() || Math.abs(this.restantePagamento()) < 0.01;
+  }
 
   readonly produtosFiltrados = computed(() => {
     let list = [...this.produtos()];
@@ -479,9 +501,58 @@ export class PdvComponent implements OnInit, OnDestroy {
   }
 
   formaPagamentoLabel(): string {
+    if (this.pagamentoDividido()) return 'pagamento dividido';
     if (this.formaPagamento === 'DINHEIRO') return 'Dinheiro';
     if (this.formaPagamento === 'CARTAO') return 'Cartão';
     return 'PIX';
+  }
+
+  alternarPagamentoDividido(): void {
+    const ativar = !this.pagamentoDividido();
+    this.pagamentoDividido.set(ativar);
+    this.zerarDivisaoPagamento();
+    if (!ativar) return;
+    const total = this.moeda(this.totalPedido());
+    if (this.formaPagamento === 'PIX') this.valorPix = total;
+    if (this.formaPagamento === 'CARTAO') this.valorCartao = total;
+    if (this.formaPagamento === 'DINHEIRO') {
+      this.valorDinheiro = total;
+      this.valorRecebidoDinheiro = total;
+    }
+  }
+
+  completarRestante(forma: FormaPagamentoPdv): void {
+    const restante = this.restantePagamento();
+    if (restante <= 0) return;
+    if (forma === 'PIX') this.valorPix = this.moeda(this.valorPix + restante);
+    if (forma === 'CARTAO') this.valorCartao = this.moeda(this.valorCartao + restante);
+    if (forma === 'DINHEIRO') {
+      this.valorDinheiro = this.moeda(this.valorDinheiro + restante);
+      this.valorRecebidoDinheiro = Math.max(
+        this.valorRecebidoDinheiro,
+        this.valorDinheiro,
+      );
+    }
+  }
+
+  onPagamentoValorChange(): void {
+    this.valorPix = this.moeda(Math.max(0, Number(this.valorPix) || 0));
+    this.valorCartao = this.moeda(Math.max(0, Number(this.valorCartao) || 0));
+    this.valorDinheiro = this.moeda(Math.max(0, Number(this.valorDinheiro) || 0));
+    this.valorRecebidoDinheiro = this.moeda(
+      Math.max(0, Number(this.valorRecebidoDinheiro) || 0),
+    );
+  }
+
+  private zerarDivisaoPagamento(): void {
+    this.valorPix = 0;
+    this.valorCartao = 0;
+    this.valorDinheiro = 0;
+    this.valorRecebidoDinheiro = 0;
+  }
+
+  private moeda(valor: number): number {
+    return Math.round((Number(valor) + Number.EPSILON) * 100) / 100;
   }
 
   irParaProdutos(): void {
@@ -936,6 +1007,8 @@ export class PdvComponent implements OnInit, OnDestroy {
     this.entregadorNome = '';
     this.taxaEntrega.set(0);
     this.clienteAberto.set(false);
+    this.pagamentoDividido.set(false);
+    this.zerarDivisaoPagamento();
   }
 
   /** Total exibido no botão confirmar (carrinho ou pedido pendente). */
@@ -991,14 +1064,55 @@ export class PdvComponent implements OnInit, OnDestroy {
       this.snack.open('Adicione itens ao pedido.', 'OK', { duration: 2500 });
       return;
     }
+    this.onPagamentoValorChange();
+    if (this.pagamentoDividido() && !this.pagamentoDivididoValido()) {
+      const restante = this.restantePagamento();
+      this.snack.open(
+        restante > 0
+          ? `Falta distribuir R$ ${restante.toFixed(2).replace('.', ',')}.`
+          : `Os pagamentos passaram R$ ${Math.abs(restante).toFixed(2).replace('.', ',')}.`,
+        'OK',
+        { duration: 4000 },
+      );
+      return;
+    }
+    if (
+      this.pagamentoDividido()
+      && this.valorDinheiro > 0
+      && this.valorRecebidoDinheiro > 0
+      && this.valorRecebidoDinheiro < this.valorDinheiro
+    ) {
+      this.snack.open('O valor recebido em dinheiro é menor que a parte em dinheiro.', 'OK', {
+        duration: 4000,
+      });
+      return;
+    }
     const totalAtual = this.totalPedido();
     const descontoAtual = this.desconto();
+    const pagamentos = this.pagamentoDividido()
+      ? [
+          this.valorPix > 0
+            ? { formaPagamento: 'PIX' as const, valor: this.valorPix }
+            : null,
+          this.valorCartao > 0
+            ? { formaPagamento: 'CARTAO' as const, valor: this.valorCartao }
+            : null,
+          this.valorDinheiro > 0
+            ? {
+                formaPagamento: 'DINHEIRO' as const,
+                valor: this.valorDinheiro,
+                valorRecebido:
+                  this.valorRecebidoDinheiro > 0 ? this.valorRecebidoDinheiro : null,
+              }
+            : null,
+        ].filter((p) => p != null)
+      : null;
     const body = {
       clienteId: this.clienteId(),
       clienteNome: this.clienteNome || null,
       telefone: this.tipo() === 'ENTREGA' ? this.telefone || null : this.telefone || null,
       tipo: this.tipo(),
-      formaPagamento: this.formaPagamento,
+      formaPagamento: this.pagamentoDividido() ? 'MISTO' : this.formaPagamento,
       enderecoEntrega: this.tipo() === 'ENTREGA' ? this.enderecoEntrega : null,
       taxaEntrega: this.tipo() === 'ENTREGA' ? Number(this.taxaEntrega() || 0) : 0,
       desconto: descontoAtual,
@@ -1008,6 +1122,7 @@ export class PdvComponent implements OnInit, OnDestroy {
           ? { comboId: l.comboId, quantidade: l.qtd }
           : { produtoId: l.produtoId, quantidade: l.qtd, vendaUnidade: !!l.vendaUnidade },
       ),
+      pagamentos,
     };
     this.salvandoPedido.set(true);
     this.http.post<PedidoResponse>(`${environment.apiUrl}/api/pedidos`, body).subscribe({

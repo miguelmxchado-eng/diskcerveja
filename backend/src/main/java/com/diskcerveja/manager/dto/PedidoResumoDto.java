@@ -20,4 +20,5 @@ public record PedidoResumoDto(
         BigDecimal lucro,
         FormaPagamento formaPagamento,
         boolean registradoNoCaixa,
-        List<PedidoItemResponse> itens) {}
+        List<PedidoItemResponse> itens,
+        List<PedidoPagamentoResponse> pagamentos) {}

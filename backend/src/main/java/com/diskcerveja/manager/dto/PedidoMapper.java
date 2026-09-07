@@ -2,6 +2,7 @@ package com.diskcerveja.manager.dto;
 
 import com.diskcerveja.manager.domain.entity.Pedido;
 import com.diskcerveja.manager.domain.entity.PedidoItem;
+import java.math.BigDecimal;
 import java.util.List;
 
 public final class PedidoMapper {
@@ -11,6 +12,16 @@ public final class PedidoMapper {
     public static PedidoResponse toResponse(Pedido p) {
         List<PedidoItemResponse> itens = p.getItens().stream()
                 .map(PedidoMapper::item)
+                .toList();
+        List<PedidoPagamentoResponse> pagamentos = p.getPagamentos().stream()
+                .map(pg -> {
+                    BigDecimal recebido = pg.getValorRecebido();
+                    BigDecimal troco = recebido != null
+                            ? recebido.subtract(pg.getValor()).max(BigDecimal.ZERO)
+                            : BigDecimal.ZERO;
+                    return new PedidoPagamentoResponse(
+                            pg.getFormaPagamento(), pg.getValor(), recebido, troco);
+                })
                 .toList();
         return new PedidoResponse(
                 p.getId(),
@@ -24,7 +35,8 @@ public final class PedidoMapper {
                 p.getFormaPagamento(),
                 p.getEnderecoEntrega(),
                 p.isEstoqueBaixado(),
-                itens);
+                itens,
+                pagamentos);
     }
 
     public static PedidoItemResponse toItem(PedidoItem i) {

@@ -179,6 +179,7 @@
           <thead>
             <tr>
               <th>Tipo</th>
+              <th>Forma</th>
               <th>Valor</th>
               <th>Descrição</th>
               <th>Data</th>
@@ -188,13 +189,14 @@
             @for (m of s.movimentosRecentes ?? []; track m.id) {
               <tr>
                 <td>{{ m.tipo | statusLabel }}</td>
+                <td>{{ m.formaPagamento ? (m.formaPagamento | statusLabel) : '—' }}</td>
                 <td>R$ {{ m.valor | number: '1.2-2' }}</td>
                 <td>{{ m.descricao || '—' }}</td>
                 <td>{{ m.createdAt | date: 'dd/MM/yyyy · HH:mm' }}</td>
               </tr>
             } @empty {
               <tr>
-                <td colspan="4" class="cx-empty">Nenhum movimento registrado.</td>
+                <td colspan="5" class="cx-empty">Nenhum movimento registrado.</td>
               </tr>
             }
           </tbody>

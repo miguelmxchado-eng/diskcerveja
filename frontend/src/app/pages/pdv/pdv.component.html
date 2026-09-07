@@ -361,15 +361,110 @@
           </div>
         }
 
-        <div class="pdv-pay">
-          <span class="pdv-pay__pix" aria-hidden="true"></span>
-          <select [(ngModel)]="formaPagamento" name="fp">
-            <option value="PIX">PIX</option>
-            <option value="DINHEIRO">Dinheiro</option>
-            <option value="CARTAO">Cartão</option>
-          </select>
-          <mat-icon>expand_more</mat-icon>
+        <div class="pdv-pay-row">
+          <div class="pdv-pay" [class.pdv-pay--split]="pagamentoDividido()">
+            <mat-icon aria-hidden="true">
+              {{ pagamentoDividido() ? 'call_split' : 'payments' }}
+            </mat-icon>
+            <select [(ngModel)]="formaPagamento" name="fp" [disabled]="pagamentoDividido()">
+              <option value="PIX">PIX</option>
+              <option value="DINHEIRO">Dinheiro</option>
+              <option value="CARTAO">Cartão</option>
+            </select>
+            @if (!pagamentoDividido()) {
+              <mat-icon>expand_more</mat-icon>
+            } @else {
+              <strong>Dividido</strong>
+            }
+          </div>
+          <button type="button" class="pdv-split-toggle" (click)="alternarPagamentoDividido()">
+            {{ pagamentoDividido() ? 'Pagamento único' : 'Dividir pagamento' }}
+          </button>
         </div>
+
+        @if (pagamentoDividido()) {
+          <div class="pdv-split" role="group" aria-label="Divisão do pagamento">
+            <div class="pdv-split__head">
+              <div>
+                <strong>Dividir pagamento</strong>
+                <span>Informe quanto será pago em cada forma.</span>
+              </div>
+              <span class="pdv-split__total">Total R$ {{ totalPedido() | number: '1.2-2' }}</span>
+            </div>
+
+            <label class="pdv-split__line">
+              <span><mat-icon>qr_code_2</mat-icon>PIX</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                [(ngModel)]="valorPix"
+                (ngModelChange)="onPagamentoValorChange()"
+                name="valorPix"
+              />
+              <button type="button" (click)="completarRestante('PIX')">Completar</button>
+            </label>
+            <label class="pdv-split__line">
+              <span><mat-icon>credit_card</mat-icon>Cartão</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                [(ngModel)]="valorCartao"
+                (ngModelChange)="onPagamentoValorChange()"
+                name="valorCartao"
+              />
+              <button type="button" (click)="completarRestante('CARTAO')">Completar</button>
+            </label>
+            <label class="pdv-split__line">
+              <span><mat-icon>payments</mat-icon>Dinheiro</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                [(ngModel)]="valorDinheiro"
+                (ngModelChange)="onPagamentoValorChange()"
+                name="valorDinheiro"
+              />
+              <button type="button" (click)="completarRestante('DINHEIRO')">Completar</button>
+            </label>
+
+            @if (valorDinheiro > 0) {
+              <div class="pdv-split__cash">
+                <label>
+                  Recebido em dinheiro
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    [(ngModel)]="valorRecebidoDinheiro"
+                    (ngModelChange)="onPagamentoValorChange()"
+                    name="valorRecebidoDinheiro"
+                  />
+                </label>
+                <div>
+                  <span>Troco</span>
+                  <strong>R$ {{ trocoDinheiro() | number: '1.2-2' }}</strong>
+                </div>
+              </div>
+            }
+
+            <div
+              class="pdv-split__balance"
+              [class.pdv-split__balance--ok]="pagamentoDivididoValido()"
+              [class.pdv-split__balance--over]="restantePagamento() < 0"
+            >
+              @if (pagamentoDivididoValido()) {
+                <mat-icon>check_circle</mat-icon>
+                Pagamento fechado
+              } @else if (restantePagamento() > 0) {
+                Falta R$ {{ restantePagamento() | number: '1.2-2' }}
+              } @else {
+                Passou R$ {{ -restantePagamento() | number: '1.2-2' }}
+              }
+            </div>
+          </div>
+        }
 
         <button type="button" class="pdv-obs" (click)="obsAberta.set(!obsAberta())">
           <mat-icon>notes</mat-icon>

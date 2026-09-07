@@ -42,7 +42,12 @@ public class CaixaController {
         List<MovimentoCaixa> movs = caixaSessaoService.movimentosDoCaixaAberto();
         List<MovimentoCaixaResponse> mdtos = movs.stream()
                 .map(m -> new MovimentoCaixaResponse(
-                        m.getId(), m.getTipo(), m.getValor(), m.getDescricao(), m.getCreatedAt()))
+                        m.getId(),
+                        m.getTipo(),
+                        m.getValor(),
+                        m.getDescricao(),
+                        m.getFormaPagamento(),
+                        m.getCreatedAt()))
                 .toList();
         var resp = new CaixaSessaoResponse(
                 s.getId(),
@@ -97,7 +102,12 @@ public class CaixaController {
         }
         MovimentoCaixa m = caixaSessaoService.registrarSaida(req.tipo(), req.valor(), req.descricao());
         return new MovimentoCaixaResponse(
-                m.getId(), m.getTipo(), m.getValor(), m.getDescricao(), m.getCreatedAt());
+                m.getId(),
+                m.getTipo(),
+                m.getValor(),
+                m.getDescricao(),
+                m.getFormaPagamento(),
+                m.getCreatedAt());
     }
 
     /**

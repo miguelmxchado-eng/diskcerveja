@@ -19,4 +19,5 @@ public record PedidoRequest(
         BigDecimal taxaEntrega,
         @DecimalMin(value = "0.00", message = "Desconto não pode ser negativo") BigDecimal desconto,
         String entregadorNome,
-        @NotEmpty @Valid List<PedidoItemRequest> itens) {}
+        @NotEmpty @Valid List<PedidoItemRequest> itens,
+        @Valid List<PedidoPagamentoRequest> pagamentos) {}

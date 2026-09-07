@@ -3,7 +3,9 @@ package com.diskcerveja.manager.service;
 import com.diskcerveja.manager.domain.entity.CaixaSessao;
 import com.diskcerveja.manager.domain.entity.MovimentoCaixa;
 import com.diskcerveja.manager.domain.entity.Pedido;
+import com.diskcerveja.manager.domain.entity.PedidoPagamento;
 import com.diskcerveja.manager.domain.entity.Usuario;
+import com.diskcerveja.manager.domain.enums.FormaPagamento;
 import com.diskcerveja.manager.domain.enums.StatusCaixaSessao;
 import com.diskcerveja.manager.domain.enums.StatusPedido;
 import com.diskcerveja.manager.domain.enums.TipoMovimentoCaixa;
@@ -130,23 +132,23 @@ public class CaixaSessaoService {
         if (sessao == null) {
             return false;
         }
-        Optional<MovimentoCaixa> existente =
-                movimentoCaixaRepository.findByPedido_IdAndTipo(pedido.getId(), TipoMovimentoCaixa.ENTRADA_VENDA);
-        if (existente.isPresent()) {
-            MovimentoCaixa m = existente.get();
-            m.setValor(pedido.getTotal());
-            m.setDescricao("Pedido #" + pedido.getId());
-            m.setCaixaSessao(sessao);
-            movimentoCaixaRepository.save(m);
+        List<MovimentoCaixa> existentes =
+                movimentoCaixaRepository.findByPedido_IdAndTipo(
+                        pedido.getId(), TipoMovimentoCaixa.ENTRADA_VENDA);
+        if (!existentes.isEmpty()) {
+            movimentoCaixaRepository.deleteAll(existentes);
+        }
+
+        List<PedidoPagamento> pagamentos = pedido.getPagamentos();
+        if (pagamentos == null || pagamentos.isEmpty()) {
+            criarMovimentoVenda(
+                    sessao, pedido, pedido.getFormaPagamento(), pedido.getTotal());
             return true;
         }
-        MovimentoCaixa m = new MovimentoCaixa();
-        m.setCaixaSessao(sessao);
-        m.setTipo(TipoMovimentoCaixa.ENTRADA_VENDA);
-        m.setValor(pedido.getTotal());
-        m.setDescricao("Pedido #" + pedido.getId());
-        m.setPedido(pedido);
-        movimentoCaixaRepository.save(m);
+        for (PedidoPagamento pagamento : pagamentos) {
+            criarMovimentoVenda(
+                    sessao, pedido, pagamento.getFormaPagamento(), pagamento.getValor());
+        }
         return true;
     }
 
@@ -155,9 +157,35 @@ public class CaixaSessaoService {
      */
     @Transactional
     public void estornarVendaPedido(Pedido pedido) {
-        movimentoCaixaRepository
-                .findByPedido_IdAndTipo(pedido.getId(), TipoMovimentoCaixa.ENTRADA_VENDA)
-                .ifPresent(movimentoCaixaRepository::delete);
+        movimentoCaixaRepository.deleteAll(
+                movimentoCaixaRepository.findByPedido_IdAndTipo(
+                        pedido.getId(), TipoMovimentoCaixa.ENTRADA_VENDA));
+    }
+
+    private void criarMovimentoVenda(
+            CaixaSessao sessao,
+            Pedido pedido,
+            FormaPagamento forma,
+            BigDecimal valor) {
+        MovimentoCaixa movimento = new MovimentoCaixa();
+        movimento.setCaixaSessao(sessao);
+        movimento.setTipo(TipoMovimentoCaixa.ENTRADA_VENDA);
+        movimento.setValor(valor);
+        movimento.setDescricao(
+                "Pedido #" + pedido.getId() + " · " + labelPagamento(forma));
+        movimento.setPedido(pedido);
+        movimento.setFormaPagamento(forma);
+        movimentoCaixaRepository.save(movimento);
+    }
+
+    private static String labelPagamento(FormaPagamento forma) {
+        if (forma == FormaPagamento.DINHEIRO) {
+            return "Dinheiro";
+        }
+        if (forma == FormaPagamento.CARTAO) {
+            return "Cartão";
+        }
+        return "Pix";
     }
 
     /**
@@ -190,7 +218,8 @@ public class CaixaSessaoService {
     }
 
     public BigDecimal saldoPrevisto(CaixaSessao sessao) {
-        BigDecimal entradas = movimentoCaixaRepository.sumValorByTipo(sessao.getId(), TipoMovimentoCaixa.ENTRADA_VENDA);
+        BigDecimal entradas = movimentoCaixaRepository.sumValorByTipoAndForma(
+                sessao.getId(), TipoMovimentoCaixa.ENTRADA_VENDA, FormaPagamento.DINHEIRO);
         BigDecimal saidasTroco = movimentoCaixaRepository.sumValorByTipo(sessao.getId(), TipoMovimentoCaixa.SAIDA_TROCO);
         BigDecimal saidasDesp = movimentoCaixaRepository.sumValorByTipo(sessao.getId(), TipoMovimentoCaixa.SAIDA_DESPESA);
         return sessao.getValorAbertura().add(entradas).subtract(saidasTroco).subtract(saidasDesp);

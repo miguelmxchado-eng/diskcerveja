@@ -1,5 +1,6 @@
 package com.diskcerveja.manager.domain.entity;
 
+import com.diskcerveja.manager.domain.enums.FormaPagamento;
 import com.diskcerveja.manager.domain.enums.TipoMovimentoCaixa;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -41,6 +42,10 @@ public class MovimentoCaixa {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "pedido_id")
     private Pedido pedido;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "forma_pagamento", length = 20)
+    private FormaPagamento formaPagamento;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -94,6 +99,14 @@ public class MovimentoCaixa {
 
     public void setPedido(Pedido pedido) {
         this.pedido = pedido;
+    }
+
+    public FormaPagamento getFormaPagamento() {
+        return formaPagamento;
+    }
+
+    public void setFormaPagamento(FormaPagamento formaPagamento) {
+        this.formaPagamento = formaPagamento;
     }
 
     public Instant getCreatedAt() {

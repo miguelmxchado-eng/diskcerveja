@@ -19,4 +19,5 @@ public record PedidoResponse(
         FormaPagamento formaPagamento,
         String enderecoEntrega,
         boolean estoqueBaixado,
-        List<PedidoItemResponse> itens) {}
+        List<PedidoItemResponse> itens,
+        List<PedidoPagamentoResponse> pagamentos) {}
