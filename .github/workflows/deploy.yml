@@ -51,5 +51,25 @@ jobs:
 
       - name: Rebuild e reiniciar
         run: |
-          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            'sudo timedatectl set-timezone America/Sao_Paulo && cd ~/diskcerveja && sudo docker compose -f docker-compose.prod.yml --env-file .env up -d --build'
+          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" bash -s <<'EOF'
+          set -euo pipefail
+          sudo timedatectl set-timezone America/Sao_Paulo
+          cd ~/diskcerveja
+
+          # Docker Hub às vezes responde 500 no pull; tenta de novo antes de falhar o deploy.
+          attempt=1
+          max_attempts=3
+          while true; do
+            sudo docker compose -f docker-compose.prod.yml --env-file .env pull || true
+            if sudo docker compose -f docker-compose.prod.yml --env-file .env up -d --build; then
+              break
+            fi
+            if [ "$attempt" -ge "$max_attempts" ]; then
+              echo "Deploy falhou após ${max_attempts} tentativas (possível instabilidade no Docker Hub)."
+              exit 1
+            fi
+            echo "Tentativa ${attempt}/${max_attempts} falhou. Aguardando 30s para nova tentativa..."
+            attempt=$((attempt + 1))
+            sleep 30
+          done
+          EOF
