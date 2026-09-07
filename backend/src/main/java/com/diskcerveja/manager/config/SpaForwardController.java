@@ -23,6 +23,7 @@ public class SpaForwardController {
         "/estoque",
         "/caixa",
         "/entregas",
+        "/zonas-entrega",
         "/usuarios",
         "/config",
         "/p"
