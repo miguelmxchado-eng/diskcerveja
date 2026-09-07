@@ -57,12 +57,13 @@ jobs:
           sudo timedatectl set-timezone America/Sao_Paulo
           cd ~/diskcerveja
 
-          # Certificado temporário para o nginx subir antes do Let's Encrypt.
+          # Certificado: se já existe (Let's Encrypt), não mexe.
+          # O check usa -d/sudo porque os arquivos em live/ são root e o -f do ubuntu falha.
           DOMAIN=emporiomachado.duckdns.org
           LIVE="certbot/conf/live/${DOMAIN}"
-          if [ ! -f "${LIVE}/fullchain.pem" ]; then
-            mkdir -p "${LIVE}"
-            openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
+          if [ ! -d "${LIVE}" ]; then
+            sudo mkdir -p "${LIVE}"
+            sudo openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
               -keyout "${LIVE}/privkey.pem" \
               -out "${LIVE}/fullchain.pem" \
               -subj "/CN=${DOMAIN}"
