@@ -235,13 +235,41 @@ export class ZonasEntregaComponent implements OnInit, AfterViewInit, OnDestroy {
       style: (feat) => this.styleFor(feat),
       onEachFeature: (feat, layer) => {
         const p = feat.properties as BairroProps;
-        layer.bindTooltip(p.nome, { sticky: true });
+        layer.bindTooltip(p.nome, { sticky: true, direction: 'top', opacity: 0.95 });
         layer.on('click', () => this.toggleBairro(p.id, layer as L.Path));
+        layer.on('mouseover', () => {
+          const path = layer as L.Path;
+          path.setStyle({ weight: 3, fillOpacity: 0.55 });
+          if ('bringToFront' in path) {
+            (path as L.Path & { bringToFront: () => void }).bringToFront();
+          }
+        });
+        layer.on('mouseout', () => {
+          (layer as L.Path).setStyle(this.styleFor(feat));
+        });
       },
     }).addTo(this.map);
 
-    const bounds = this.geoLayer.getBounds();
-    if (bounds.isValid()) this.map.fitBounds(bounds.pad(0.05));
+    // Enquadra a área urbana (ignora polígonos muito afastados tipo DAIA).
+    const urban = L.latLngBounds([]);
+    for (const f of this.geojson.features) {
+      const props = f.properties as BairroProps & { lat?: number; lon?: number };
+      const lat = props.lat;
+      const lon = props.lon;
+      if (lat == null || lon == null) continue;
+      if (Math.hypot((lat + 16.3281) * 111, (lon + 48.953) * 105) > 10) continue;
+      const g = f.geometry;
+      if (g?.type === 'Polygon') {
+        for (const ring of g.coordinates) {
+          for (const [lo, la] of ring) urban.extend([la, lo]);
+        }
+      }
+    }
+    if (urban.isValid()) this.map.fitBounds(urban.pad(0.04));
+    else {
+      const bounds = this.geoLayer.getBounds();
+      if (bounds.isValid()) this.map.fitBounds(bounds.pad(0.05));
+    }
   }
 
   private styleFor(feat?: GeoJSON.Feature): L.PathOptions {
@@ -249,14 +277,21 @@ export class ZonasEntregaComponent implements OnInit, AfterViewInit, OnDestroy {
     const zi = this.assignment.get(id);
     if (zi == null || zi < 0) {
       return {
-        color: '#666',
-        weight: 1,
-        fillColor: '#cfcfcf',
-        fillOpacity: 0.35,
+        color: '#5a554c',
+        weight: 1.25,
+        opacity: 0.75,
+        fillColor: '#c4bdae',
+        fillOpacity: 0.2,
       };
     }
     const c = this.corZona(zi);
-    return { color: c, weight: 2, fillColor: c, fillOpacity: 0.55 };
+    return {
+      color: c,
+      weight: 2.25,
+      opacity: 0.95,
+      fillColor: c,
+      fillOpacity: 0.4,
+    };
   }
 
   private toggleBairro(id: string, layer: L.Path): void {
@@ -265,6 +300,9 @@ export class ZonasEntregaComponent implements OnInit, AfterViewInit, OnDestroy {
     if (cur === ativa) this.assignment.delete(id);
     else this.assignment.set(id, ativa);
     layer.setStyle(this.styleFor({ type: 'Feature', properties: { id, nome: '' }, geometry: null as never }));
+    if ('bringToFront' in layer) {
+      (layer as L.Path & { bringToFront: () => void }).bringToFront();
+    }
   }
 
   private refreshLayerStyles(): void {
