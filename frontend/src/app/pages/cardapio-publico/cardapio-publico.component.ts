@@ -70,6 +70,7 @@ export class CardapioPublicoComponent implements OnInit {
   cidade = '';
   uf = '';
   observacao = '';
+  formaPagamento: 'PIX' | 'CARTAO' = 'PIX';
 
   readonly lojaInfo = computed(() => this.data()?.loja ?? null);
   readonly categorias = computed(() => this.data()?.categorias ?? []);
@@ -433,7 +434,7 @@ export class CardapioPublicoComponent implements OnInit {
       clienteNome: nome,
       telefone,
       enderecoEntrega: endereco,
-      formaPagamento: 'PIX',
+      formaPagamento: this.formaPagamento,
       observacao: this.observacao.trim() || null,
       itens: this.carrinho().map((l) => ({
         tipo: l.tipo,

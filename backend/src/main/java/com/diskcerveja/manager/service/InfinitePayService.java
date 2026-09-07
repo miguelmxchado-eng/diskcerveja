@@ -118,7 +118,7 @@ public class InfinitePayService {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 log.warn("InfinitePay link falhou ({}): {}", response.statusCode(), response.body());
-                throw new IllegalStateException("Não foi possível gerar o link de pagamento. Tente de novo.");
+                throw new IllegalStateException(mensagemErroLink(response.body()));
             }
             JsonNode parsed = objectMapper.readTree(response.body());
             String url = firstText(parsed, "checkout_url", "url", "link");
@@ -171,6 +171,23 @@ public class InfinitePayService {
             log.warn("Falha ao consultar payment_check", e);
             return false;
         }
+    }
+
+    private String mensagemErroLink(String body) {
+        try {
+            JsonNode parsed = objectMapper.readTree(body);
+            String code = firstText(parsed, "error");
+            if ("external_checkout_not_enabled".equals(code)) {
+                return "Ative o Checkout Externo no app InfinitePay (Configurações → Checkout Externo) e tente de novo.";
+            }
+            String msg = firstText(parsed, "message");
+            if (msg != null && !msg.isBlank()) {
+                return "InfinitePay: " + msg;
+            }
+        } catch (Exception ignored) {
+            // corpo inválido — mensagem genérica abaixo
+        }
+        return "Não foi possível gerar o link de pagamento. Tente de novo.";
     }
 
     private static String firstText(JsonNode node, String... fields) {

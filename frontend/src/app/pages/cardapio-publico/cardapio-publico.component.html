@@ -255,9 +255,38 @@
             <input [(ngModel)]="observacao" name="obs" placeholder="Interfone 12, sem gelo…" />
           </label>
 
-          <p class="cardapio__pay-note">
-            Pagamento pelo site (Pix ou cartão) via InfinitePay. Entregadores não levam maquininha.
-          </p>
+          <div class="cardapio__pay">
+            <span class="cardapio__pay-label">Como quer pagar?</span>
+            <div class="cardapio__pay-opts" role="radiogroup" aria-label="Forma de pagamento">
+              <button
+                type="button"
+                class="cardapio__pay-opt"
+                role="radio"
+                [attr.aria-checked]="formaPagamento === 'PIX'"
+                [class.is-on]="formaPagamento === 'PIX'"
+                (click)="formaPagamento = 'PIX'"
+              >
+                <mat-icon>qr_code_2</mat-icon>
+                <strong>Pix</strong>
+                <small>Aprovado na hora</small>
+              </button>
+              <button
+                type="button"
+                class="cardapio__pay-opt"
+                role="radio"
+                [attr.aria-checked]="formaPagamento === 'CARTAO'"
+                [class.is-on]="formaPagamento === 'CARTAO'"
+                (click)="formaPagamento = 'CARTAO'"
+              >
+                <mat-icon>credit_card</mat-icon>
+                <strong>Cartão</strong>
+                <small>Crédito no site</small>
+              </button>
+            </div>
+            <p class="cardapio__pay-note">
+              Você paga agora no site. Entregadores não levam maquininha.
+            </p>
+          </div>
           <div class="cardapio__totais">
             <div class="is-total"><span>Total</span><strong>R$ {{ total() | number: '1.2-2' }}</strong></div>
           </div>
@@ -266,8 +295,10 @@
           <button type="button" class="cardapio__cta" [disabled]="enviando() || !pagamentoOnline()" (click)="enviarPedido()">
             @if (enviando()) {
               Abrindo pagamento…
+            } @else if (formaPagamento === 'CARTAO') {
+              Pagar com cartão
             } @else {
-              Pagar agora
+              Pagar com Pix
             }
           </button>
           @if (!pagamentoOnline()) {
