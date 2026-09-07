@@ -59,6 +59,7 @@ public class SecurityConfig {
                             "/zonas-entrega",
                             "/usuarios",
                             "/config",
+                            "/compras",
                             "/p",
                             "/*.js",
                             "/*.css",

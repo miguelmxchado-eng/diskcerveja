@@ -17,7 +17,8 @@ import { CardapioPublicoComponent } from './pages/cardapio-publico/cardapio-publ
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
-  { path: 'p', component: CardapioPublicoComponent },
+  { path: 'compras', component: CardapioPublicoComponent },
+  { path: 'p', redirectTo: 'compras', pathMatch: 'full' },
   {
     path: '',
     component: MainLayoutComponent,

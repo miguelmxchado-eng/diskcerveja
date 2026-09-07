@@ -46,7 +46,7 @@ public class InfinitePayService {
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("handle", handle);
             body.put("order_nsu", String.valueOf(pedido.getId()));
-            body.put("redirect_url", baseUrl + "/p?pago=1&pedido=" + pedido.getId());
+            body.put("redirect_url", baseUrl + "/compras?pago=1&pedido=" + pedido.getId());
             body.put("webhook_url", baseUrl + "/api/publico/infinitepay/webhook");
 
             List<Map<String, Object>> items = new ArrayList<>();

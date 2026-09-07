@@ -26,6 +26,7 @@ public class SpaForwardController {
         "/zonas-entrega",
         "/usuarios",
         "/config",
+        "/compras",
         "/p"
     })
     public String forwardAngularRoutes() {

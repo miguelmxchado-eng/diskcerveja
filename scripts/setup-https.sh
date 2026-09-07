@@ -79,7 +79,7 @@ echo "==> Recarregando nginx com o certificado real..."
 
 echo
 echo "OK — HTTPS ativo em https://${DOMAIN}"
-echo "Cardápio: https://${DOMAIN}/p"
+echo "Cardápio: https://${DOMAIN}/compras"
 echo
 echo "Em Ajustes do sistema, defina a URL pública:"
 echo "  https://${DOMAIN}"
