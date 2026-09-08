@@ -8,4 +8,16 @@ public record PedidoItemResponse(
         String produtoNome,
         int quantidade,
         BigDecimal precoUnitario,
-        BigDecimal custoUnitario) {}
+        BigDecimal custoUnitario,
+        String observacao) {
+
+    public PedidoItemResponse(
+            Long produtoId,
+            Long comboId,
+            String produtoNome,
+            int quantidade,
+            BigDecimal precoUnitario,
+            BigDecimal custoUnitario) {
+        this(produtoId, comboId, produtoNome, quantidade, precoUnitario, custoUnitario, null);
+    }
+}

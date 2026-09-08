@@ -1,11 +1,14 @@
 package com.diskcerveja.manager.service;
 
 import com.diskcerveja.manager.domain.entity.Combo;
+import com.diskcerveja.manager.domain.entity.ComboOpcao;
 import com.diskcerveja.manager.domain.entity.Produto;
 import com.diskcerveja.manager.domain.enums.CategoriaProduto;
 import com.diskcerveja.manager.dto.CatalogoPublicoResponse;
 import com.diskcerveja.manager.dto.CatalogoPublicoResponse.CatalogoCategoriaDto;
+import com.diskcerveja.manager.dto.CatalogoPublicoResponse.CatalogoGrupoOpcaoDto;
 import com.diskcerveja.manager.dto.CatalogoPublicoResponse.CatalogoItemDto;
+import com.diskcerveja.manager.dto.CatalogoPublicoResponse.CatalogoOpcaoDto;
 import com.diskcerveja.manager.dto.CatalogoPublicoResponse.LojaPublicaDto;
 import com.diskcerveja.manager.dto.LojaConfigResponse;
 import com.diskcerveja.manager.repository.ComboRepository;
@@ -80,7 +83,9 @@ public class CatalogoPublicoService {
                     p.getPrecoUnidade(),
                     p.getUnidadesPorEmbalagem(),
                     p.getEstoqueAtual() > 0,
-                    p.isPromocaoCardapio());
+                    p.isPromocaoCardapio(),
+                    false,
+                    null);
             itens.add(item);
             if (p.isPromocaoCardapio()) {
                 promos.add(item);
@@ -93,6 +98,22 @@ public class CatalogoPublicoService {
                 continue;
             }
             int estoque = estoqueCombo(c);
+            List<CatalogoGrupoOpcaoDto> grupos = null;
+            if (c.isConfiguravel()) {
+                grupos = c.getGruposOpcao().stream()
+                        .map(g -> new CatalogoGrupoOpcaoDto(
+                                g.getId(),
+                                g.getNome(),
+                                g.isObrigatorio(),
+                                g.getMinimo(),
+                                g.getMaximo(),
+                                g.getOpcoes().stream()
+                                        .filter(ComboOpcao::isAtivo)
+                                        .map(o -> new CatalogoOpcaoDto(o.getId(), o.getRotulo()))
+                                        .toList()))
+                        .filter(g -> g.opcoes() != null && !g.opcoes().isEmpty())
+                        .toList();
+            }
             CatalogoItemDto item = new CatalogoItemDto(
                     "COMBO",
                     c.getId(),
@@ -104,7 +125,9 @@ public class CatalogoPublicoService {
                     null,
                     null,
                     estoque > 0,
-                    c.isPromocaoCardapio());
+                    c.isPromocaoCardapio(),
+                    c.isConfiguravel() && grupos != null && !grupos.isEmpty(),
+                    grupos);
             itens.add(item);
             if (c.isPromocaoCardapio()) {
                 promos.add(item);

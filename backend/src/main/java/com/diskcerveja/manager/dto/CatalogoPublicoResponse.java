@@ -28,5 +28,17 @@ public record CatalogoPublicoResponse(LojaPublicaDto loja, List<CatalogoCategori
             BigDecimal precoUnidade,
             Integer unidadesPorEmbalagem,
             boolean disponivel,
-            boolean promocao) {}
+            boolean promocao,
+            boolean configuravel,
+            List<CatalogoGrupoOpcaoDto> grupos) {}
+
+    public record CatalogoGrupoOpcaoDto(
+            Long id,
+            String nome,
+            boolean obrigatorio,
+            int minimo,
+            int maximo,
+            List<CatalogoOpcaoDto> opcoes) {}
+
+    public record CatalogoOpcaoDto(Long id, String rotulo) {}
 }

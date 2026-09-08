@@ -50,6 +50,10 @@ public class PedidoItem {
     @Column(name = "custo_unitario", nullable = false, precision = 12, scale = 2)
     private BigDecimal custoUnitario = BigDecimal.ZERO;
 
+    /** Escolhas do cliente (ex.: copão: Red Bull Melancia; Gelo comum). */
+    @Column(length = 500)
+    private String observacao;
+
     public Long getId() {
         return id;
     }
@@ -120,5 +124,13 @@ public class PedidoItem {
 
     public void setCustoUnitario(BigDecimal custoUnitario) {
         this.custoUnitario = custoUnitario;
+    }
+
+    public String getObservacao() {
+        return observacao;
+    }
+
+    public void setObservacao(String observacao) {
+        this.observacao = observacao;
     }
 }

@@ -505,7 +505,10 @@ export class RelatorioPedidosComponent implements OnInit, OnDestroy {
 
   itensTexto(p: PedidoResumoDto): string {
     return this.itensDoPedido(p)
-      .map((i) => `${i.quantidade}x ${i.produtoNome}`)
+      .map((i) => {
+        const obs = i.observacao ? ` (${i.observacao})` : '';
+        return `${i.quantidade}x ${i.produtoNome}${obs}`;
+      })
       .join('; ');
   }
 

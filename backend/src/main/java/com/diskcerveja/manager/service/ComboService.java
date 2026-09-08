@@ -2,11 +2,17 @@ package com.diskcerveja.manager.service;
 
 import com.diskcerveja.manager.domain.entity.Combo;
 import com.diskcerveja.manager.domain.entity.ComboItem;
+import com.diskcerveja.manager.domain.entity.ComboOpcao;
+import com.diskcerveja.manager.domain.entity.ComboOpcaoGrupo;
 import com.diskcerveja.manager.domain.entity.Produto;
 import com.diskcerveja.manager.domain.enums.StatusPedido;
 import com.diskcerveja.manager.dto.ComboDto;
 import com.diskcerveja.manager.dto.ComboItemDto;
 import com.diskcerveja.manager.dto.ComboItemResponse;
+import com.diskcerveja.manager.dto.ComboOpcaoDto;
+import com.diskcerveja.manager.dto.ComboOpcaoGrupoDto;
+import com.diskcerveja.manager.dto.ComboOpcaoGrupoResponse;
+import com.diskcerveja.manager.dto.ComboOpcaoResponse;
 import com.diskcerveja.manager.dto.ComboRelatorioResponse;
 import com.diskcerveja.manager.dto.ComboResponse;
 import com.diskcerveja.manager.dto.ComboVendaAgg;
@@ -91,6 +97,11 @@ public class ComboService {
             throw new IllegalArgumentException("Preço de venda inválido.");
         }
 
+        boolean configuravel = Boolean.TRUE.equals(dto.configuravel());
+        if (configuravel) {
+            validarGruposDto(dto.gruposOpcao());
+        }
+
         Combo combo = dto.id() == null ? new Combo() : buscar(dto.id());
 
         String codigoBarras = normalizar(dto.codigoBarras());
@@ -107,11 +118,13 @@ public class ComboService {
         combo.setAtivo(dto.ativo());
         combo.setVisivelCardapio(dto.visivelCardapio() == null || dto.visivelCardapio());
         combo.setPromocaoCardapio(Boolean.TRUE.equals(dto.promocaoCardapio()));
+        combo.setConfiguravel(configuravel);
         if (combo.getCodigo() == null || combo.getCodigo().isBlank()) {
             combo.setCodigo(gerarCodigoInterno());
         }
 
         aplicarItens(combo, dto.itens());
+        aplicarGrupos(combo, configuravel ? dto.gruposOpcao() : List.of());
 
         Combo salvo = comboRepository.save(combo);
         return toResponse(buscar(salvo.getId()), mapaVendas());
@@ -142,6 +155,78 @@ public class ComboService {
             ci.setProduto(prod);
             ci.setQuantidade(it.quantidade());
             combo.getItens().add(ci);
+        }
+    }
+
+    private void aplicarGrupos(Combo combo, List<ComboOpcaoGrupoDto> grupos) {
+        combo.getGruposOpcao().clear();
+        if (grupos == null || grupos.isEmpty()) {
+            return;
+        }
+        int ordemGrupo = 0;
+        for (ComboOpcaoGrupoDto gDto : grupos) {
+            ComboOpcaoGrupo grupo = new ComboOpcaoGrupo();
+            grupo.setCombo(combo);
+            grupo.setNome(gDto.nome().trim());
+            grupo.setObrigatorio(gDto.obrigatorio());
+            grupo.setMinimo(gDto.minimo());
+            grupo.setMaximo(gDto.maximo());
+            grupo.setOrdem(gDto.ordem() > 0 ? gDto.ordem() : ordemGrupo);
+            ordemGrupo++;
+
+            int ordemOpcao = 0;
+            for (ComboOpcaoDto oDto : gDto.opcoes()) {
+                if (oDto.rotulo() == null || oDto.rotulo().isBlank()) {
+                    continue;
+                }
+                ComboOpcao op = new ComboOpcao();
+                op.setGrupo(grupo);
+                op.setRotulo(oDto.rotulo().trim());
+                op.setOrdem(oDto.ordem() > 0 ? oDto.ordem() : ordemOpcao);
+                op.setAtivo(oDto.ativo());
+                if (oDto.produtoId() != null) {
+                    Produto prod = produtoRepository
+                            .findById(oDto.produtoId())
+                            .orElseThrow(() -> new IllegalArgumentException(
+                                    "Produto da opção inválido: " + oDto.produtoId()));
+                    op.setProduto(prod);
+                }
+                grupo.getOpcoes().add(op);
+                ordemOpcao++;
+            }
+            if (grupo.getOpcoes().isEmpty()) {
+                throw new IllegalArgumentException(
+                        "Grupo \"" + grupo.getNome() + "\" precisa de ao menos uma opção.");
+            }
+            combo.getGruposOpcao().add(grupo);
+        }
+    }
+
+    private void validarGruposDto(List<ComboOpcaoGrupoDto> grupos) {
+        if (grupos == null || grupos.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Combo configurável precisa de ao menos um grupo de opções (ex.: Gelo, Frutas).");
+        }
+        for (ComboOpcaoGrupoDto g : grupos) {
+            if (g.nome() == null || g.nome().isBlank()) {
+                throw new IllegalArgumentException("Informe o nome do grupo (ex.: Gelo).");
+            }
+            if (g.maximo() < 1) {
+                throw new IllegalArgumentException(
+                        "Máximo de escolhas inválido no grupo \"" + g.nome().trim() + "\".");
+            }
+            if (g.minimo() < 0 || g.minimo() > g.maximo()) {
+                throw new IllegalArgumentException(
+                        "Mínimo/máximo inválidos no grupo \"" + g.nome().trim() + "\".");
+            }
+            if (g.obrigatorio() && g.minimo() < 1) {
+                throw new IllegalArgumentException(
+                        "Grupo obrigatório \"" + g.nome().trim() + "\" precisa de mínimo ≥ 1.");
+            }
+            if (g.opcoes() == null || g.opcoes().stream().noneMatch(o -> o.rotulo() != null && !o.rotulo().isBlank())) {
+                throw new IllegalArgumentException(
+                        "Grupo \"" + g.nome().trim() + "\" precisa de ao menos uma opção.");
+            }
         }
     }
 
@@ -199,6 +284,24 @@ public class ComboService {
             estoqueDisponivel = 0;
         }
 
+        List<ComboOpcaoGrupoResponse> grupos = c.getGruposOpcao().stream()
+                .map(g -> new ComboOpcaoGrupoResponse(
+                        g.getId(),
+                        g.getNome(),
+                        g.isObrigatorio(),
+                        g.getMinimo(),
+                        g.getMaximo(),
+                        g.getOrdem(),
+                        g.getOpcoes().stream()
+                                .map(o -> new ComboOpcaoResponse(
+                                        o.getId(),
+                                        o.getRotulo(),
+                                        o.getProduto() != null ? o.getProduto().getId() : null,
+                                        o.getOrdem(),
+                                        o.isAtivo()))
+                                .toList()))
+                .toList();
+
         return new ComboResponse(
                 c.getId(),
                 c.getNome(),
@@ -212,13 +315,15 @@ public class ComboService {
                 c.isAtivo(),
                 c.isVisivelCardapio(),
                 c.isPromocaoCardapio(),
+                c.isConfiguravel(),
                 custoTotal,
                 lucro,
                 margem,
                 quantidadeVendida,
                 faturamento,
                 estoqueDisponivel,
-                itens);
+                itens,
+                grupos);
     }
 
     private BigDecimal custoTotal(Combo c) {

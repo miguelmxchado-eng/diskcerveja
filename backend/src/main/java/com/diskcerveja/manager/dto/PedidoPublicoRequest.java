@@ -34,5 +34,9 @@ public record PedidoPublicoRequest(
             @NotBlank String tipo,
             @NotNull Long id,
             @Positive int quantidade,
-            Boolean vendaUnidade) {}
+            Boolean vendaUnidade,
+            /** Texto das opções do copão (ex.: "Red Bull: Melancia; Gelo: Comum"). */
+            @Size(max = 500) String observacao,
+            /** IDs das opções escolhidas (validação de min/máx por grupo). */
+            List<Long> opcaoIds) {}
 }

@@ -111,7 +111,7 @@
               } @else {
                 <div class="cardapio__add">
                   <button type="button" class="cardapio__add-btn" (click)="adicionar(item)">
-                    + Adicionar
+                    {{ item.configuravel ? 'Montar' : '+ Adicionar' }}
                   </button>
                   @if (podeUnidade(item)) {
                     <button
@@ -156,7 +156,9 @@
     >
       <header class="cardapio__sheet-head">
         <h2 id="cardapio-sheet-title" #sheetTitle tabindex="-1">
-          @if (painel() === 'carrinho') {
+          @if (painel() === 'montar') {
+            Montar seu copão
+          } @else if (painel() === 'carrinho') {
             Seu pedido
           } @else if (painel() === 'checkout') {
             @if (checkoutPasso() === 1) {
@@ -178,7 +180,12 @@
             Pedido enviado
           }
         </h2>
-        <button type="button" class="cardapio__sheet-close" (click)="fecharPainel()" aria-label="Fechar">
+        <button
+          type="button"
+          class="cardapio__sheet-close"
+          (click)="painel() === 'montar' ? cancelarMontar() : fecharPainel()"
+          aria-label="Fechar"
+        >
           <mat-icon>close</mat-icon>
         </button>
       </header>
@@ -193,8 +200,53 @@
         </div>
       }
 
-      @if (checkoutErro() && painel() !== 'confirmando' && painel() !== 'aguardando') {
+      @if (checkoutErro() && painel() !== 'confirmando' && painel() !== 'aguardando' && painel() !== 'montar') {
         <p class="cardapio__sheet-erro">{{ checkoutErro() }}</p>
+      }
+
+      @if (painel() === 'montar' && montarItem(); as item) {
+        <div class="cardapio__sheet-body">
+          <p class="cardapio__montar-nome">{{ item.nome }}</p>
+          <p class="cardapio__montar-preco">R$ {{ item.preco | number: '1.2-2' }}</p>
+          @for (g of item.grupos; track g.id) {
+            <div class="cardapio__montar-grupo">
+              <h3>
+                {{ g.nome }}
+                @if (g.obrigatorio) {
+                  <span>*</span>
+                }
+                @if (g.maximo > 1) {
+                  <small>até {{ g.maximo }}</small>
+                }
+              </h3>
+              <div class="cardapio__montar-ops">
+                @for (o of g.opcoes; track o.id) {
+                  <button
+                    type="button"
+                    class="cardapio__montar-op"
+                    [class.is-on]="opcaoSelecionada(g.id, o.id)"
+                    (click)="toggleOpcaoMontar(g, o.id)"
+                  >
+                    {{ o.rotulo }}
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+        <footer class="cardapio__sheet-foot">
+          <button
+            type="button"
+            class="cardapio__cta"
+            [disabled]="!montarPronto()"
+            (click)="confirmarMontar()"
+          >
+            Adicionar ao pedido
+          </button>
+          <button type="button" class="cardapio__cta cardapio__cta--ghost" (click)="cancelarMontar()">
+            Cancelar
+          </button>
+        </footer>
       }
 
       @if (painel() === 'carrinho') {
@@ -204,6 +256,9 @@
               <img [src]="fotoUrl(l)" [alt]="l.nome" width="56" height="56" />
               <div class="cardapio__cart-info">
                 <strong>{{ l.nome }}</strong>
+                @if (l.observacao) {
+                  <em class="cardapio__cart-obs">{{ l.observacao }}</em>
+                }
                 <span>R$ {{ l.preco | number: '1.2-2' }}</span>
               </div>
               <div class="cardapio__qty">

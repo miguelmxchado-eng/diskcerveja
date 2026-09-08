@@ -2,6 +2,8 @@ package com.diskcerveja.manager.service;
 
 import com.diskcerveja.manager.domain.entity.Cliente;
 import com.diskcerveja.manager.domain.entity.Combo;
+import com.diskcerveja.manager.domain.entity.ComboOpcao;
+import com.diskcerveja.manager.domain.entity.ComboOpcaoGrupo;
 import com.diskcerveja.manager.domain.entity.Pedido;
 import com.diskcerveja.manager.domain.entity.Produto;
 import com.diskcerveja.manager.domain.enums.FormaPagamento;
@@ -213,8 +215,9 @@ public class PedidoPublicoService {
                     throw new IllegalArgumentException("Combo indisponível no cardápio: " + c.getNome());
                 }
                 garantirEstoqueCombo(c, item.quantidade());
+                String observacaoItem = resolverObservacaoCombo(c, item);
                 subtotal = subtotal.add(c.getPrecoVenda().multiply(BigDecimal.valueOf(item.quantidade())));
-                itens.add(new PedidoItemRequest(null, c.getId(), item.quantidade(), null));
+                itens.add(new PedidoItemRequest(null, c.getId(), item.quantidade(), null, observacaoItem));
             } else {
                 throw new IllegalArgumentException("Tipo de item inválido: " + item.tipo());
             }
@@ -570,6 +573,89 @@ public class PedidoPublicoService {
                 throw new IllegalArgumentException("Estoque insuficiente no combo: " + c.getNome());
             }
         }
+    }
+
+    /**
+     * Valida escolhas de combo configurável e monta o texto gravado no item
+     * (ex.: "Red Bull: Melancia; Gelo: Comum").
+     */
+    private static String resolverObservacaoCombo(Combo c, PedidoPublicoRequest.Item item) {
+        if (!c.isConfiguravel() || c.getGruposOpcao() == null || c.getGruposOpcao().isEmpty()) {
+            if (item.observacao() != null && !item.observacao().isBlank()) {
+                return truncarObs(item.observacao().trim());
+            }
+            return null;
+        }
+
+        List<Long> opcaoIds = item.opcaoIds() != null ? item.opcaoIds() : List.of();
+        if (opcaoIds.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Monte as opções do combo \"" + c.getNome() + "\" antes de pedir.");
+        }
+
+        Map<Long, ComboOpcao> porId = new java.util.HashMap<>();
+        for (ComboOpcaoGrupo g : c.getGruposOpcao()) {
+            for (ComboOpcao o : g.getOpcoes()) {
+                if (o.isAtivo()) {
+                    porId.put(o.getId(), o);
+                }
+            }
+        }
+
+        Map<Long, List<ComboOpcao>> escolhidasPorGrupo = new java.util.LinkedHashMap<>();
+        for (ComboOpcaoGrupo g : c.getGruposOpcao()) {
+            escolhidasPorGrupo.put(g.getId(), new ArrayList<>());
+        }
+
+        for (Long oid : opcaoIds) {
+            ComboOpcao op = porId.get(oid);
+            if (op == null) {
+                throw new IllegalArgumentException(
+                        "Opção inválida no combo \"" + c.getNome() + "\".");
+            }
+            Long gid = op.getGrupo().getId();
+            List<ComboOpcao> lista = escolhidasPorGrupo.get(gid);
+            if (lista == null) {
+                throw new IllegalArgumentException(
+                        "Opção inválida no combo \"" + c.getNome() + "\".");
+            }
+            lista.add(op);
+        }
+
+        List<String> partes = new ArrayList<>();
+        for (ComboOpcaoGrupo g : c.getGruposOpcao()) {
+            List<ComboOpcao> escolhidas = escolhidasPorGrupo.getOrDefault(g.getId(), List.of());
+            int n = escolhidas.size();
+            int min = g.isObrigatorio() ? Math.max(1, g.getMinimo()) : g.getMinimo();
+            int max = Math.max(1, g.getMaximo());
+            if (n < min) {
+                throw new IllegalArgumentException(
+                        "Escolha " + (min == 1 ? "uma opção" : min + " opções")
+                                + " em \"" + g.getNome() + "\" do combo " + c.getNome() + ".");
+            }
+            if (n > max) {
+                throw new IllegalArgumentException(
+                        "Escolha no máximo " + max + " em \"" + g.getNome() + "\".");
+            }
+            if (n > 0) {
+                String rotulos = escolhidas.stream()
+                        .map(ComboOpcao::getRotulo)
+                        .reduce((a, b) -> a + ", " + b)
+                        .orElse("");
+                partes.add(g.getNome() + ": " + rotulos);
+            }
+        }
+
+        String texto = String.join("; ", partes);
+        if (texto.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Monte as opções do combo \"" + c.getNome() + "\" antes de pedir.");
+        }
+        return truncarObs(texto);
+    }
+
+    private static String truncarObs(String obs) {
+        return obs.length() > 500 ? obs.substring(0, 500) : obs;
     }
 
     private static String soDigitos(String raw) {

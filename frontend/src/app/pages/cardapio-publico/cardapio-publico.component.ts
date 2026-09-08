@@ -15,7 +15,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { ContaClienteService } from '../../core/conta-cliente.service';
-import { CatalogoItemPublico, CatalogoPublico, FretePublico, LojaConfig } from '../../core/models';
+import { CatalogoItemPublico, CatalogoPublico, FretePublico, LojaConfig, CatalogoGrupoOpcaoPublico } from '../../core/models';
 import { produtoFotoUrl } from '../../shared/produto-foto';
 
 interface CartLine {
@@ -28,6 +28,8 @@ interface CartLine {
   vendaUnidade: boolean;
   imagemUrl?: string | null;
   categoria: string;
+  observacao?: string | null;
+  opcaoIds?: number[];
 }
 
 interface PedidoPublicoOk {
@@ -51,6 +53,7 @@ interface ViaCepResponse {
 type Painel =
   | 'fechado'
   | 'carrinho'
+  | 'montar'
   | 'checkout'
   | 'confirmando'
   | 'aguardando'
@@ -90,6 +93,9 @@ export class CardapioPublicoComponent implements OnInit {
   readonly frete = signal<FretePublico | null>(null);
   readonly cotandoFrete = signal(false);
   readonly contaEnviando = signal(false);
+  readonly montarItem = signal<CatalogoItemPublico | null>(null);
+  /** grupoId -> opcaoIds selecionados */
+  readonly montarSelecao = signal<Record<number, number[]>>({});
 
   clienteNome = '';
   telefone = '';
@@ -466,7 +472,94 @@ export class CardapioPublicoComponent implements OnInit {
     if (!this.lojaInfo()?.aberta) {
       return;
     }
-    const key = `${item.tipo}-${item.id}${vendaUnidade ? '-u' : ''}`;
+    if (item.tipo === 'COMBO' && item.configuravel && item.grupos?.length) {
+      this.abrirMontar(item);
+      return;
+    }
+    this.pushCarrinho(item, vendaUnidade);
+  }
+
+  private abrirMontar(item: CatalogoItemPublico): void {
+    this.montarItem.set(item);
+    const sel: Record<number, number[]> = {};
+    for (const g of item.grupos ?? []) {
+      sel[g.id] = [];
+    }
+    this.montarSelecao.set(sel);
+    this.checkoutErro.set(null);
+    this.painel.set('montar');
+  }
+
+  toggleOpcaoMontar(grupo: CatalogoGrupoOpcaoPublico, opcaoId: number): void {
+    const atual = { ...this.montarSelecao() };
+    const lista = [...(atual[grupo.id] ?? [])];
+    const idx = lista.indexOf(opcaoId);
+    if (idx >= 0) {
+      lista.splice(idx, 1);
+    } else if (grupo.maximo <= 1) {
+      lista.splice(0, lista.length, opcaoId);
+    } else if (lista.length < grupo.maximo) {
+      lista.push(opcaoId);
+    } else {
+      return;
+    }
+    atual[grupo.id] = lista;
+    this.montarSelecao.set(atual);
+  }
+
+  opcaoSelecionada(grupoId: number, opcaoId: number): boolean {
+    return (this.montarSelecao()[grupoId] ?? []).includes(opcaoId);
+  }
+
+  montarPronto(): boolean {
+    const item = this.montarItem();
+    if (!item?.grupos?.length) return false;
+    const sel = this.montarSelecao();
+    for (const g of item.grupos) {
+      const n = (sel[g.id] ?? []).length;
+      const min = g.obrigatorio ? Math.max(1, g.minimo) : g.minimo;
+      if (n < min || n > g.maximo) return false;
+    }
+    return true;
+  }
+
+  confirmarMontar(): void {
+    const item = this.montarItem();
+    if (!item || !this.montarPronto()) return;
+    const sel = this.montarSelecao();
+    const opcaoIds: number[] = [];
+    const partes: string[] = [];
+    for (const g of item.grupos ?? []) {
+      const ids = sel[g.id] ?? [];
+      if (!ids.length) continue;
+      opcaoIds.push(...ids);
+      const rotulos = ids
+        .map((id) => g.opcoes.find((o) => o.id === id)?.rotulo)
+        .filter(Boolean);
+      if (rotulos.length) {
+        partes.push(`${g.nome}: ${rotulos.join(', ')}`);
+      }
+    }
+    this.pushCarrinho(item, false, partes.join('; '), opcaoIds);
+    this.montarItem.set(null);
+    this.montarSelecao.set({});
+    this.painel.set('fechado');
+  }
+
+  cancelarMontar(): void {
+    this.montarItem.set(null);
+    this.montarSelecao.set({});
+    this.painel.set('fechado');
+  }
+
+  private pushCarrinho(
+    item: CatalogoItemPublico,
+    vendaUnidade = false,
+    observacao?: string | null,
+    opcaoIds?: number[],
+  ): void {
+    const obsKey = observacao ? `-${observacao}` : '';
+    const key = `${item.tipo}-${item.id}${vendaUnidade ? '-u' : ''}${obsKey}`;
     const preco = vendaUnidade ? Number(item.precoUnidade) : Number(item.preco);
     const nome = vendaUnidade ? `${item.nome} (unidade)` : item.nome;
     const atual = [...this.carrinho()];
@@ -484,6 +577,8 @@ export class CardapioPublicoComponent implements OnInit {
         vendaUnidade,
         imagemUrl: item.imagemUrl,
         categoria: item.categoria,
+        observacao: observacao || null,
+        opcaoIds: opcaoIds?.length ? opcaoIds : undefined,
       });
     }
     this.carrinho.set(atual);
@@ -546,6 +641,10 @@ export class CardapioPublicoComponent implements OnInit {
 
   fecharPainel(): void {
     if (this.painel() === 'confirmando') {
+      return;
+    }
+    if (this.painel() === 'montar') {
+      this.cancelarMontar();
       return;
     }
     if (this.painel() === 'sucesso' || this.painel() === 'aguardando') {
@@ -628,6 +727,8 @@ export class CardapioPublicoComponent implements OnInit {
         id: l.id,
         quantidade: l.quantidade,
         vendaUnidade: l.vendaUnidade || null,
+        observacao: l.observacao || null,
+        opcaoIds: l.opcaoIds?.length ? l.opcaoIds : null,
       })),
     };
 

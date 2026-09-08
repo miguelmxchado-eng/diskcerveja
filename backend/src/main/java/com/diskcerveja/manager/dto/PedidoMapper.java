@@ -54,7 +54,8 @@ public final class PedidoMapper {
                     nome,
                     i.getQuantidade(),
                     i.getPrecoUnitario(),
-                    i.getCustoUnitario());
+                    i.getCustoUnitario(),
+                    i.getObservacao());
         }
         String nome = i.getDescricao() != null
                 ? i.getDescricao()
@@ -65,6 +66,7 @@ public final class PedidoMapper {
                 nome,
                 i.getQuantidade(),
                 i.getPrecoUnitario(),
-                i.getCustoUnitario());
+                i.getCustoUnitario(),
+                i.getObservacao());
     }
 }

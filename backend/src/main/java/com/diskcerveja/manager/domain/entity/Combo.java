@@ -10,6 +10,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -60,6 +61,9 @@ public class Combo {
     @Column(name = "promocao_cardapio", nullable = false)
     private boolean promocaoCardapio = false;
 
+    @Column(nullable = false)
+    private boolean configuravel = false;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -68,6 +72,10 @@ public class Combo {
 
     @OneToMany(mappedBy = "combo", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ComboItem> itens = new ArrayList<>();
+
+    @OneToMany(mappedBy = "combo", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("ordem ASC, id ASC")
+    private List<ComboOpcaoGrupo> gruposOpcao = new ArrayList<>();
 
     @PrePersist
     void prePersist() {
@@ -175,6 +183,14 @@ public class Combo {
         this.promocaoCardapio = promocaoCardapio;
     }
 
+    public boolean isConfiguravel() {
+        return configuravel;
+    }
+
+    public void setConfiguravel(boolean configuravel) {
+        this.configuravel = configuravel;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
@@ -185,5 +201,9 @@ public class Combo {
 
     public List<ComboItem> getItens() {
         return itens;
+    }
+
+    public List<ComboOpcaoGrupo> getGruposOpcao() {
+        return gruposOpcao;
     }
 }

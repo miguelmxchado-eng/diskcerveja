@@ -68,7 +68,9 @@ public class ComboController {
                 dto.ativo(),
                 dto.visivelCardapio(),
                 dto.promocaoCardapio(),
-                dto.itens());
+                dto.configuravel(),
+                dto.itens(),
+                dto.gruposOpcao());
         return ResponseEntity.ok(comboService.salvar(novo));
     }
 
@@ -87,7 +89,9 @@ public class ComboController {
                 dto.ativo(),
                 dto.visivelCardapio(),
                 dto.promocaoCardapio(),
-                dto.itens());
+                dto.configuravel(),
+                dto.itens(),
+                dto.gruposOpcao());
         return comboService.salvar(alvo);
     }
 

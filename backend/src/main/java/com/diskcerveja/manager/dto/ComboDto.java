@@ -21,4 +21,6 @@ public record ComboDto(
         boolean ativo,
         Boolean visivelCardapio,
         Boolean promocaoCardapio,
-        @NotEmpty @Valid List<ComboItemDto> itens) {}
+        Boolean configuravel,
+        @NotEmpty @Valid List<ComboItemDto> itens,
+        @Valid List<ComboOpcaoGrupoDto> gruposOpcao) {}

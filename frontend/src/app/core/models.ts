@@ -40,6 +40,7 @@ export interface PedidoItemResponse {
   quantidade: number;
   precoUnitario: number;
   custoUnitario?: number;
+  observacao?: string | null;
 }
 
 export interface ComboItemDto {
@@ -57,6 +58,42 @@ export interface ComboItemResponse {
   produtoAtivo: boolean;
 }
 
+export interface ComboOpcaoDto {
+  id?: number | null;
+  rotulo: string;
+  produtoId?: number | null;
+  ordem?: number;
+  ativo?: boolean;
+}
+
+export interface ComboOpcaoGrupoDto {
+  id?: number | null;
+  nome: string;
+  obrigatorio: boolean;
+  minimo: number;
+  maximo: number;
+  ordem?: number;
+  opcoes: ComboOpcaoDto[];
+}
+
+export interface ComboOpcaoResponse {
+  id: number;
+  rotulo: string;
+  produtoId?: number | null;
+  ordem: number;
+  ativo: boolean;
+}
+
+export interface ComboOpcaoGrupoResponse {
+  id: number;
+  nome: string;
+  obrigatorio: boolean;
+  minimo: number;
+  maximo: number;
+  ordem: number;
+  opcoes: ComboOpcaoResponse[];
+}
+
 export interface ComboResponse {
   id: number;
   nome: string;
@@ -70,6 +107,7 @@ export interface ComboResponse {
   ativo: boolean;
   visivelCardapio?: boolean;
   promocaoCardapio?: boolean;
+  configuravel?: boolean;
   custoTotal: number;
   lucro: number;
   margem: number;
@@ -77,6 +115,7 @@ export interface ComboResponse {
   faturamento: number;
   estoqueDisponivel: number;
   itens: ComboItemResponse[];
+  gruposOpcao?: ComboOpcaoGrupoResponse[];
 }
 
 export interface ComboDto {
@@ -91,7 +130,9 @@ export interface ComboDto {
   ativo: boolean;
   visivelCardapio?: boolean;
   promocaoCardapio?: boolean;
+  configuravel?: boolean;
   itens: ComboItemDto[];
+  gruposOpcao?: ComboOpcaoGrupoDto[];
 }
 
 export interface LojaConfig {
@@ -125,6 +166,20 @@ export interface FretePublico {
   mensagem?: string | null;
 }
 
+export interface CatalogoOpcaoPublico {
+  id: number;
+  rotulo: string;
+}
+
+export interface CatalogoGrupoOpcaoPublico {
+  id: number;
+  nome: string;
+  obrigatorio: boolean;
+  minimo: number;
+  maximo: number;
+  opcoes: CatalogoOpcaoPublico[];
+}
+
 export interface CatalogoItemPublico {
   tipo: 'PRODUTO' | 'COMBO';
   id: number;
@@ -137,6 +192,8 @@ export interface CatalogoItemPublico {
   unidadesPorEmbalagem?: number | null;
   disponivel: boolean;
   promocao?: boolean;
+  configuravel?: boolean;
+  grupos?: CatalogoGrupoOpcaoPublico[] | null;
 }
 
 export interface CatalogoPublico {

@@ -636,6 +636,9 @@
               >
                 {{ comboPromocaoCardapio ? 'Em promoção' : 'Sem promoção' }}
               </mat-slide-toggle>
+              <mat-slide-toggle [(ngModel)]="comboConfiguravel" name="comboConfiguravel">
+                {{ comboConfiguravel ? 'Cliente monta opções (copão)' : 'Sem montagem pelo cliente' }}
+              </mat-slide-toggle>
             </div>
 
             <div class="est-combo-itens">
@@ -694,6 +697,108 @@
                 <p class="est-permissao">Nenhum produto adicionado ainda.</p>
               }
             </div>
+
+            @if (comboConfiguravel) {
+              <div class="est-combo-grupos">
+                <div class="est-combo-grupos__head">
+                  <h3 class="est-section-title">Opções do cliente (copão)</h3>
+                  <button type="button" class="em-btn em-btn--ghost" (click)="adicionarGrupoCombo()">
+                    <mat-icon>add</mat-icon>
+                    Grupo
+                  </button>
+                </div>
+                <p class="est-combo-grupos__hint">
+                  Ex.: Energético, Gelo, Frutas — o cliente escolhe no cardápio antes de pedir.
+                </p>
+
+                @for (g of comboGrupos(); let gi = $index; track gi) {
+                  <div class="est-combo-grupo">
+                    <div class="est-combo-grupo__top">
+                      <mat-form-field appearance="outline" class="est-mat-grow">
+                        <mat-label>Grupo (ex.: Gelo)</mat-label>
+                        <input
+                          matInput
+                          [ngModel]="g.nome"
+                          (ngModelChange)="atualizarGrupo(gi, { nome: $event })"
+                          [name]="'grupoNome-' + gi"
+                        />
+                      </mat-form-field>
+                      <mat-slide-toggle
+                        [ngModel]="g.obrigatorio"
+                        (ngModelChange)="atualizarGrupo(gi, { obrigatorio: $event })"
+                        [name]="'grupoObr-' + gi"
+                      >
+                        Obrigatório
+                      </mat-slide-toggle>
+                      <mat-form-field appearance="outline" class="est-combo-grupo__num">
+                        <mat-label>Mín</mat-label>
+                        <input
+                          matInput
+                          type="number"
+                          min="0"
+                          [ngModel]="g.minimo"
+                          (ngModelChange)="atualizarGrupo(gi, { minimo: +$event })"
+                          [name]="'grupoMin-' + gi"
+                        />
+                      </mat-form-field>
+                      <mat-form-field appearance="outline" class="est-combo-grupo__num">
+                        <mat-label>Máx</mat-label>
+                        <input
+                          matInput
+                          type="number"
+                          min="1"
+                          [ngModel]="g.maximo"
+                          (ngModelChange)="atualizarGrupo(gi, { maximo: +$event })"
+                          [name]="'grupoMax-' + gi"
+                        />
+                      </mat-form-field>
+                      <button
+                        type="button"
+                        class="est-icon-btn est-icon-btn--danger"
+                        (click)="removerGrupoCombo(gi)"
+                        matTooltip="Remover grupo"
+                        aria-label="Remover grupo"
+                      >
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    </div>
+
+                    <div class="est-combo-grupo__ops">
+                      <span class="est-combo-grupo__ops-label">Opções (ex.: Gelo comum, Gelo de limão)</span>
+                      @for (o of g.opcoes; let oi = $index; track oi) {
+                        <div class="est-combo-opcao">
+                          <mat-form-field appearance="outline" class="est-mat-grow">
+                            <mat-label>Opção</mat-label>
+                            <input
+                              matInput
+                              [ngModel]="o.rotulo"
+                              (ngModelChange)="atualizarOpcao(gi, oi, $event)"
+                              [name]="'opcao-' + gi + '-' + oi"
+                            />
+                          </mat-form-field>
+                          <button
+                            type="button"
+                            class="est-icon-btn"
+                            (click)="removerOpcaoGrupo(gi, oi)"
+                            [disabled]="g.opcoes.length <= 1"
+                            matTooltip="Remover opção"
+                            aria-label="Remover opção"
+                          >
+                            <mat-icon>close</mat-icon>
+                          </button>
+                        </div>
+                      }
+                      <button type="button" class="em-btn em-btn--ghost" (click)="adicionarOpcaoGrupo(gi)">
+                        <mat-icon>add</mat-icon>
+                        Opção
+                      </button>
+                    </div>
+                  </div>
+                } @empty {
+                  <p class="est-permissao">Nenhum grupo ainda — clique em “Grupo”.</p>
+                }
+              </div>
+            }
 
             <div class="est-combo-calc">
               <div>

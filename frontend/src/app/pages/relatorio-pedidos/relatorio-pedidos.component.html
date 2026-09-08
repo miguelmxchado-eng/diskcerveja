@@ -425,7 +425,12 @@
                               <tbody>
                                 @for (item of itensDoPedido(p); track $index) {
                                   <tr>
-                                    <td>{{ item.produtoNome }}</td>
+                                    <td>
+                                      {{ item.produtoNome }}
+                                      @if (item.observacao) {
+                                        <div class="hist-detail__obs">{{ item.observacao }}</div>
+                                      }
+                                    </td>
                                     <td>{{ item.quantidade }}</td>
                                     <td>R$ {{ item.precoUnitario | number: '1.2-2' }}</td>
                                     <td>

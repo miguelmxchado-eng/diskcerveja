@@ -41,6 +41,19 @@ interface ComboItemForm {
   quantidade: number;
 }
 
+interface ComboOpcaoForm {
+  rotulo: string;
+  ativo: boolean;
+}
+
+interface ComboGrupoForm {
+  nome: string;
+  obrigatorio: boolean;
+  minimo: number;
+  maximo: number;
+  opcoes: ComboOpcaoForm[];
+}
+
 @Component({
   selector: 'app-estoque',
   standalone: true,
@@ -215,7 +228,9 @@ export class EstoqueComponent implements OnInit, OnDestroy {
   comboAtivo = true;
   comboVisivelCardapio = true;
   comboPromocaoCardapio = false;
+  comboConfiguravel = false;
   comboItens = signal<ComboItemForm[]>([]);
+  comboGrupos = signal<ComboGrupoForm[]>([]);
   comboSalvando = signal(false);
   produtoParaAdicionar: number | null = null;
 
@@ -559,7 +574,9 @@ export class EstoqueComponent implements OnInit, OnDestroy {
     this.comboAtivo = true;
     this.comboVisivelCardapio = true;
     this.comboPromocaoCardapio = false;
+    this.comboConfiguravel = false;
     this.comboItens.set([]);
+    this.comboGrupos.set([]);
     this.produtoParaAdicionar = null;
   }
 
@@ -575,8 +592,18 @@ export class EstoqueComponent implements OnInit, OnDestroy {
     this.comboAtivo = c.ativo;
     this.comboVisivelCardapio = c.visivelCardapio !== false;
     this.comboPromocaoCardapio = !!c.promocaoCardapio;
+    this.comboConfiguravel = !!c.configuravel;
     this.comboItens.set(
       c.itens.map((i) => ({ produtoId: i.produtoId, quantidade: i.quantidade })),
+    );
+    this.comboGrupos.set(
+      (c.gruposOpcao ?? []).map((g) => ({
+        nome: g.nome,
+        obrigatorio: g.obrigatorio,
+        minimo: g.minimo,
+        maximo: g.maximo,
+        opcoes: (g.opcoes ?? []).map((o) => ({ rotulo: o.rotulo, ativo: o.ativo !== false })),
+      })),
     );
     this.produtoParaAdicionar = null;
     this.snack.open(`Editando "${c.nome}".`, 'OK', { duration: 1800 });
@@ -630,6 +657,67 @@ export class EstoqueComponent implements OnInit, OnDestroy {
     this.comboImagem.set(null);
   }
 
+  adicionarGrupoCombo(): void {
+    this.comboGrupos.set([
+      ...this.comboGrupos(),
+      {
+        nome: '',
+        obrigatorio: true,
+        minimo: 1,
+        maximo: 1,
+        opcoes: [{ rotulo: '', ativo: true }],
+      },
+    ]);
+  }
+
+  removerGrupoCombo(idx: number): void {
+    this.comboGrupos.set(this.comboGrupos().filter((_, i) => i !== idx));
+  }
+
+  atualizarGrupo(idx: number, patch: Partial<ComboGrupoForm>): void {
+    this.comboGrupos.set(
+      this.comboGrupos().map((g, i) => {
+        if (i !== idx) return g;
+        const next = { ...g, ...patch };
+        if (patch.obrigatorio === true && next.minimo < 1) next.minimo = 1;
+        if (next.maximo < 1) next.maximo = 1;
+        if (next.minimo > next.maximo) next.minimo = next.maximo;
+        return next;
+      }),
+    );
+  }
+
+  adicionarOpcaoGrupo(grupoIdx: number): void {
+    this.comboGrupos.set(
+      this.comboGrupos().map((g, i) =>
+        i === grupoIdx ? { ...g, opcoes: [...g.opcoes, { rotulo: '', ativo: true }] } : g,
+      ),
+    );
+  }
+
+  removerOpcaoGrupo(grupoIdx: number, opcaoIdx: number): void {
+    this.comboGrupos.set(
+      this.comboGrupos().map((g, i) =>
+        i === grupoIdx
+          ? { ...g, opcoes: g.opcoes.filter((_, j) => j !== opcaoIdx) }
+          : g,
+      ),
+    );
+  }
+
+  atualizarOpcao(grupoIdx: number, opcaoIdx: number, rotulo: string): void {
+    this.comboGrupos.set(
+      this.comboGrupos().map((g, i) =>
+        i === grupoIdx
+          ? {
+              ...g,
+              opcoes: g.opcoes.map((o, j) => (j === opcaoIdx ? { ...o, rotulo } : o)),
+            }
+          : g,
+      ),
+    );
+  }
+
   salvarCombo(): void {
     if (!this.auth.isAdmin()) return;
     if (!this.comboNome.trim()) {
@@ -646,6 +734,32 @@ export class EstoqueComponent implements OnInit, OnDestroy {
       return;
     }
 
+    let gruposOpcao: ComboDto['gruposOpcao'] = [];
+    if (this.comboConfiguravel) {
+      const grupos = this.comboGrupos()
+        .map((g) => ({
+          nome: g.nome.trim(),
+          obrigatorio: g.obrigatorio,
+          minimo: g.minimo,
+          maximo: g.maximo,
+          opcoes: g.opcoes
+            .map((o) => ({ rotulo: o.rotulo.trim(), ativo: o.ativo !== false, ordem: 0 }))
+            .filter((o) => o.rotulo),
+        }))
+        .filter((g) => g.nome);
+      if (grupos.length === 0) {
+        this.snack.open('Adicione ao menos um grupo (ex.: Gelo, Frutas).', 'OK', { duration: 3000 });
+        return;
+      }
+      for (const g of grupos) {
+        if (g.opcoes.length === 0) {
+          this.snack.open(`Grupo "${g.nome}" precisa de opções.`, 'OK', { duration: 3000 });
+          return;
+        }
+      }
+      gruposOpcao = grupos;
+    }
+
     const dto: ComboDto = {
       id: this.comboEditId(),
       nome: this.comboNome.trim(),
@@ -658,7 +772,9 @@ export class EstoqueComponent implements OnInit, OnDestroy {
       ativo: this.comboAtivo,
       visivelCardapio: this.comboVisivelCardapio,
       promocaoCardapio: this.comboPromocaoCardapio,
+      configuravel: this.comboConfiguravel,
       itens: itens.map((i) => ({ produtoId: i.produtoId as number, quantidade: i.quantidade })),
+      gruposOpcao,
     };
 
     this.comboSalvando.set(true);

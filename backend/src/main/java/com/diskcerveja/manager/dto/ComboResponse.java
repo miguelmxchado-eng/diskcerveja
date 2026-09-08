@@ -17,10 +17,12 @@ public record ComboResponse(
         boolean ativo,
         boolean visivelCardapio,
         boolean promocaoCardapio,
+        boolean configuravel,
         BigDecimal custoTotal,
         BigDecimal lucro,
         BigDecimal margem,
         long quantidadeVendida,
         BigDecimal faturamento,
         int estoqueDisponivel,
-        List<ComboItemResponse> itens) {}
+        List<ComboItemResponse> itens,
+        List<ComboOpcaoGrupoResponse> gruposOpcao) {}

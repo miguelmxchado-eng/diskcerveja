@@ -341,6 +341,13 @@ public class PedidoService {
         pi.setQuantidade(r.quantidade());
         pi.setPrecoUnitario(combo.getPrecoVenda());
         pi.setCustoUnitario(custoTotalCombo(combo));
+        if (r.observacao() != null && !r.observacao().isBlank()) {
+            String obs = r.observacao().trim();
+            if (obs.length() > 500) {
+                obs = obs.substring(0, 500);
+            }
+            pi.setObservacao(obs);
+        }
         return pi;
     }
 
