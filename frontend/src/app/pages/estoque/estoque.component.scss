@@ -421,6 +421,13 @@
   display: flex;
   align-items: center;
   gap: 10px;
+
+  &__nome {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
 }
 
 .est-combo-thumb {

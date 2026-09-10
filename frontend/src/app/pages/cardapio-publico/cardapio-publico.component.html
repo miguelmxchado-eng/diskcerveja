@@ -89,11 +89,16 @@
             <div class="cardapio__card-body">
               <h3>
                 {{ item.nome }}
+                @if (item.configuravel) {
+                  <span class="cardapio__copao-tag">Monte do seu jeito</span>
+                }
                 @if (item.promocao || categoriaAtiva() === 'PROMOCOES') {
                   <span class="cardapio__promo-tag">Promo</span>
                 }
               </h3>
-              @if (item.descricao) {
+              @if (item.configuravel) {
+                <p>{{ item.descricao || 'Escolha energético, gelo e frutas antes de pedir.' }}</p>
+              } @else if (item.descricao) {
                 <p>{{ item.descricao }}</p>
               } @else if (item.tipo === 'COMBO') {
                 <p>Combo</p>
@@ -110,8 +115,13 @@
                 <span class="cardapio__badge">Indisponível</span>
               } @else {
                 <div class="cardapio__add">
-                  <button type="button" class="cardapio__add-btn" (click)="adicionar(item)">
-                    {{ item.configuravel ? 'Montar' : '+ Adicionar' }}
+                  <button
+                    type="button"
+                    class="cardapio__add-btn"
+                    [class.cardapio__add-btn--montar]="item.configuravel"
+                    (click)="adicionar(item)"
+                  >
+                    {{ item.configuravel ? 'Montar seu copão' : '+ Adicionar' }}
                   </button>
                   @if (podeUnidade(item)) {
                     <button

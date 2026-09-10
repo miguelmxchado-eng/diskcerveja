@@ -330,6 +330,20 @@
   vertical-align: middle;
 }
 
+.cardapio__copao-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #090909;
+  color: var(--em-gold-bright);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
 .cardapio__section {
   padding: 4px 16px 24px;
 
@@ -455,6 +469,13 @@
     background: #fff;
     color: #090909;
     border: 1px solid #e7e1d7;
+  }
+
+  &--montar {
+    background: linear-gradient(135deg, #171717 0%, #2a2418 100%);
+    color: var(--em-gold-bright);
+    border: 1px solid rgba(201, 168, 76, 0.45);
+    font-weight: 800;
   }
 }
 

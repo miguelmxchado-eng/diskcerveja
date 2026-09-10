@@ -499,7 +499,12 @@
                     } @else {
                       <span class="est-combo-thumb est-combo-thumb--ph"><mat-icon>redeem</mat-icon></span>
                     }
-                    <span>{{ c.nome }}</span>
+                    <span class="est-combo-cell__nome">
+                      {{ c.nome }}
+                      @if (c.configuravel) {
+                        <span class="em-badge em-badge--neutral">Copão</span>
+                      }
+                    </span>
                   </div>
                 </td>
                 <td><code class="em-code">{{ c.codigoBarras || c.codigo || '—' }}</code></td>
