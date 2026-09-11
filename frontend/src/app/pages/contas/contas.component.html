@@ -1,0 +1,208 @@
+<div class="em-page ct">
+  <header class="em-page__head">
+    <div>
+      <p class="em-page__eyebrow">Financeiro</p>
+      <h1 class="em-page__title">Contas a pagar e receber</h1>
+      <p class="em-page__subtitle">
+        Lance o que a loja deve pagar e o que tem para receber. Simples, sem complicar o caixa.
+      </p>
+    </div>
+    <div class="em-page__actions">
+      <button type="button" class="em-btn em-btn--gold" (click)="abrirNovo()">
+        <mat-icon>add</mat-icon>
+        Nova conta
+      </button>
+    </div>
+  </header>
+
+  <div class="ct-tabs" role="tablist" aria-label="Tipo de conta">
+    <button
+      type="button"
+      role="tab"
+      class="ct-tabs__btn"
+      [class.is-on]="tipo() === 'PAGAR'"
+      (click)="setTipo('PAGAR')"
+    >
+      A pagar
+    </button>
+    <button
+      type="button"
+      role="tab"
+      class="ct-tabs__btn"
+      [class.is-on]="tipo() === 'RECEBER'"
+      (click)="setTipo('RECEBER')"
+    >
+      A receber
+    </button>
+  </div>
+
+  <div class="em-kpi-row ct-kpi">
+    <div class="em-kpi">
+      <div>
+        <p class="em-kpi__value">R$ {{ totalAberto() | number: '1.2-2' }}</p>
+        <p class="em-kpi__label">{{ tituloAba() }} em aberto</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="em-toolbar ct-toolbar">
+    <label class="em-search">
+      <mat-icon>search</mat-icon>
+      <input
+        type="search"
+        [(ngModel)]="busca"
+        (keyup.enter)="carregar()"
+        [placeholder]="tipo() === 'PAGAR' ? 'Buscar fornecedor ou descrição…' : 'Buscar cliente ou descrição…'"
+        autocomplete="off"
+      />
+    </label>
+    <div class="ct-filtros">
+      <button
+        type="button"
+        class="ct-chip"
+        [class.is-on]="filtroStatus() === 'ABERTA'"
+        (click)="setFiltroStatus('ABERTA')"
+      >
+        Em aberto
+      </button>
+      <button
+        type="button"
+        class="ct-chip"
+        [class.is-on]="filtroStatus() === 'QUITADA'"
+        (click)="setFiltroStatus('QUITADA')"
+      >
+        {{ tipo() === 'PAGAR' ? 'Pagas' : 'Recebidas' }}
+      </button>
+      <button
+        type="button"
+        class="ct-chip"
+        [class.is-on]="filtroStatus() === 'TODAS'"
+        (click)="setFiltroStatus('TODAS')"
+      >
+        Todas
+      </button>
+    </div>
+    <button type="button" class="em-btn em-btn--ghost" (click)="carregar()" [disabled]="loading()">
+      <mat-icon>refresh</mat-icon>
+      Atualizar
+    </button>
+  </div>
+
+  @if (formAberto()) {
+    <div class="em-card ct-form">
+      <div class="em-card__head">
+        <h2 class="em-card__title">
+          {{ editandoId() ? 'Editar conta' : 'Nova ' + (tipo() === 'PAGAR' ? 'conta a pagar' : 'conta a receber') }}
+        </h2>
+        <button type="button" class="em-link" (click)="fecharForm()">Fechar</button>
+      </div>
+      <div class="em-card__body ct-form__grid">
+        <label class="ct-field ct-field--full">
+          <span>Descrição *</span>
+          <input
+            type="text"
+            [(ngModel)]="descricao"
+            name="ctDesc"
+            [placeholder]="tipo() === 'PAGAR' ? 'Ex.: Aluguel, energia, fornecedor X' : 'Ex.: Fiado do João'"
+          />
+        </label>
+        <label class="ct-field">
+          <span>{{ tipo() === 'PAGAR' ? 'Para quem' : 'De quem' }}</span>
+          <input
+            type="text"
+            [(ngModel)]="pessoa"
+            name="ctPessoa"
+            [placeholder]="tipo() === 'PAGAR' ? 'Fornecedor (opcional)' : 'Cliente (opcional)'"
+          />
+        </label>
+        <label class="ct-field">
+          <span>Valor *</span>
+          <input type="number" min="0.01" step="0.01" [(ngModel)]="valor" name="ctValor" placeholder="0,00" />
+        </label>
+        <label class="ct-field">
+          <span>Vencimento *</span>
+          <input type="date" [(ngModel)]="vencimento" name="ctVenc" />
+        </label>
+        <label class="ct-field ct-field--full">
+          <span>Observação</span>
+          <input type="text" [(ngModel)]="observacao" name="ctObs" placeholder="Opcional" />
+        </label>
+      </div>
+      <div class="em-card__foot ct-form__actions">
+        <button type="button" class="em-btn em-btn--ghost" (click)="fecharForm()">Cancelar</button>
+        <button type="button" class="em-btn em-btn--gold" (click)="salvar()" [disabled]="salvando()">
+          {{ salvando() ? 'Salvando…' : 'Salvar' }}
+        </button>
+      </div>
+    </div>
+  }
+
+  <div class="em-table-wrap">
+    <table class="em-table">
+      <thead>
+        <tr>
+          <th>Descrição</th>
+          <th>{{ tipo() === 'PAGAR' ? 'Para quem' : 'De quem' }}</th>
+          <th>Vencimento</th>
+          <th>Valor</th>
+          <th>Status</th>
+          <th>Ação</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (c of contas(); track c.id) {
+          <tr [class.ct-row--vencida]="vencida(c)">
+            <td>
+              <strong>{{ c.descricao }}</strong>
+              @if (c.observacao) {
+                <div class="ct-obs">{{ c.observacao }}</div>
+              }
+            </td>
+            <td>{{ c.pessoa || '—' }}</td>
+            <td>
+              {{ formatData(c.vencimento) }}
+              @if (vencida(c)) {
+                <span class="ct-tag ct-tag--warn">Vencida</span>
+              }
+            </td>
+            <td><strong>R$ {{ c.valor | number: '1.2-2' }}</strong></td>
+            <td>
+              <span
+                class="em-badge"
+                [class.em-badge--ok]="c.status === 'QUITADA'"
+                [class.em-badge--neutral]="c.status === 'ABERTA' || c.status === 'CANCELADA'"
+              >
+                {{ statusLabel(c.status) }}
+              </span>
+            </td>
+            <td class="ct-acoes">
+              @if (c.status === 'ABERTA') {
+                <button type="button" class="em-btn em-btn--ghost ct-btn-sm" (click)="abrirEditar(c)">
+                  Editar
+                </button>
+                <button type="button" class="em-btn em-btn--gold ct-btn-sm" (click)="quitar(c)">
+                  {{ tipo() === 'PAGAR' ? 'Pagar' : 'Receber' }}
+                </button>
+                <button type="button" class="em-btn em-btn--ghost ct-btn-sm" (click)="cancelar(c)">
+                  Cancelar
+                </button>
+              } @else {
+                —
+              }
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="6" class="ct-empty">
+              @if (loading()) {
+                Carregando…
+              } @else {
+                Nenhuma conta aqui. Clique em <strong>Nova conta</strong> para lançar.
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

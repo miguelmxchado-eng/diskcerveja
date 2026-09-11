@@ -13,6 +13,7 @@ import { ClientesComponent } from './pages/clientes/clientes.component';
 import { UsuariosComponent } from './pages/usuarios/usuarios.component';
 import { ConfigComponent } from './pages/config/config.component';
 import { ZonasEntregaComponent } from './pages/zonas-entrega/zonas-entrega.component';
+import { ContasComponent } from './pages/contas/contas.component';
 import { CardapioPublicoComponent } from './pages/cardapio-publico/cardapio-publico.component';
 
 export const routes: Routes = [
@@ -32,6 +33,7 @@ export const routes: Routes = [
       { path: 'produtos', component: ProdutosComponent },
       { path: 'estoque', component: EstoqueComponent },
       { path: 'caixa', component: CaixaComponent },
+      { path: 'contas', component: ContasComponent },
       { path: 'entregas', component: EntregasComponent },
       { path: 'zonas-entrega', component: ZonasEntregaComponent },
       { path: 'usuarios', component: UsuariosComponent },

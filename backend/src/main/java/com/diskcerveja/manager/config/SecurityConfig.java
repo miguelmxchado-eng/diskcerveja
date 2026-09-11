@@ -55,6 +55,7 @@ public class SecurityConfig {
                             "/produtos",
                             "/estoque",
                             "/caixa",
+                            "/contas",
                             "/entregas",
                             "/zonas-entrega",
                             "/usuarios",

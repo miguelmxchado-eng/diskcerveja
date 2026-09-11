@@ -38,6 +38,7 @@ export class MainLayoutComponent {
     produtos: { title: 'Produtos', hint: 'Cadastre, organize e acompanhe seu catálogo' },
     estoque: { title: 'Estoque', hint: 'Entrada, ajuste e itens em falta' },
     caixa: { title: 'Caixa', hint: 'Abertura, sangria e fechamento' },
+    contas: { title: 'Contas', hint: 'A pagar e a receber' },
     entregas: { title: 'Entregas', hint: 'Pedidos em rota e confirmação de entrega' },
     'zonas-entrega': { title: 'Zonas de entrega', hint: 'Mapa de Anápolis e taxa por região' },
     usuarios: { title: 'Equipe', hint: 'Acesso de operadores e entregadores' },

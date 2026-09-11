@@ -393,3 +393,19 @@ export interface EntregaResumo {
   statusPedido: string;
   entregadorNome?: string;
 }
+
+export type TipoContaFinanceira = 'PAGAR' | 'RECEBER';
+export type StatusContaFinanceira = 'ABERTA' | 'QUITADA' | 'CANCELADA';
+
+export interface ContaFinanceiraDto {
+  id?: number | null;
+  tipo: TipoContaFinanceira;
+  descricao: string;
+  pessoa?: string | null;
+  valor: number;
+  vencimento: string;
+  status?: StatusContaFinanceira | null;
+  dataPagamento?: string | null;
+  formaPagamento?: string | null;
+  observacao?: string | null;
+}

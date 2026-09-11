@@ -1,0 +1,150 @@
+.ct-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.ct-tabs__btn {
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1.5px solid #e7e1d7;
+  border-radius: 10px;
+  background: #fff;
+  font: 700 0.88rem/1 'Montserrat', sans-serif;
+  color: #667085;
+  cursor: pointer;
+
+  &.is-on {
+    background: #090909;
+    border-color: #090909;
+    color: #e0c06a;
+  }
+}
+
+.ct-kpi {
+  margin-bottom: 12px;
+  grid-template-columns: minmax(0, 320px);
+}
+
+.ct-toolbar {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ct-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ct-chip {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid #e7e1d7;
+  background: #fff;
+  font: 650 0.78rem/1 'Montserrat', sans-serif;
+  color: #667085;
+  cursor: pointer;
+
+  &.is-on {
+    border-color: #d2a410;
+    background: #fff8e1;
+    color: #8a6f1c;
+  }
+}
+
+.ct-form {
+  margin-bottom: 16px;
+}
+
+.ct-form__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ct-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  span {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #667085;
+  }
+
+  input {
+    height: 42px;
+    padding: 0 12px;
+    border: 1.5px solid #e7e1d7;
+    border-radius: 8px;
+    font: 500 0.9rem/1 'Inter', sans-serif;
+    color: #171717;
+
+    &:focus {
+      outline: none;
+      border-color: #d2a410;
+    }
+  }
+
+  &--full {
+    grid-column: 1 / -1;
+  }
+}
+
+.ct-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.ct-obs {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  color: #667085;
+}
+
+.ct-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+
+  &--warn {
+    background: #fdecea;
+    color: #b71c1c;
+  }
+}
+
+.ct-row--vencida td {
+  background: #fff8f6;
+}
+
+.ct-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ct-btn-sm {
+  height: 34px;
+  padding: 0 12px;
+  font-size: 0.78rem;
+}
+
+.ct-empty {
+  text-align: center;
+  padding: 2rem 1rem !important;
+  color: #667085;
+}
+
+@media (max-width: 720px) {
+  .ct-form__grid {
+    grid-template-columns: 1fr;
+  }
+}
