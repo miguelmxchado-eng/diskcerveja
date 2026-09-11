@@ -91,7 +91,12 @@ public class CatalogoPublicoService {
                 promos.add(item);
             }
         }
-        for (Combo c : comboRepository.findCardapioCombos()) {
+        List<Combo> combosCardapio = comboRepository.findCardapioCombos();
+        List<Long> comboIds = combosCardapio.stream().map(Combo::getId).toList();
+        if (!comboIds.isEmpty()) {
+            comboRepository.findWithGruposByIds(comboIds);
+        }
+        for (Combo c : combosCardapio) {
             if (!busca.isEmpty()
                     && !c.getNome().toLowerCase(Locale.ROOT).contains(busca)
                     && (c.getDescricao() == null || !c.getDescricao().toLowerCase(Locale.ROOT).contains(busca))) {

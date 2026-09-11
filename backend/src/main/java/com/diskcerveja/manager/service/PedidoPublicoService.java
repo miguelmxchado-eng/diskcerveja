@@ -211,6 +211,7 @@ public class PedidoPublicoService {
                 Combo c = comboRepository
                         .findByIdWithItens(item.id())
                         .orElseThrow(() -> new IllegalArgumentException("Combo inválido."));
+                comboRepository.findByIdWithGrupos(c.getId());
                 if (!c.isAtivo() || !c.isVisivelCardapio()) {
                     throw new IllegalArgumentException("Combo indisponível no cardápio: " + c.getNome());
                 }

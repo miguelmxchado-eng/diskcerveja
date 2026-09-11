@@ -47,25 +47,45 @@ public class ComboService {
     }
 
     @Transactional(readOnly = true)
+    public Combo buscar(Long id) {
+        Combo combo = comboRepository
+                .findByIdWithItens(id)
+                .orElseThrow(() -> new IllegalArgumentException("Combo não encontrado."));
+        comboRepository.findByIdWithGrupos(id);
+        return combo;
+    }
+
+    @Transactional(readOnly = true)
     public List<ComboResponse> listar(boolean somenteAtivos) {
         List<Combo> combos = somenteAtivos
                 ? comboRepository.findAtivosWithItens()
                 : comboRepository.findAllWithItens();
+        hidratarGrupos(combos);
         Map<Long, ComboVendaAgg> vendas = mapaVendas();
         return combos.stream().map(c -> toResponse(c, vendas)).toList();
     }
 
-    @Transactional(readOnly = true)
-    public ComboResponse buscarResponse(Long id) {
-        Combo c = buscar(id);
-        return toResponse(c, mapaVendas());
+    /** Garante grupos/opções carregados (open-in-view=false). */
+    public void hidratarGrupos(List<Combo> combos) {
+        if (combos == null || combos.isEmpty()) {
+            return;
+        }
+        List<Long> ids = combos.stream().map(Combo::getId).filter(id -> id != null).toList();
+        if (!ids.isEmpty()) {
+            comboRepository.findWithGruposByIds(ids);
+        }
+    }
+
+    public void hidratarGrupos(Combo combo) {
+        if (combo == null || combo.getId() == null) {
+            return;
+        }
+        comboRepository.findByIdWithGrupos(combo.getId());
     }
 
     @Transactional(readOnly = true)
-    public Combo buscar(Long id) {
-        return comboRepository
-                .findByIdWithItens(id)
-                .orElseThrow(() -> new IllegalArgumentException("Combo não encontrado."));
+    public ComboResponse buscarResponse(Long id) {
+        return toResponse(buscar(id), mapaVendas());
     }
 
     @Transactional(readOnly = true)

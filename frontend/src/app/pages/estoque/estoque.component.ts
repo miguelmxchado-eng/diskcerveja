@@ -606,7 +606,6 @@ export class EstoqueComponent implements OnInit, OnDestroy {
       })),
     );
     this.produtoParaAdicionar = null;
-    this.snack.open(`Editando "${c.nome}".`, 'OK', { duration: 1800 });
   }
 
   cancelarCombo(): void {
@@ -668,6 +667,57 @@ export class EstoqueComponent implements OnInit, OnDestroy {
         opcoes: [{ rotulo: '', ativo: true }],
       },
     ]);
+  }
+
+  setComboConfiguravel(ligado: boolean): void {
+    this.comboConfiguravel = ligado;
+    if (ligado && this.comboGrupos().length === 0) {
+      this.aplicarModeloCopao();
+    }
+    if (!ligado) {
+      this.comboGrupos.set([]);
+    }
+  }
+
+  /** Modelo típico do Empório: energético, gelo e frutas. */
+  aplicarModeloCopao(): void {
+    this.comboConfiguravel = true;
+    this.comboGrupos.set([
+      {
+        nome: 'Energético',
+        obrigatorio: true,
+        minimo: 1,
+        maximo: 1,
+        opcoes: [
+          { rotulo: 'Red Bull Tradicional', ativo: true },
+          { rotulo: 'Red Bull Melancia', ativo: true },
+          { rotulo: 'Red Bull Tropical', ativo: true },
+          { rotulo: 'Sem energético', ativo: true },
+        ],
+      },
+      {
+        nome: 'Gelo',
+        obrigatorio: true,
+        minimo: 1,
+        maximo: 1,
+        opcoes: [
+          { rotulo: 'Gelo comum', ativo: true },
+          { rotulo: 'Gelo de limão', ativo: true },
+          { rotulo: 'Sem gelo', ativo: true },
+        ],
+      },
+      {
+        nome: 'Frutas',
+        obrigatorio: true,
+        minimo: 1,
+        maximo: 1,
+        opcoes: [
+          { rotulo: 'Com frutas', ativo: true },
+          { rotulo: 'Sem frutas', ativo: true },
+        ],
+      },
+    ]);
+    this.snack.open('Modelo do copão aplicado. Ajuste os sabores e salve.', 'OK', { duration: 3200 });
   }
 
   removerGrupoCombo(idx: number): void {
@@ -781,10 +831,15 @@ export class EstoqueComponent implements OnInit, OnDestroy {
     const id = this.comboEditId();
     const req$ = id ? this.comboService.atualizar(id, dto) : this.comboService.criar(dto);
     req$.subscribe({
-      next: () => {
+      next: (salvo) => {
         this.comboSalvando.set(false);
-        this.snack.open(id ? 'Combo atualizado.' : 'Combo criado.', 'OK', { duration: 2200 });
-        this.novoCombo();
+        const msg = this.comboConfiguravel
+          ? `Copão "${salvo.nome}" salvo. No cardápio (/compras) aparece "Montar seu copão".`
+          : id
+            ? 'Combo atualizado.'
+            : 'Combo criado.';
+        this.snack.open(msg, 'OK', { duration: 4200 });
+        this.editarCombo(salvo);
         this.reloadCombos();
       },
       error: (e) => {
