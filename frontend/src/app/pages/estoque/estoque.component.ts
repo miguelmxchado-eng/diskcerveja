@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild, computed, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { MatSelectModule } from '@angular/material/select';
@@ -79,6 +79,8 @@ interface ComboGrupoForm {
   styleUrl: './estoque.component.scss',
 })
 export class EstoqueComponent implements OnInit, OnDestroy {
+  @ViewChild('comboCopaoBox') private comboCopaoBox?: ElementRef<HTMLElement>;
+
   readonly PAGE_SIZE = PAGE_SIZE;
 
   movimentos = signal<any[]>([]);
@@ -578,6 +580,7 @@ export class EstoqueComponent implements OnInit, OnDestroy {
     this.comboItens.set([]);
     this.comboGrupos.set([]);
     this.produtoParaAdicionar = null;
+    this.focarFormularioCombo();
   }
 
   editarCombo(c: ComboResponse): void {
@@ -606,10 +609,19 @@ export class EstoqueComponent implements OnInit, OnDestroy {
       })),
     );
     this.produtoParaAdicionar = null;
+    this.focarFormularioCombo();
   }
 
   cancelarCombo(): void {
     this.novoCombo();
+  }
+
+  private focarFormularioCombo(): void {
+    queueMicrotask(() => {
+      const el = this.comboCopaoBox?.nativeElement;
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
   adicionarItemCombo(): void {

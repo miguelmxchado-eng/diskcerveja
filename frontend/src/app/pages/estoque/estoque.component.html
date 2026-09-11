@@ -565,7 +565,12 @@
       @if (auth.isAdmin()) {
         <div class="em-card est-combo-form">
           <div class="em-card__head">
-            <h2 class="em-card__title">{{ comboEditId() ? 'Editar combo' : 'Novo combo' }}</h2>
+            <h2 class="em-card__title">
+              {{ comboEditId() ? 'Editar combo' : 'Novo combo' }}
+              @if (comboConfiguravel) {
+                <span class="em-badge em-badge--neutral">Copão</span>
+              }
+            </h2>
             @if (comboEditId()) {
               <button type="button" class="em-btn em-btn--ghost" (click)="cancelarCombo()">
                 <mat-icon>close</mat-icon>
@@ -574,82 +579,17 @@
             }
           </div>
           <div class="em-card__body">
-            <div class="est-combo-form__grid">
-              <mat-form-field appearance="outline" class="est-mat-grow">
-                <mat-label>Nome do combo</mat-label>
-                <input matInput [(ngModel)]="comboNome" name="comboNome" />
-              </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>Categoria</mat-label>
-                <mat-select [(ngModel)]="comboCategoria" name="comboCat">
-                  @for (cat of categorias; track cat) {
-                    <mat-option [value]="cat">{{ cat | statusLabel }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>Preço de venda</mat-label>
-                <span matPrefix>R$&nbsp;</span>
-                <input
-                  matInput
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  [ngModel]="comboPreco()"
-                  (ngModelChange)="comboPreco.set(+$event)"
-                  name="comboPreco"
-                />
-              </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>Código de barras (opcional)</mat-label>
-                <input matInput [(ngModel)]="comboCodigoBarras" name="comboCb" autocomplete="off" />
-              </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>QR Code (opcional)</mat-label>
-                <input matInput [(ngModel)]="comboCodigoQr" name="comboQr" autocomplete="off" />
-              </mat-form-field>
-              <mat-form-field appearance="outline" class="est-mat-grow">
-                <mat-label>Descrição</mat-label>
-                <textarea matInput rows="2" [(ngModel)]="comboDescricao" name="comboDesc"></textarea>
-              </mat-form-field>
-            </div>
-
-            <div class="est-combo-form__imagem">
-              @if (comboImagem()) {
-                <img class="est-combo-form__preview" [src]="comboImagem()!" alt="Prévia do combo" />
-                <button type="button" class="em-btn em-btn--ghost" (click)="removerImagemCombo()">
-                  <mat-icon>delete</mat-icon>
-                  Remover imagem
-                </button>
-              } @else {
-                <label class="est-combo-upload">
-                  <mat-icon>add_photo_alternate</mat-icon>
-                  <span>Adicionar imagem</span>
-                  <input type="file" accept="image/*" hidden (change)="onImagemCombo($event)" />
-                </label>
-              }
-              <mat-slide-toggle [(ngModel)]="comboAtivo" name="comboAtivo">
-                {{ comboAtivo ? 'Ativo' : 'Inativo' }}
-              </mat-slide-toggle>
-              <mat-slide-toggle [(ngModel)]="comboVisivelCardapio" name="comboVisivelCardapio">
-                {{ comboVisivelCardapio ? 'No cardápio' : 'Fora do cardápio' }}
-              </mat-slide-toggle>
-              <mat-slide-toggle
-                [(ngModel)]="comboPromocaoCardapio"
-                name="comboPromocaoCardapio"
-                [disabled]="!comboVisivelCardapio"
-              >
-                {{ comboPromocaoCardapio ? 'Em promoção' : 'Sem promoção' }}
-              </mat-slide-toggle>
-            </div>
-
-            <div class="est-combo-copao" [class.est-combo-copao--on]="comboConfiguravel">
+            <div
+              #comboCopaoBox
+              class="est-combo-copao"
+              [class.est-combo-copao--on]="comboConfiguravel"
+            >
               <div class="est-combo-copao__head">
                 <div>
                   <h3 class="est-section-title">Copão no cardápio</h3>
                   <p>
-                    Se ligar, o cliente escolhe as opções (energético, gelo, frutas) antes de pedir.
-                    O preço continua o do combo.
+                    Ligue aqui para o cliente montar opções (energético, gelo, frutas) no
+                    /compras. O preço continua o do combo.
                   </p>
                 </div>
                 <mat-slide-toggle
@@ -746,6 +686,75 @@
                   </p>
                 }
               }
+            </div>
+
+            <div class="est-combo-form__grid">
+              <mat-form-field appearance="outline" class="est-mat-grow">
+                <mat-label>Nome do combo</mat-label>
+                <input matInput [(ngModel)]="comboNome" name="comboNome" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Categoria</mat-label>
+                <mat-select [(ngModel)]="comboCategoria" name="comboCat">
+                  @for (cat of categorias; track cat) {
+                    <mat-option [value]="cat">{{ cat | statusLabel }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Preço de venda</mat-label>
+                <span matPrefix>R$&nbsp;</span>
+                <input
+                  matInput
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  [ngModel]="comboPreco()"
+                  (ngModelChange)="comboPreco.set(+$event)"
+                  name="comboPreco"
+                />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Código de barras (opcional)</mat-label>
+                <input matInput [(ngModel)]="comboCodigoBarras" name="comboCb" autocomplete="off" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>QR Code (opcional)</mat-label>
+                <input matInput [(ngModel)]="comboCodigoQr" name="comboQr" autocomplete="off" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="est-mat-grow">
+                <mat-label>Descrição</mat-label>
+                <textarea matInput rows="2" [(ngModel)]="comboDescricao" name="comboDesc"></textarea>
+              </mat-form-field>
+            </div>
+
+            <div class="est-combo-form__imagem">
+              @if (comboImagem()) {
+                <img class="est-combo-form__preview" [src]="comboImagem()!" alt="Prévia do combo" />
+                <button type="button" class="em-btn em-btn--ghost" (click)="removerImagemCombo()">
+                  <mat-icon>delete</mat-icon>
+                  Remover imagem
+                </button>
+              } @else {
+                <label class="est-combo-upload">
+                  <mat-icon>add_photo_alternate</mat-icon>
+                  <span>Adicionar imagem</span>
+                  <input type="file" accept="image/*" hidden (change)="onImagemCombo($event)" />
+                </label>
+              }
+              <mat-slide-toggle [(ngModel)]="comboAtivo" name="comboAtivo">
+                {{ comboAtivo ? 'Ativo' : 'Inativo' }}
+              </mat-slide-toggle>
+              <mat-slide-toggle [(ngModel)]="comboVisivelCardapio" name="comboVisivelCardapio">
+                {{ comboVisivelCardapio ? 'No cardápio' : 'Fora do cardápio' }}
+              </mat-slide-toggle>
+              <mat-slide-toggle
+                [(ngModel)]="comboPromocaoCardapio"
+                name="comboPromocaoCardapio"
+                [disabled]="!comboVisivelCardapio"
+              >
+                {{ comboPromocaoCardapio ? 'Em promoção' : 'Sem promoção' }}
+              </mat-slide-toggle>
             </div>
 
             <div class="est-combo-itens">
