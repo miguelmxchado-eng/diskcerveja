@@ -470,98 +470,6 @@
         }
       </div>
 
-      @if (loadingCombos()) {
-        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-      }
-
-      <div class="em-table-wrap">
-        <table class="em-table">
-          <thead>
-            <tr>
-              <th>Combo</th>
-              <th>Código</th>
-              <th>Categoria</th>
-              <th>Preço venda</th>
-              <th>Custo</th>
-              <th>Margem</th>
-              <th>Vendidos</th>
-              <th>Status</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (c of combosFiltrados(); track c.id) {
-              <tr>
-                <td>
-                  <div class="est-combo-cell">
-                    @if (c.imagem) {
-                      <img class="est-combo-thumb" [src]="c.imagem" alt="" />
-                    } @else {
-                      <span class="est-combo-thumb est-combo-thumb--ph"><mat-icon>redeem</mat-icon></span>
-                    }
-                    <span class="est-combo-cell__nome">
-                      {{ c.nome }}
-                      @if (c.configuravel) {
-                        <span class="em-badge em-badge--neutral">Copão</span>
-                      }
-                    </span>
-                  </div>
-                </td>
-                <td><code class="em-code">{{ c.codigoBarras || c.codigo || '—' }}</code></td>
-                <td>{{ c.categoria | statusLabel }}</td>
-                <td>R$ {{ c.precoVenda | number: '1.2-2' }}</td>
-                <td>R$ {{ c.custoTotal | number: '1.2-2' }}</td>
-                <td>
-                  <span [class.est-neg]="c.lucro < 0">{{ c.margem | number: '1.0-1' }}%</span>
-                </td>
-                <td>{{ c.quantidadeVendida }}</td>
-                <td>
-                  <span class="em-badge" [class.em-badge--ok]="c.ativo" [class.em-badge--neutral]="!c.ativo">
-                    {{ c.ativo ? 'Ativo' : 'Inativo' }}
-                  </span>
-                </td>
-                <td>
-                  @if (auth.isAdmin()) {
-                    <button type="button" class="est-icon-btn" (click)="editarCombo(c)" matTooltip="Editar" aria-label="Editar">
-                      <mat-icon>edit</mat-icon>
-                    </button>
-                    <button type="button" class="est-icon-btn est-icon-btn--danger" (click)="excluirCombo(c)" matTooltip="Excluir" aria-label="Excluir">
-                      <mat-icon>delete</mat-icon>
-                    </button>
-                  } @else {
-                    —
-                  }
-                </td>
-              </tr>
-            } @empty {
-              <tr>
-                <td colspan="9" class="est-empty">Nenhum combo cadastrado.</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-
-      @if (comboMaisVendidos().length) {
-        <div class="em-card est-combo-rank">
-          <div class="em-card__head">
-            <h2 class="em-card__title">Combos mais vendidos</h2>
-          </div>
-          <div class="em-card__body">
-            <ul class="est-rank-list">
-              @for (c of comboMaisVendidos(); track c.id) {
-                <li>
-                  <span class="est-rank-list__nome">{{ c.nome }}</span>
-                  <span>{{ c.quantidadeVendida }} vendas</span>
-                  <span>R$ {{ c.faturamento | number: '1.2-2' }} faturado</span>
-                  <span [class.est-neg]="c.lucro < 0">R$ {{ c.lucro | number: '1.2-2' }} lucro</span>
-                </li>
-              }
-            </ul>
-          </div>
-        </div>
-      }
-
       @if (auth.isAdmin()) {
         <div class="em-card est-combo-form">
           <div class="em-card__head">
@@ -842,8 +750,105 @@
           </div>
         </div>
       } @else {
-        <p class="est-permissao">A criação e edição de combos é restrita ao administrador.</p>
+        <p class="est-permissao">
+          Só o <strong>administrador</strong> vê e edita o bloco <strong>Copão no cardápio</strong>.
+          Entre com usuário admin para configurar.
+        </p>
       }
+
+      @if (loadingCombos()) {
+        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+      }
+
+      <div class="em-table-wrap">
+        <table class="em-table">
+          <thead>
+            <tr>
+              <th>Combo</th>
+              <th>Código</th>
+              <th>Categoria</th>
+              <th>Preço venda</th>
+              <th>Custo</th>
+              <th>Margem</th>
+              <th>Vendidos</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of combosFiltrados(); track c.id) {
+              <tr>
+                <td>
+                  <div class="est-combo-cell">
+                    @if (c.imagem) {
+                      <img class="est-combo-thumb" [src]="c.imagem" alt="" />
+                    } @else {
+                      <span class="est-combo-thumb est-combo-thumb--ph"><mat-icon>redeem</mat-icon></span>
+                    }
+                    <span class="est-combo-cell__nome">
+                      {{ c.nome }}
+                      @if (c.configuravel) {
+                        <span class="em-badge em-badge--neutral">Copão</span>
+                      }
+                    </span>
+                  </div>
+                </td>
+                <td><code class="em-code">{{ c.codigoBarras || c.codigo || '—' }}</code></td>
+                <td>{{ c.categoria | statusLabel }}</td>
+                <td>R$ {{ c.precoVenda | number: '1.2-2' }}</td>
+                <td>R$ {{ c.custoTotal | number: '1.2-2' }}</td>
+                <td>
+                  <span [class.est-neg]="c.lucro < 0">{{ c.margem | number: '1.0-1' }}%</span>
+                </td>
+                <td>{{ c.quantidadeVendida }}</td>
+                <td>
+                  <span class="em-badge" [class.em-badge--ok]="c.ativo" [class.em-badge--neutral]="!c.ativo">
+                    {{ c.ativo ? 'Ativo' : 'Inativo' }}
+                  </span>
+                </td>
+                <td>
+                  @if (auth.isAdmin()) {
+                    <button type="button" class="est-icon-btn" (click)="editarCombo(c)" matTooltip="Editar" aria-label="Editar">
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                    <button type="button" class="est-icon-btn est-icon-btn--danger" (click)="excluirCombo(c)" matTooltip="Excluir" aria-label="Excluir">
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  } @else {
+                    —
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="9" class="est-empty">Nenhum combo cadastrado.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (comboMaisVendidos().length) {
+        <div class="em-card est-combo-rank">
+          <div class="em-card__head">
+            <h2 class="em-card__title">Combos mais vendidos</h2>
+          </div>
+          <div class="em-card__body">
+            <ul class="est-rank-list">
+              @for (c of comboMaisVendidos(); track c.id) {
+                <li>
+                  <span class="est-rank-list__nome">{{ c.nome }}</span>
+                  <span>{{ c.quantidadeVendida }} vendas</span>
+                  <span>R$ {{ c.faturamento | number: '1.2-2' }} faturado</span>
+                  <span [class.est-neg]="c.lucro < 0">R$ {{ c.lucro | number: '1.2-2' }} lucro</span>
+                </li>
+              }
+            </ul>
+          </div>
+        </div>
+      }
+
+
     </div>
   }
 </div>

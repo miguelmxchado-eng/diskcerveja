@@ -320,6 +320,9 @@ export class EstoqueComponent implements OnInit, OnDestroy {
 
   setTab(tab: EstoqueTab): void {
     this.tabAtiva.set(tab);
+    if (tab === 'combos' && this.auth.isAdmin()) {
+      this.focarFormularioCombo();
+    }
   }
 
   setFiltroProdutos(valor: string): void {
