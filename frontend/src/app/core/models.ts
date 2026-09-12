@@ -299,6 +299,9 @@ export interface PedidoPeriodoResponse {
   faturamentoDiario?: { rotulo: string; total: number }[];
   formasPagamento?: { forma: string; valor: number; percentual: number }[];
   topProdutos?: { nome: string; unidades: number; valor: number }[];
+  pedidosPorHora?: { rotulo: string; hora: number; quantidade: number }[];
+  mediaPedidosPorHora?: number;
+  horasComPedido?: number;
   pedidosPeriodoAnterior?: number;
   vendasPeriodoAnterior?: number;
   lucroPeriodoAnterior?: number;

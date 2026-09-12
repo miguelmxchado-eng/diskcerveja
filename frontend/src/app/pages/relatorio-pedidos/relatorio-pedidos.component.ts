@@ -112,6 +112,8 @@ export class RelatorioPedidosComponent implements OnInit, OnDestroy {
       faturamento: d?.somaVendasEntregues ?? d?.somaTotalPedidos ?? 0,
       lucro: d?.somaLucroEntregues ?? 0,
       margem: d?.margemPercentual ?? 0,
+      mediaPorHora: d?.mediaPedidosPorHora ?? 0,
+      horasComPedido: d?.horasComPedido ?? 0,
     };
   });
 
@@ -189,6 +191,29 @@ export class RelatorioPedidosComponent implements OnInit, OnDestroy {
         peak: total > 0 && total >= max * 0.995,
       };
     });
+  });
+
+  readonly hourBars = computed((): ChartBar[] => {
+    const series = this.dados()?.pedidosPorHora ?? [];
+    if (!series.length) return [];
+    const values = series.map((s) => Number(s.quantidade) || 0);
+    const max = Math.max(...values, 1);
+    return series.map((s, i) => {
+      const total = values[i];
+      return {
+        label: s.rotulo,
+        total,
+        heightPct: total > 0 ? Math.max(8, Math.round((total / max) * 100)) : 3,
+        peak: total > 0 && total >= max * 0.995,
+      };
+    });
+  });
+
+  readonly horaPico = computed(() => {
+    const bars = this.hourBars();
+    if (!bars.length) return null;
+    const peak = bars.reduce((best, b) => (b.total > best.total ? b : best), bars[0]);
+    return peak.total > 0 ? peak : null;
   });
 
   readonly paymentRows = computed((): PaymentRow[] => {

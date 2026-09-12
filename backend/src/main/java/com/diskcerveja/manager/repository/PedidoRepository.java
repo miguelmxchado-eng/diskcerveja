@@ -281,6 +281,33 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
             @Param("ids") Collection<Long> ids,
             @Param("limite") int limite);
 
+    @Query(
+            value =
+                    """
+            SELECT CAST(EXTRACT(HOUR FROM p.data_hora AT TIME ZONE 'America/Sao_Paulo') AS int) AS hora,
+                   CAST(COUNT(*) AS bigint) AS quantidade
+            FROM pedido p
+            WHERE p.data_hora >= :ini AND p.data_hora < :fim
+            GROUP BY 1
+            ORDER BY 1
+            """,
+            nativeQuery = true)
+    List<Object[]> countPedidosPorHoraOperacao(
+            @Param("ini") java.sql.Timestamp ini, @Param("fim") java.sql.Timestamp fim);
+
+    @Query(
+            value =
+                    """
+            SELECT CAST(COUNT(DISTINCT date_trunc(
+                'hour', p.data_hora AT TIME ZONE 'America/Sao_Paulo'
+            )) AS bigint)
+            FROM pedido p
+            WHERE p.data_hora >= :ini AND p.data_hora < :fim
+            """,
+            nativeQuery = true)
+    Long countHorasComPedido(
+            @Param("ini") java.sql.Timestamp ini, @Param("fim") java.sql.Timestamp fim);
+
     /**
      * Pedido pago (ou entregue) do WhatsApp — prova para reivindicar conta sem OTP.
      * Normaliza DDI 55 nos dois lados da comparação.

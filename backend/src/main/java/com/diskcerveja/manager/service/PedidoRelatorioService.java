@@ -12,6 +12,7 @@ import com.diskcerveja.manager.dto.PedidoItemResponse;
 import com.diskcerveja.manager.dto.PedidoMapper;
 import com.diskcerveja.manager.dto.PedidoPagamentoResponse;
 import com.diskcerveja.manager.dto.PedidoPeriodoDiaDto;
+import com.diskcerveja.manager.dto.PedidoPeriodoHoraDto;
 import com.diskcerveja.manager.dto.PedidoPeriodoPagamentoDto;
 import com.diskcerveja.manager.dto.PedidoPeriodoResponse;
 import com.diskcerveja.manager.dto.PedidoPeriodoTopProdutoDto;
@@ -221,6 +222,9 @@ public class PedidoRelatorioService {
         List<PedidoPeriodoDiaDto> faturamentoDiario = montarFaturamentoDiario(inicioD, fimD, ini, fim);
         List<PedidoPeriodoPagamentoDto> formas = montarFormasPagamento(ini, fim);
         List<PedidoPeriodoTopProdutoDto> tops = montarTopProdutos(ini, fim);
+        List<PedidoPeriodoHoraDto> porHora = montarPedidosPorHora(ini, fim);
+        Long horasRaw = pedidoRepository.countHorasComPedido(Timestamp.from(ini), Timestamp.from(fim));
+        long horasComPedido = horasRaw == null ? 0L : horasRaw;
 
         LocalDate fimAnt = inicioD.minusDays(1);
         LocalDate iniAnt = fimAnt.minusDays(quantidadeDias - 1);
@@ -233,6 +237,10 @@ public class PedidoRelatorioService {
         BigDecimal margemAnt = margemPercentual(lucroAnt, vendasAnt);
 
         long pedidosPeriodo = pedidoRepository.countPedidosNoPeriodo(ini, fim);
+        BigDecimal mediaPorHora = horasComPedido > 0
+                ? BigDecimal.valueOf(pedidosPeriodo)
+                        .divide(BigDecimal.valueOf(horasComPedido), 1, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO.setScale(1);
 
         String desc = inicioD.equals(fimD)
                 ? FMT.format(inicioD) + " (1 dia)"
@@ -259,6 +267,9 @@ public class PedidoRelatorioService {
                 faturamentoDiario,
                 formas,
                 tops,
+                porHora,
+                mediaPorHora,
+                horasComPedido,
                 pedidosAnt,
                 vendasAnt,
                 lucroAnt,
@@ -276,6 +287,26 @@ public class PedidoRelatorioService {
         List<PedidoPeriodoDiaDto> out = new ArrayList<>();
         for (LocalDate d = inicioD; !d.isAfter(fimD); d = d.plusDays(1)) {
             out.add(new PedidoPeriodoDiaDto(DIA_ROTULO.format(d), porDia.getOrDefault(d, BigDecimal.ZERO)));
+        }
+        return out;
+    }
+
+    private List<PedidoPeriodoHoraDto> montarPedidosPorHora(Instant ini, Instant fim) {
+        Map<Integer, Long> porHora = new HashMap<>();
+        for (Object[] row : pedidoRepository.countPedidosPorHoraOperacao(
+                Timestamp.from(ini), Timestamp.from(fim))) {
+            int hora = ((Number) row[0]).intValue();
+            long qtd = ((Number) row[1]).longValue();
+            porHora.put(hora, qtd);
+        }
+        if (porHora.isEmpty()) {
+            return List.of();
+        }
+        int min = porHora.keySet().stream().min(Integer::compareTo).orElse(0);
+        int max = porHora.keySet().stream().max(Integer::compareTo).orElse(23);
+        List<PedidoPeriodoHoraDto> out = new ArrayList<>();
+        for (int h = min; h <= max; h++) {
+            out.add(new PedidoPeriodoHoraDto(String.format("%02dh", h), h, porHora.getOrDefault(h, 0L)));
         }
         return out;
     }

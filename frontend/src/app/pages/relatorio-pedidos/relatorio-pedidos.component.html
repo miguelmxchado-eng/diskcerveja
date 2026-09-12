@@ -135,6 +135,21 @@
         <p class="hist-kpi__label">Margem</p>
         <p class="hist-kpi__hint">vs. período anterior</p>
       </article>
+
+      <article class="hist-kpi">
+        <div class="hist-kpi__top">
+          <span class="hist-kpi__ico"><mat-icon>schedule</mat-icon></span>
+        </div>
+        <p class="hist-kpi__value">{{ kpis().mediaPorHora | number: '1.1-1' }}</p>
+        <p class="hist-kpi__label">Pedidos / hora</p>
+        <p class="hist-kpi__hint">
+          @if (kpis().horasComPedido > 0) {
+            em {{ kpis().horasComPedido }} {{ kpis().horasComPedido === 1 ? 'hora' : 'horas' }} com venda
+          } @else {
+            sem pedidos no período
+          }
+        </p>
+      </article>
     </div>
 
     <section class="hist-projection" [class.is-open]="projecaoAberta()" aria-labelledby="projecao-mensal-titulo">
@@ -546,10 +561,47 @@
             }
           </div>
 
+          <div class="hist-summary__hours">
+            <p class="hist-summary__section">Pedidos por horário</p>
+            <p class="hist-summary__hours-meta">
+              Média
+              <strong>{{ kpis().mediaPorHora | number: '1.1-1' }} / hora</strong>
+              @if (horaPico(); as pico) {
+                · pico às {{ pico.label }} ({{ pico.total }})
+              }
+            </p>
+            @if (hourBars().length) {
+              <div
+                class="hist-bars hist-bars--hours"
+                role="img"
+                [attr.aria-label]="'Pedidos por horário: média ' + (kpis().mediaPorHora | number: '1.1-1')"
+              >
+                @for (bar of hourBars(); track bar.label) {
+                  <div
+                    class="hist-bars__col"
+                    [class.is-peak]="bar.peak"
+                    [title]="bar.label + ': ' + bar.total + ' pedidos'"
+                  >
+                    <div class="hist-bars__track">
+                      <div class="hist-bars__bar" [style.height.%]="bar.heightPct"></div>
+                    </div>
+                    <span>{{ bar.label }}</span>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="hist-summary__empty">Sem pedidos no período.</p>
+            }
+          </div>
+
           <dl class="hist-summary__stats">
             <div>
               <dt>Total de pedidos</dt>
               <dd>{{ kpis().pedidos }}</dd>
+            </div>
+            <div>
+              <dt>Média por hora</dt>
+              <dd>{{ kpis().mediaPorHora | number: '1.1-1' }}</dd>
             </div>
             <div>
               <dt>Faturamento</dt>

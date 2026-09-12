@@ -197,7 +197,7 @@
 /* —— KPIs —— */
 .hist-kpi-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 16px;
   align-items: stretch;
@@ -1120,6 +1120,25 @@
     border: 1px solid #efe8dc;
   }
 
+  &__hours {
+    margin-bottom: 16px;
+    padding: 12px 10px 10px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #fcfaf6 0%, #fff 100%);
+    border: 1px solid #efe8dc;
+  }
+
+  &__hours-meta {
+    margin: 0 0 10px;
+    font-size: 0.75rem;
+    color: #667085;
+
+    strong {
+      color: #171717;
+      font-weight: 800;
+    }
+  }
+
   &__empty {
     margin: 0;
     padding: 24px 8px;
@@ -1215,6 +1234,24 @@
   height: 140px;
   padding: 0 2px;
 
+  &--hours {
+    height: 110px;
+    gap: 2px;
+    overflow-x: auto;
+
+    .hist-bars__col span {
+      font-size: 0.52rem;
+      transform: rotate(-35deg);
+      transform-origin: top center;
+      margin-top: 2px;
+    }
+
+    .hist-bars__bar {
+      border-radius: 4px 4px 1px 1px;
+      min-height: 3px;
+    }
+  }
+
   &__col {
     flex: 1;
     min-width: 0;
@@ -1283,7 +1320,7 @@
   }
 
   .hist-kpi-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .hist-projection__metrics {
