@@ -30,12 +30,6 @@ interface ChartBar {
   peak: boolean;
 }
 
-interface TopProduto {
-  nome: string;
-  unidades: number;
-  valor: number;
-}
-
 interface KpiDelta {
   label: string;
   up: boolean;
@@ -91,6 +85,7 @@ export class RelatorioPedidosComponent implements OnInit, OnDestroy {
   readonly filtroPagamento = signal('');
   readonly paginaAtual = signal(1);
   readonly pedidoAbertoId = signal<number | null>(null);
+  readonly projecaoAberta = signal(false);
 
   dataInicio = diasAtrasIso(6);
   dataFim = hojeIso();
@@ -202,14 +197,6 @@ export class RelatorioPedidosComponent implements OnInit, OnDestroy {
       nome: r.forma,
       valor: Number(r.valor) || 0,
       pct: r.percentual ?? 0,
-    }));
-  });
-
-  readonly topProdutos = computed((): TopProduto[] => {
-    return (this.dados()?.topProdutos ?? []).map((p) => ({
-      nome: p.nome,
-      unidades: p.unidades,
-      valor: Number(p.valor) || 0,
     }));
   });
 
@@ -446,6 +433,10 @@ export class RelatorioPedidosComponent implements OnInit, OnDestroy {
     a.download = `historico-vendas-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  toggleProjecao(): void {
+    this.projecaoAberta.update((v) => !v);
   }
 
   toggleFiltros(): void {

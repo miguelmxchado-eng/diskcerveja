@@ -137,106 +137,128 @@
       </article>
     </div>
 
-    <section class="hist-projection" aria-labelledby="projecao-mensal-titulo">
-      <header class="hist-projection__head">
+    <section class="hist-projection" [class.is-open]="projecaoAberta()" aria-labelledby="projecao-mensal-titulo">
+      <button
+        type="button"
+        class="hist-projection__toggle"
+        (click)="toggleProjecao()"
+        [attr.aria-expanded]="projecaoAberta()"
+        aria-controls="projecao-mensal-painel"
+      >
         <span class="hist-projection__ico"><mat-icon>insights</mat-icon></span>
-        <div>
+        <div class="hist-projection__toggle-text">
           <h2 id="projecao-mensal-titulo">Projeção para o restante do mês</h2>
-          <p>Usa ritmo de dia útil e fim de semana, com meta e faixas.</p>
+          <p>
+            @if (projecaoMensal(); as p) {
+              Fechamento realista R$ {{ p.projetadoRealista | number: '1.2-2' }} · meta
+              {{ p.progressoMes }}%
+            } @else if (carregandoProjecao()) {
+              Calculando…
+            } @else {
+              Ritmo do mês, meta e faixas
+            }
+          </p>
         </div>
-      </header>
+        <mat-icon class="hist-projection__chevron">{{
+          projecaoAberta() ? 'expand_less' : 'expand_more'
+        }}</mat-icon>
+      </button>
 
-      @if (carregandoProjecao()) {
-        <div class="hist-projection__loading">Calculando projeção…</div>
-      } @else {
-        @if (projecaoMensal(); as projecao) {
-          <div class="hist-projection__metrics">
-            <div>
-              <span>Faturado até hoje</span>
-              <strong>R$ {{ projecao.faturamentoAtual | number: '1.2-2' }}</strong>
-              <small>{{ projecao.diasDecorridos }} dias decorridos</small>
-            </div>
-            <div>
-              <span>Média dia útil</span>
-              <strong>R$ {{ projecao.mediaDiaUtil | number: '1.2-2' }}</strong>
-              <small>fim de semana R$ {{ projecao.mediaFimSemana | number: '1.2-2' }}</small>
-            </div>
-            <div class="hist-projection__remaining">
-              <span>Estimado nos próximos dias</span>
-              <strong>+ R$ {{ projecao.estimativaRestante | number: '1.2-2' }}</strong>
-              <small>{{ projecao.diasRestantes }} dias restantes</small>
-            </div>
-            <div class="hist-projection__total">
-              <span>Fechamento realista</span>
-              <strong>R$ {{ projecao.projetadoRealista | number: '1.2-2' }}</strong>
-              <small>
-                {{ projecao.pedidosProjetados }} pedidos · lucro R$
-                {{ projecao.lucroProjetado | number: '1.2-2' }}
-              </small>
-            </div>
-          </div>
+      @if (projecaoAberta()) {
+        <div id="projecao-mensal-painel" class="hist-projection__body">
+          @if (carregandoProjecao()) {
+            <div class="hist-projection__loading">Calculando projeção…</div>
+          } @else {
+            @if (projecaoMensal(); as projecao) {
+              <div class="hist-projection__metrics">
+                <div>
+                  <span>Faturado até hoje</span>
+                  <strong>R$ {{ projecao.faturamentoAtual | number: '1.2-2' }}</strong>
+                  <small>{{ projecao.diasDecorridos }} dias decorridos</small>
+                </div>
+                <div>
+                  <span>Média dia útil</span>
+                  <strong>R$ {{ projecao.mediaDiaUtil | number: '1.2-2' }}</strong>
+                  <small>fim de semana R$ {{ projecao.mediaFimSemana | number: '1.2-2' }}</small>
+                </div>
+                <div class="hist-projection__remaining">
+                  <span>Estimado nos próximos dias</span>
+                  <strong>+ R$ {{ projecao.estimativaRestante | number: '1.2-2' }}</strong>
+                  <small>{{ projecao.diasRestantes }} dias restantes</small>
+                </div>
+                <div class="hist-projection__total">
+                  <span>Fechamento realista</span>
+                  <strong>R$ {{ projecao.projetadoRealista | number: '1.2-2' }}</strong>
+                  <small>
+                    {{ projecao.pedidosProjetados }} pedidos · lucro R$
+                    {{ projecao.lucroProjetado | number: '1.2-2' }}
+                  </small>
+                </div>
+              </div>
 
-          <div class="hist-projection__bands">
-            <div>
-              <span>Pessimista</span>
-              <strong>R$ {{ projecao.projetadoPessimista | number: '1.2-2' }}</strong>
-            </div>
-            <div class="is-main">
-              <span>Realista</span>
-              <strong>R$ {{ projecao.projetadoRealista | number: '1.2-2' }}</strong>
-            </div>
-            <div>
-              <span>Otimista</span>
-              <strong>R$ {{ projecao.projetadoOtimista | number: '1.2-2' }}</strong>
-            </div>
-          </div>
+              <div class="hist-projection__bands">
+                <div>
+                  <span>Pessimista</span>
+                  <strong>R$ {{ projecao.projetadoPessimista | number: '1.2-2' }}</strong>
+                </div>
+                <div class="is-main">
+                  <span>Realista</span>
+                  <strong>R$ {{ projecao.projetadoRealista | number: '1.2-2' }}</strong>
+                </div>
+                <div>
+                  <span>Otimista</span>
+                  <strong>R$ {{ projecao.projetadoOtimista | number: '1.2-2' }}</strong>
+                </div>
+              </div>
 
-          <div
-            class="hist-projection__goal"
-            [class.is-ok]="projecao.noRitmoDaMeta"
-            [class.is-warn]="!projecao.noRitmoDaMeta && projecao.diasRestantes > 0"
-          >
-            <div>
-              <span>Meta do mês ({{ projecao.metaOrigem }})</span>
-              <strong>R$ {{ projecao.metaMensal | number: '1.2-2' }}</strong>
-            </div>
-            @if (projecao.diasRestantes > 0) {
-              <div>
-                @if (projecao.faltaParaMeta > 0) {
-                  <span>Para bater a meta</span>
-                  <strong>R$ {{ projecao.faltaPorDia | number: '1.2-2' }}/dia</strong>
-                } @else {
-                  <span>Situação</span>
-                  <strong>Meta já alcançada</strong>
+              <div
+                class="hist-projection__goal"
+                [class.is-ok]="projecao.noRitmoDaMeta"
+                [class.is-warn]="!projecao.noRitmoDaMeta && projecao.diasRestantes > 0"
+              >
+                <div>
+                  <span>Meta do mês ({{ projecao.metaOrigem }})</span>
+                  <strong>R$ {{ projecao.metaMensal | number: '1.2-2' }}</strong>
+                </div>
+                @if (projecao.diasRestantes > 0) {
+                  <div>
+                    @if (projecao.faltaParaMeta > 0) {
+                      <span>Para bater a meta</span>
+                      <strong>R$ {{ projecao.faltaPorDia | number: '1.2-2' }}/dia</strong>
+                    } @else {
+                      <span>Situação</span>
+                      <strong>Meta já alcançada</strong>
+                    }
+                  </div>
+                }
+                @if (projecao.mesmoMesAnoPassado > 0 || projecao.mesAnterior > 0) {
+                  <div>
+                    <span>Referência</span>
+                    <strong>
+                      @if (projecao.mesmoMesAnoPassado > 0) {
+                        Ano passado R$ {{ projecao.mesmoMesAnoPassado | number: '1.2-2' }}
+                      } @else {
+                        Mês anterior R$ {{ projecao.mesAnterior | number: '1.2-2' }}
+                      }
+                    </strong>
+                  </div>
                 }
               </div>
-            }
-            @if (projecao.mesmoMesAnoPassado > 0 || projecao.mesAnterior > 0) {
-              <div>
-                <span>Referência</span>
-                <strong>
-                  @if (projecao.mesmoMesAnoPassado > 0) {
-                    Ano passado R$ {{ projecao.mesmoMesAnoPassado | number: '1.2-2' }}
-                  } @else {
-                    Mês anterior R$ {{ projecao.mesAnterior | number: '1.2-2' }}
-                  }
-                </strong>
-              </div>
-            }
-          </div>
 
-          <div class="hist-projection__progress">
-            <div>
-              <span>Progresso do mês</span>
-              <strong>{{ projecao.progressoMes }}%</strong>
-            </div>
-            <div class="hist-projection__track">
-              <span [style.width.%]="projecao.progressoMes"></span>
-            </div>
-          </div>
-        } @else {
-          <p class="hist-projection__loading">Não foi possível calcular a projeção agora.</p>
-        }
+              <div class="hist-projection__progress">
+                <div>
+                  <span>Progresso do mês</span>
+                  <strong>{{ projecao.progressoMes }}%</strong>
+                </div>
+                <div class="hist-projection__track">
+                  <span [style.width.%]="projecao.progressoMes"></span>
+                </div>
+              </div>
+            } @else {
+              <p class="hist-projection__loading">Não foi possível calcular a projeção agora.</p>
+            }
+          }
+        </div>
       }
     </section>
 
@@ -325,7 +347,6 @@
                   <th>Pedido</th>
                   <th>Data/hora</th>
                   <th>Itens</th>
-                  <th>Cliente</th>
                   <th>Tipo</th>
                   <th>Status</th>
                   <th>Pagamento</th>
@@ -350,7 +371,6 @@
                     <td class="hist-itens-cell">
                       <span class="hist-itens-resumo" [title]="itensTexto(p)">{{ itensResumo(p) }}</span>
                     </td>
-                    <td>{{ p.clienteNome || '—' }}</td>
                     <td>
                       <span class="hist-badge" [class]="tipoBadge(p.tipo)">{{ p.tipo | statusLabel }}</span>
                     </td>
@@ -398,7 +418,7 @@
                   </tr>
                   @if (pedidoAbertoId() === p.id) {
                     <tr class="hist-detail-row">
-                      <td colspan="12">
+                      <td colspan="11">
                         <div class="hist-detail">
                           <div class="hist-detail__head">
                             <p class="hist-detail__title">Produtos do pedido #{{ p.id }}</p>
@@ -465,7 +485,7 @@
                   }
                 } @empty {
                   <tr>
-                    <td colspan="12" class="hist-empty">Nenhum pedido encontrado neste período.</td>
+                    <td colspan="11" class="hist-empty">Nenhum pedido encontrado neste período.</td>
                   </tr>
                 }
               </tbody>
@@ -571,22 +591,6 @@
             </div>
           }
 
-          @if (topProdutos().length) {
-            <div class="hist-summary__top">
-              <p class="hist-summary__section">Top produtos</p>
-              <ul class="hist-top">
-                @for (prod of topProdutos(); track prod.nome) {
-                  <li>
-                    <div>
-                      <strong>{{ prod.nome }}</strong>
-                      <span>{{ prod.unidades }} un.</span>
-                    </div>
-                    <span>R$ {{ prod.valor | number: '1.2-2' }}</span>
-                  </li>
-                }
-              </ul>
-            </div>
-          }
         </div>
       </aside>
     </div>
