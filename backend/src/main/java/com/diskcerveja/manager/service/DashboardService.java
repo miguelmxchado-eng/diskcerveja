@@ -33,6 +33,9 @@ public class DashboardService {
 
     private static final Locale PT = Locale.forLanguageTag("pt-BR");
     private static final DateTimeFormatter MES_CURTO = DateTimeFormatter.ofPattern("MMM/yy", PT);
+    private static final DateTimeFormatter DIA_MES = DateTimeFormatter.ofPattern("dd/MM", PT);
+    private static final DateTimeFormatter DIA_MES_ANO = DateTimeFormatter.ofPattern("dd/MM/yyyy", PT);
+    private static final int SEMANAS_GRAFICO = 8;
 
     private final PedidoRepository pedidoRepository;
     private final ProdutoRepository produtoRepository;
@@ -128,22 +131,35 @@ public class DashboardService {
     }
 
     private List<PontoGraficoVendas> buildGraficoSemanal(LocalDate hoje, ZoneId z) {
-        LocalDate domingo = hoje.with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY));
-        Instant ini = domingo.atStartOfDay(z).toInstant();
-        Instant fim = domingo.plusDays(7).atStartOfDay(z).toInstant();
+        // Semana ISO (segunda → domingo), alinhada ao date_trunc('week') do PostgreSQL.
+        LocalDate inicioSemanaAtual = hoje.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate primeiraSemana = inicioSemanaAtual.minusWeeks(SEMANAS_GRAFICO - 1L);
+        Instant ini = primeiraSemana.atStartOfDay(z).toInstant();
+        Instant fim = hoje.plusDays(1).atStartOfDay(z).toInstant();
+
         Map<LocalDate, BigDecimal> vendas = new HashMap<>();
         Map<LocalDate, Long> cancel = new HashMap<>();
-        for (Object[] row : pedidoRepository.aggregateVendasCancelamentosPorDiaOperacao(
+        for (Object[] row : pedidoRepository.aggregateVendasCancelamentosPorSemanaOperacao(
                 Timestamp.from(ini), Timestamp.from(fim))) {
-            LocalDate d = toLocalDate(row[0], z);
-            vendas.put(d, (BigDecimal) row[1]);
-            cancel.put(d, ((Number) row[2]).longValue());
+            LocalDate semana = toLocalDate(row[0], z);
+            vendas.put(semana, (BigDecimal) row[1]);
+            cancel.put(semana, ((Number) row[2]).longValue());
         }
-        List<LocalDate> dias = new ArrayList<>();
-        for (int i = 0; i < 7; i++) {
-            dias.add(domingo.plusDays(i));
+
+        List<PontoGraficoVendas> out = new ArrayList<>();
+        for (int i = 0; i < SEMANAS_GRAFICO; i++) {
+            LocalDate inicioSemana = primeiraSemana.plusWeeks(i);
+            LocalDate fimSemana = inicioSemana.plusDays(6);
+            if (fimSemana.isAfter(hoje)) {
+                fimSemana = hoje;
+            }
+            BigDecimal v = vendas.getOrDefault(inicioSemana, BigDecimal.ZERO);
+            long c = cancel.getOrDefault(inicioSemana, 0L);
+            String rotulo = inicioSemana.format(DIA_MES) + "–" + fimSemana.format(DIA_MES);
+            String completo = "Semana " + inicioSemana.format(DIA_MES_ANO) + " a " + fimSemana.format(DIA_MES_ANO);
+            out.add(new PontoGraficoVendas(rotulo, completo, v, c));
         }
-        return montarPontosDias(dias, vendas, cancel, Locale.ENGLISH, false);
+        return out;
     }
 
     private List<PontoGraficoVendas> buildGraficoMensal(LocalDate hoje, ZoneId z) {

@@ -227,6 +227,21 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
     @Query(
             value =
                     """
+            SELECT CAST(date_trunc('week', p.data_hora AT TIME ZONE 'America/Sao_Paulo') AS date) AS semana,
+                   COALESCE(SUM(CASE WHEN p.status = 'ENTREGUE' THEN p.total END), 0) AS vendas,
+                   CAST(COALESCE(COUNT(*) FILTER (WHERE p.status = 'CANCELADO'), 0) AS bigint) AS cancelamentos
+            FROM pedido p
+            WHERE p.data_hora >= :ini AND p.data_hora < :fim
+            GROUP BY 1
+            ORDER BY 1
+            """,
+            nativeQuery = true)
+    List<Object[]> aggregateVendasCancelamentosPorSemanaOperacao(
+            @Param("ini") java.sql.Timestamp ini, @Param("fim") java.sql.Timestamp fim);
+
+    @Query(
+            value =
+                    """
             SELECT i.produto_id AS produto_id,
                    COALESCE(NULLIF(TRIM(i.descricao), ''), pr.nome, 'Produto') AS nome,
                    CAST(SUM(i.quantidade) AS bigint) AS unidades,

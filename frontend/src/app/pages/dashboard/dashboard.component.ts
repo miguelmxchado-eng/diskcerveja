@@ -139,7 +139,7 @@ export class DashboardComponent implements OnInit {
       case 'daily':
         return 'últimos 7 dias';
       case 'weekly':
-        return 'semana atual';
+        return 'últimas 8 semanas';
       default:
         return 'últimos meses';
     }
@@ -169,6 +169,9 @@ export class DashboardComponent implements OnInit {
   }
 
   shortLabel(rotulo: string): string {
+    if (this.chartTab() !== 'daily') {
+      return rotulo;
+    }
     const r = (rotulo || '').toLowerCase().trim();
     const map: Record<string, string> = {
       domingo: 'dom',
