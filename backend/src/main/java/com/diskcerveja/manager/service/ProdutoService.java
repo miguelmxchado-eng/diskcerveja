@@ -101,7 +101,21 @@ public class ProdutoService {
         p.setDescricaoCardapio(normalizeTexto(dto.descricaoCardapio(), 500));
         // Imagem pode ser data URL (base64) — não truncar.
         p.setImagemUrl(blankToNull(dto.imagemUrl()));
+        p.setNcm(normalizeCodigoFiscal(dto.ncm(), 8));
+        p.setCfop(normalizeCodigoFiscal(dto.cfop(), 4));
+        p.setCsosn(normalizeCodigoFiscal(dto.csosn(), 4));
         return produtoRepository.save(p);
+    }
+
+    private static String normalizeCodigoFiscal(String v, int max) {
+        if (v == null || v.isBlank()) {
+            return null;
+        }
+        String d = v.replaceAll("\\D", "");
+        if (d.isBlank()) {
+            return null;
+        }
+        return d.length() > max ? d.substring(0, max) : d;
     }
 
     private static String blankToNull(String v) {

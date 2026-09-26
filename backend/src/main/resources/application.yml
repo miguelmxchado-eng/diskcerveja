@@ -27,6 +27,12 @@ app:
   jwt:
     secret: ${JWT_SECRET:disk-cerveja-change-me-in-production-use-long-random-secret-key-256bits}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  emissor-fiscal:
+    enabled: ${EMISSOR_FISCAL_ENABLED:false}
+    base-url: ${EMISSOR_FISCAL_URL:http://localhost:8090}
+    default-ncm: ${EMISSOR_FISCAL_DEFAULT_NCM:22030000}
+    default-cfop: ${EMISSOR_FISCAL_DEFAULT_CFOP:5102}
+    default-csosn: ${EMISSOR_FISCAL_DEFAULT_CSOSN:102}
 
 logging:
   level:

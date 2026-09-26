@@ -194,6 +194,9 @@ export class ProdutosComponent implements OnInit, OnDestroy {
   novoVisivelCardapio = true;
   novoPromocaoCardapio = false;
   novoDescricaoCardapio = '';
+  novoNcm = '';
+  novoCfop = '';
+  novoCsosn = '';
   codigoInternoEdicao: string | null = null;
 
   private scanSub?: Subscription;
@@ -1022,6 +1025,9 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.novoVisivelCardapio = true;
     this.novoPromocaoCardapio = false;
     this.novoDescricaoCardapio = '';
+    this.novoNcm = '';
+    this.novoCfop = '';
+    this.novoCsosn = '';
     this.imagemPreview.set(null);
     this.ultimaLeituraPreview.set(null);
     this.codigoDuplicadoMsg.set(null);
@@ -1067,6 +1073,9 @@ export class ProdutosComponent implements OnInit, OnDestroy {
     this.novoVisivelCardapio = p.visivelCardapio !== false;
     this.novoPromocaoCardapio = !!p.promocaoCardapio;
     this.novoDescricaoCardapio = p.descricaoCardapio ?? '';
+    this.novoNcm = p.ncm ?? '';
+    this.novoCfop = p.cfop ?? '';
+    this.novoCsosn = p.csosn ?? '';
     this.imagemPreview.set(this.produtoImagem(p));
     this.ultimaLeituraPreview.set(null);
     this.codigoDuplicadoMsg.set(null);
@@ -1192,6 +1201,9 @@ export class ProdutosComponent implements OnInit, OnDestroy {
       promocaoCardapio: this.novoPromocaoCardapio,
       descricaoCardapio: this.novoDescricaoCardapio.trim() || null,
       imagemUrl: this.imagemPreview() || null,
+      ncm: this.novoNcm.trim() || null,
+      cfop: this.novoCfop.trim() || null,
+      csosn: this.novoCsosn.trim() || null,
     };
     this.salvando.set(true);
     const req = editando

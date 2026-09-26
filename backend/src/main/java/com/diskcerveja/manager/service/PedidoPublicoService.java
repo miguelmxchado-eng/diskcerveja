@@ -240,6 +240,7 @@ public class PedidoPublicoService {
                 clienteId,
                 nome,
                 telefone,
+                null,
                 tipoPedido,
                 req.formaPagamento() != null ? req.formaPagamento() : FormaPagamento.PIX,
                 endereco,

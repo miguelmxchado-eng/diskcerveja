@@ -9,6 +9,7 @@ import java.util.List;
 public record PedidoUpdateRequest(
         String clienteNome,
         String telefone,
+        String cpfNaNota,
         TipoPedido tipo,
         FormaPagamento formaPagamento,
         String enderecoEntrega,

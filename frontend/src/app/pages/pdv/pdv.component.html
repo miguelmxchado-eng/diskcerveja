@@ -415,6 +415,19 @@
           </button>
         </div>
 
+        <label class="pdv-cpf-nota">
+          <span>CPF na nota <em>(opcional)</em></span>
+          <input
+            type="text"
+            [(ngModel)]="cpfNaNota"
+            name="cpfNaNota"
+            inputmode="numeric"
+            maxlength="18"
+            placeholder="000.000.000-00"
+            autocomplete="off"
+          />
+        </label>
+
         @if (pagamentoDividido()) {
           <div class="pdv-split" role="group" aria-label="Divisão do pagamento">
             <div class="pdv-split__head">

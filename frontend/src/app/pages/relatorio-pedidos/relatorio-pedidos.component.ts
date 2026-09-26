@@ -28,6 +28,10 @@ interface ChartBar {
   total: number;
   heightPct: number;
   peak: boolean;
+  /** Hora 0–23 (só no gráfico por horário). */
+  hora?: number;
+  /** Exibir rótulo no eixo (evita amontoar 24 labels). */
+  showTick?: boolean;
 }
 
 interface KpiDelta {
@@ -78,6 +82,8 @@ export class RelatorioPedidosComponent implements OnInit, OnDestroy {
   readonly carregandoProjecao = signal(true);
   readonly filtrosAbertos = signal(false);
   readonly menuPedidoId = signal<number | null>(null);
+  /** Painel de gráficos/resumo — fora da listagem. */
+  readonly analiseAberta = signal(false);
 
   readonly busca = signal('');
   readonly filtroStatus = signal('');
@@ -200,11 +206,15 @@ export class RelatorioPedidosComponent implements OnInit, OnDestroy {
     const max = Math.max(...values, 1);
     return series.map((s, i) => {
       const total = values[i];
+      const hora = typeof s.hora === 'number' ? s.hora : i;
       return {
-        label: s.rotulo,
+        label: s.rotulo || `${String(hora).padStart(2, '0')}h`,
         total,
-        heightPct: total > 0 ? Math.max(8, Math.round((total / max) * 100)) : 3,
+        heightPct: total > 0 ? Math.max(10, Math.round((total / max) * 100)) : 4,
         peak: total > 0 && total >= max * 0.995,
+        hora,
+        // Marca a cada 3h + pico + última hora — eixo legível
+        showTick: hora % 3 === 0 || hora === 23 || (total > 0 && total >= max * 0.995),
       };
     });
   });
@@ -468,6 +478,10 @@ export class RelatorioPedidosComponent implements OnInit, OnDestroy {
     this.filtrosAbertos.update((v) => !v);
   }
 
+  toggleAnalise(): void {
+    this.analiseAberta.update((v) => !v);
+  }
+
   onBuscaChange(value: string): void {
     this.busca$.next(value);
   }
@@ -557,6 +571,112 @@ export class RelatorioPedidosComponent implements OnInit, OnDestroy {
     void navigator.clipboard.writeText(String(p.id));
     this.snack.open(`Pedido #${p.id} copiado.`, 'OK', { duration: 2000 });
     this.menuPedidoId.set(null);
+  }
+
+  nfceRotulo(status: string | null | undefined): string {
+    const s = (status || '').toUpperCase();
+    if (!s) return 'Sem nota';
+    if (s === 'AUTORIZADA') return 'Autorizada';
+    if (s === 'CANCELADA') return 'Cancelada';
+    if (s === 'REJEITADA') return 'Rejeitada';
+    if (s === 'ERRO') return 'Erro';
+    if (s === 'ENVIANDO') return 'Enviando…';
+    return s;
+  }
+
+  nfceBadge(status: string | null | undefined): string {
+    const s = (status || '').toUpperCase();
+    if (s === 'AUTORIZADA') return 'hist-badge--ok';
+    if (s === 'CANCELADA' || s === 'REJEITADA' || s === 'ERRO') return 'hist-badge--danger';
+    if (s === 'ENVIANDO') return 'hist-badge--warn';
+    return 'hist-badge--neutral';
+  }
+
+  nfceTitulo(p: PedidoResumoDto): string {
+    const parts = [this.nfceRotulo(p.nfceStatus)];
+    if (p.nfceChave) parts.push(`chave ${p.nfceChave}`);
+    if (p.nfceMotivo) parts.push(p.nfceMotivo);
+    return parts.join(' · ');
+  }
+
+  podeReemitirNfce(p: PedidoResumoDto): boolean {
+    const s = (p.nfceStatus || '').toUpperCase();
+    return s !== 'AUTORIZADA' && s !== 'CANCELADA';
+  }
+
+  abrirDanfe(p: PedidoResumoDto): void {
+    this.menuPedidoId.set(null);
+    if (p.nfceQrCode) {
+      window.open(p.nfceQrCode, '_blank');
+    }
+  }
+
+  reemitirNfce(p: PedidoResumoDto): void {
+    this.menuPedidoId.set(null);
+    this.http.post<PedidoResumoDto>(`${environment.apiUrl}/api/pedidos/${p.id}/nfce/reemitir`, {}).subscribe({
+      next: (resp) => {
+        Object.assign(p, {
+          nfceStatus: resp.nfceStatus,
+          nfceChave: resp.nfceChave,
+          nfceProtocolo: resp.nfceProtocolo,
+          nfceQrCode: resp.nfceQrCode,
+          nfceMotivo: resp.nfceMotivo,
+        });
+        if ((resp.nfceStatus || '').toUpperCase() === 'AUTORIZADA') {
+          this.snack
+            .open('Nota autorizada.', resp.nfceQrCode ? 'Abrir' : 'OK', { duration: 8000 })
+            .onAction()
+            .subscribe(() => {
+              if (resp.nfceQrCode) window.open(resp.nfceQrCode, '_blank');
+            });
+        } else {
+          this.snack.open(`Nota: ${resp.nfceMotivo || resp.nfceStatus}`, 'OK', { duration: 7000 });
+        }
+      },
+      error: (e) => {
+        const msg = e?.error?.erro ?? e?.error?.detail ?? e?.error?.message ?? 'Não foi possível reemitir.';
+        this.snack.open(msg, 'OK', { duration: 6000 });
+      },
+    });
+  }
+
+  cancelarNfce(p: PedidoResumoDto): void {
+    this.menuPedidoId.set(null);
+    const justificativa = window.prompt(
+      'Motivo do cancelamento da nota (mínimo 15 caracteres):',
+      'Cancelamento a pedido do cliente',
+    );
+    if (justificativa == null) return;
+    if (justificativa.trim().length < 15) {
+      this.snack.open('O motivo precisa ter pelo menos 15 caracteres.', 'OK', { duration: 4000 });
+      return;
+    }
+    this.http
+      .post<PedidoResumoDto>(`${environment.apiUrl}/api/pedidos/${p.id}/nfce/cancelar`, {
+        justificativa: justificativa.trim(),
+      })
+      .subscribe({
+        next: (resp) => {
+          Object.assign(p, {
+            nfceStatus: resp.nfceStatus,
+            nfceChave: resp.nfceChave,
+            nfceProtocolo: resp.nfceProtocolo,
+            nfceQrCode: resp.nfceQrCode,
+            nfceMotivo: resp.nfceMotivo,
+          });
+          this.snack.open(
+            (resp.nfceStatus || '').toUpperCase() === 'CANCELADA'
+              ? 'Nota cancelada na SEFAZ.'
+              : `Cancelamento: ${resp.nfceMotivo || resp.nfceStatus}`,
+            'OK',
+            { duration: 7000 },
+          );
+        },
+        error: (e) => {
+          const msg = e?.error?.erro ?? e?.error?.detail ?? e?.error?.message ?? 'Não foi possível cancelar.';
+          this.snack.open(msg, 'OK', { duration: 7000 });
+        },
+      });
   }
 
   statusBadge(status: string): string {

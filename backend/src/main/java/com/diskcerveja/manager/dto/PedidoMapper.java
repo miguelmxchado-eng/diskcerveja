@@ -28,6 +28,7 @@ public final class PedidoMapper {
                 p.getDataHora(),
                 p.getClienteNome(),
                 p.getTelefone(),
+                p.getCpfNaNota(),
                 p.getTipo(),
                 p.getStatus(),
                 p.getTotal(),
@@ -36,7 +37,12 @@ public final class PedidoMapper {
                 p.getEnderecoEntrega(),
                 p.isEstoqueBaixado(),
                 itens,
-                pagamentos);
+                pagamentos,
+                p.getNfceStatus(),
+                p.getNfceChave(),
+                p.getNfceProtocolo(),
+                p.getNfceQrCode(),
+                p.getNfceMotivo());
     }
 
     public static PedidoItemResponse toItem(PedidoItem i) {

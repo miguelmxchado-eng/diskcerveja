@@ -1046,6 +1046,44 @@
   margin-bottom: 8px;
 }
 
+.pdv-cpf-nota {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+
+  span {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #667085;
+
+    em {
+      font-style: normal;
+      font-weight: 500;
+      color: #98a2b3;
+    }
+  }
+
+  input {
+    min-height: 40px;
+    padding: 0 12px;
+    border: 1px solid #e1c65d;
+    border-radius: 6px;
+    background: #fffdf6;
+    font: 600 0.9rem/1.2 'Inter', sans-serif;
+    color: #171717;
+
+    &::placeholder {
+      color: #b0b7c3;
+      font-weight: 500;
+    }
+
+    &:focus {
+      outline: 2px solid #d2a410;
+      outline-offset: 1px;
+    }
+  }
+}
+
 .pdv-split-toggle {
   min-height: 40px;
   padding: 0 10px;

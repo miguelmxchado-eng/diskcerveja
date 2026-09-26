@@ -1,0 +1,30 @@
+# Build
+target/
+*.class
+*.jar
+*.war
+!gradle/wrapper/gradle-wrapper.jar
+
+# Secrets / certificados (NUNCA commitar)
+.env
+*.pfx
+*.p12
+*.pem
+*.key
+certificados/
+certs/
+
+# Runtime
+data/
+*.db
+*.log
+logs/
+.xmls/
+xmls/
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+*.swp

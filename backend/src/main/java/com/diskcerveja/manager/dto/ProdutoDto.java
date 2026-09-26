@@ -30,4 +30,8 @@ public record ProdutoDto(
         Boolean visivelCardapio,
         Boolean promocaoCardapio,
         @Size(max = 500) String descricaoCardapio,
-        String imagemUrl) {}
+        String imagemUrl,
+        /** NCM (8 dígitos). Opcional — usa default do emissor se vazio. */
+        @Size(max = 8) String ncm,
+        @Size(max = 4) String cfop,
+        @Size(max = 4) String csosn) {}

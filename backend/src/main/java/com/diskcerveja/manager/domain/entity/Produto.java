@@ -77,6 +77,16 @@ public class Produto {
     @Column(name = "imagem_url", columnDefinition = "text")
     private String imagemUrl;
 
+    /** NCM 8 dígitos (opcional). */
+    @Column(length = 8)
+    private String ncm;
+
+    @Column(length = 4)
+    private String cfop;
+
+    @Column(length = 4)
+    private String csosn;
+
     public Long getId() {
         return id;
     }
@@ -222,5 +232,29 @@ public class Produto {
 
     public void setImagemUrl(String imagemUrl) {
         this.imagemUrl = imagemUrl;
+    }
+
+    public String getNcm() {
+        return ncm;
+    }
+
+    public void setNcm(String ncm) {
+        this.ncm = ncm;
+    }
+
+    public String getCfop() {
+        return cfop;
+    }
+
+    public void setCfop(String cfop) {
+        this.cfop = cfop;
+    }
+
+    public String getCsosn() {
+        return csosn;
+    }
+
+    public void setCsosn(String csosn) {
+        this.csosn = csosn;
     }
 }

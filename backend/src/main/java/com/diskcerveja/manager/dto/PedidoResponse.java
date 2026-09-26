@@ -12,6 +12,7 @@ public record PedidoResponse(
         Instant dataHora,
         String clienteNome,
         String telefone,
+        String cpfNaNota,
         TipoPedido tipo,
         StatusPedido status,
         BigDecimal total,
@@ -20,4 +21,9 @@ public record PedidoResponse(
         String enderecoEntrega,
         boolean estoqueBaixado,
         List<PedidoItemResponse> itens,
-        List<PedidoPagamentoResponse> pagamentos) {}
+        List<PedidoPagamentoResponse> pagamentos,
+        String nfceStatus,
+        String nfceChave,
+        String nfceProtocolo,
+        String nfceQrCode,
+        String nfceMotivo) {}

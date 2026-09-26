@@ -106,7 +106,10 @@ public class ProdutoController {
                 dto.visivelCardapio(),
                 dto.promocaoCardapio(),
                 dto.descricaoCardapio(),
-                dto.imagemUrl())));
+                dto.imagemUrl(),
+                dto.ncm(),
+                dto.cfop(),
+                dto.csosn())));
     }
 
     @PatchMapping("/{id}/cardapio")
@@ -140,6 +143,9 @@ public class ProdutoController {
                 p.isVisivelCardapio(),
                 p.isPromocaoCardapio(),
                 p.getDescricaoCardapio(),
-                p.getImagemUrl());
+                p.getImagemUrl(),
+                p.getNcm(),
+                p.getCfop(),
+                p.getCsosn());
     }
 }

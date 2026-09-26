@@ -5,6 +5,7 @@ import com.diskcerveja.manager.domain.enums.PerfilUsuario;
 import com.diskcerveja.manager.domain.enums.PeriodoPedido;
 import com.diskcerveja.manager.domain.enums.StatusPedido;
 import com.diskcerveja.manager.domain.enums.TipoPedido;
+import com.diskcerveja.manager.dto.NfceCancelarRequest;
 import com.diskcerveja.manager.dto.PedidoPeriodoResponse;
 import com.diskcerveja.manager.dto.PedidoMapper;
 import com.diskcerveja.manager.dto.PedidoRequest;
@@ -143,5 +144,17 @@ public class PedidoController {
             }
         }
         return PedidoMapper.toResponse(pedidoService.mudarStatus(id, request.status(), SecurityUtils.currentUser()));
+    }
+
+    @PostMapping("/{id}/nfce/reemitir")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERADOR')")
+    public PedidoResponse reemitirNfce(@PathVariable Long id) {
+        return PedidoMapper.toResponse(pedidoService.reemitirNfce(id));
+    }
+
+    @PostMapping("/{id}/nfce/cancelar")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERADOR')")
+    public PedidoResponse cancelarNfce(@PathVariable Long id, @Valid @RequestBody NfceCancelarRequest request) {
+        return PedidoMapper.toResponse(pedidoService.cancelarNfce(id, request.justificativa()));
     }
 }

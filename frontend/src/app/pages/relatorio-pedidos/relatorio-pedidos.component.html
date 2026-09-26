@@ -351,6 +351,167 @@
       </div>
     }
 
+    <div class="hist-analise-bar">
+      <button
+        type="button"
+        class="em-btn em-btn--ghost hist-analise-bar__btn"
+        [class.is-on]="analiseAberta()"
+        (click)="toggleAnalise()"
+      >
+        <mat-icon>{{ analiseAberta() ? 'expand_less' : 'insights' }}</mat-icon>
+        {{ analiseAberta() ? 'Ocultar análise' : 'Ver análise do período' }}
+      </button>
+      @if (!analiseAberta() && horaPico(); as pico) {
+        <span class="hist-analise-bar__hint">
+          Pico às <strong>{{ pico.label }}</strong> · {{ pico.total }} pedidos
+        </span>
+      }
+    </div>
+
+    @if (analiseAberta()) {
+      <section class="hist-analise" aria-label="Análise do período">
+        <header class="hist-analise__head">
+          <div>
+            <h2>Análise do período</h2>
+            <p>
+              <mat-icon>calendar_today</mat-icon>
+              {{ periodoExibicao() }}
+            </p>
+          </div>
+        </header>
+
+        <div class="hist-analise__charts">
+          <article class="hist-analise__panel">
+            <h3>Faturamento por dia</h3>
+            <div
+              class="hist-analise__chart"
+              role="img"
+              [attr.aria-label]="'Faturamento diário: ' + periodoExibicao()"
+            >
+              @if (chartBars().length) {
+                <div class="hist-bars hist-bars--daily">
+                  @for (bar of chartBars(); track bar.label) {
+                    <div
+                      class="hist-bars__col"
+                      [class.is-peak]="bar.peak"
+                      [title]="'R$ ' + (bar.total | number: '1.2-2')"
+                    >
+                      @if (bar.peak && bar.total > 0) {
+                        <span class="hist-bars__value">R$ {{ bar.total | number: '1.0-0' }}</span>
+                      } @else {
+                        <span class="hist-bars__value hist-bars__value--spacer" aria-hidden="true">&nbsp;</span>
+                      }
+                      <div class="hist-bars__track">
+                        <div class="hist-bars__bar" [style.height.%]="bar.heightPct"></div>
+                      </div>
+                      <span class="hist-bars__tick">{{ bar.label }}</span>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <p class="hist-analise__empty">Sem vendas entregues no período.</p>
+              }
+            </div>
+          </article>
+
+          <article class="hist-analise__panel hist-analise__panel--hours">
+            <div class="hist-analise__panel-head">
+              <h3>Pedidos por horário</h3>
+              <p class="hist-analise__meta">
+                Média <strong>{{ kpis().mediaPorHora | number: '1.1-1' }} / hora</strong>
+                @if (horaPico(); as pico) {
+                  <span>· pico às <strong>{{ pico.label }}</strong> ({{ pico.total }})</span>
+                }
+              </p>
+            </div>
+            <div
+              class="hist-analise__chart hist-analise__chart--hours"
+              role="img"
+              [attr.aria-label]="'Pedidos por horário: média ' + (kpis().mediaPorHora | number: '1.1-1')"
+            >
+              @if (hourBars().length) {
+                <div class="hist-hour-chart">
+                  @for (bar of hourBars(); track bar.label) {
+                    <div
+                      class="hist-hour-chart__col"
+                      [class.is-peak]="bar.peak"
+                      [class.is-idle]="bar.total === 0"
+                      [title]="bar.label + ': ' + bar.total + (bar.total === 1 ? ' pedido' : ' pedidos')"
+                    >
+                      <span class="hist-hour-chart__value" [class.is-visible]="bar.peak && bar.total > 0">
+                        {{ bar.peak && bar.total > 0 ? bar.total : '' }}
+                      </span>
+                      <div class="hist-hour-chart__track">
+                        <div class="hist-hour-chart__bar" [style.height.%]="bar.heightPct"></div>
+                      </div>
+                      <span class="hist-hour-chart__tick" [class.is-on]="bar.showTick">
+                        {{ bar.showTick ? bar.label : '' }}
+                      </span>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <p class="hist-analise__empty">Sem pedidos no período.</p>
+              }
+            </div>
+          </article>
+        </div>
+
+        <div class="hist-analise__footer">
+          <dl class="hist-analise__stats">
+            <div>
+              <dt>Total de pedidos</dt>
+              <dd>{{ kpis().pedidos }}</dd>
+            </div>
+            <div>
+              <dt>Média por hora</dt>
+              <dd>{{ kpis().mediaPorHora | number: '1.1-1' }}</dd>
+            </div>
+            <div>
+              <dt>Faturamento</dt>
+              <dd>R$ {{ kpis().faturamento | number: '1.2-2' }}</dd>
+            </div>
+            <div>
+              <dt>Lucro real</dt>
+              <dd>R$ {{ kpis().lucro | number: '1.2-2' }}</dd>
+            </div>
+            <div>
+              <dt>Margem</dt>
+              <dd>{{ kpis().margem | number: '1.1-1' }}%</dd>
+            </div>
+          </dl>
+
+          @if (variacaoFaturamentoResumo().available) {
+            <div
+              class="hist-analise__trend"
+              [class.is-up]="variacaoFaturamentoResumo().up"
+              [class.is-down]="!variacaoFaturamentoResumo().up"
+            >
+              <strong>{{ variacaoFaturamentoResumo().label }} no faturamento</strong>
+              <span>vs. período anterior</span>
+            </div>
+          }
+
+          @if (paymentRows().length) {
+            <div class="hist-analise__pay">
+              <p class="hist-analise__section">Formas de pagamento</p>
+              <div class="hist-analise__pay-grid">
+                @for (pay of paymentRows(); track pay.nome) {
+                  <div class="hist-pay">
+                    <div class="hist-pay__top">
+                      <span>{{ pay.nome }}</span>
+                      <span>R$ {{ pay.valor | number: '1.2-2' }} · {{ pay.pct }}%</span>
+                    </div>
+                    <div class="em-progress em-progress--lg"><span [style.width.%]="pay.pct"></span></div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </section>
+    }
+
     <div class="hist-layout">
       <div class="hist-main">
         <div class="hist-table-card">
@@ -364,6 +525,7 @@
                   <th>Itens</th>
                   <th>Tipo</th>
                   <th>Status</th>
+                  <th>Nota</th>
                   <th>Pagamento</th>
                   <th>Desconto</th>
                   <th>Total</th>
@@ -391,6 +553,19 @@
                     </td>
                     <td>
                       <span class="hist-badge" [class]="statusBadge(p.status)">{{ p.status | statusLabel }}</span>
+                    </td>
+                    <td>
+                      @if (p.status === 'ENTREGUE') {
+                        <span
+                          class="hist-badge"
+                          [class]="nfceBadge(p.nfceStatus)"
+                          [title]="nfceTitulo(p)"
+                        >
+                          {{ nfceRotulo(p.nfceStatus) }}
+                        </span>
+                      } @else {
+                        <span class="hist-muted">—</span>
+                      }
                     </td>
                     <td class="hist-muted" [title]="pagamentoResumo(p)">
                       {{ p.formaPagamento === 'MISTO' ? pagamentoResumo(p) : (p.formaPagamento | statusLabel) }}
@@ -426,6 +601,15 @@
                           <div class="hist-actions__menu" (click)="$event.stopPropagation()">
                             <button type="button" (click)="toggleDetalhePedido(p.id)">Ver produtos</button>
                             <button type="button" (click)="copiarIdPedido(p)">Copiar nº do pedido</button>
+                            @if (p.nfceQrCode) {
+                              <button type="button" (click)="abrirDanfe(p)">Abrir nota (DANFE)</button>
+                            }
+                            @if (p.status === 'ENTREGUE' && podeReemitirNfce(p)) {
+                              <button type="button" (click)="reemitirNfce(p)">Reemitir nota</button>
+                            }
+                            @if (p.status === 'ENTREGUE' && (p.nfceStatus || '').toUpperCase() === 'AUTORIZADA') {
+                              <button type="button" (click)="cancelarNfce(p)">Cancelar nota</button>
+                            }
                           </div>
                         }
                       </div>
@@ -433,7 +617,7 @@
                   </tr>
                   @if (pedidoAbertoId() === p.id) {
                     <tr class="hist-detail-row">
-                      <td colspan="11">
+                      <td colspan="12">
                         <div class="hist-detail">
                           <div class="hist-detail__head">
                             <p class="hist-detail__title">Produtos do pedido #{{ p.id }}</p>
@@ -447,6 +631,21 @@
                               </span>
                             }
                           </div>
+                          @if (p.nfceStatus) {
+                            <div class="hist-nfce">
+                              <strong>Nota fiscal:</strong>
+                              <span [class]="nfceBadge(p.nfceStatus)">{{ nfceRotulo(p.nfceStatus) }}</span>
+                              @if (p.nfceChave) {
+                                <span class="hist-muted">chave …{{ p.nfceChave.slice(-8) }}</span>
+                              }
+                              @if (p.nfceMotivo) {
+                                <span class="hist-nfce__motivo">{{ p.nfceMotivo }}</span>
+                              }
+                              @if (p.nfceQrCode) {
+                                <button type="button" class="em-link" (click)="abrirDanfe(p)">Abrir DANFE</button>
+                              }
+                            </div>
+                          }
                           @if (itensDoPedido(p).length) {
                             <table class="hist-detail__table">
                               <thead>
@@ -500,7 +699,7 @@
                   }
                 } @empty {
                   <tr>
-                    <td colspan="11" class="hist-empty">Nenhum pedido encontrado neste período.</td>
+                    <td colspan="12" class="hist-empty">Nenhum pedido encontrado neste período.</td>
                   </tr>
                 }
               </tbody>
@@ -533,118 +732,6 @@
           </div>
         </div>
       </div>
-
-      <aside class="hist-side">
-        <div class="hist-summary">
-          <div class="hist-summary__head">
-            <h2>Resumo do período</h2>
-            <p>
-              <mat-icon>calendar_today</mat-icon>
-              {{ periodoExibicao() }}
-            </p>
-          </div>
-
-          <div class="hist-summary__chart" role="img" [attr.aria-label]="'Faturamento diário: ' + periodoExibicao()">
-            @if (chartBars().length) {
-              <div class="hist-bars">
-                @for (bar of chartBars(); track bar.label) {
-                  <div class="hist-bars__col" [class.is-peak]="bar.peak" [title]="'R$ ' + (bar.total | number: '1.2-2')">
-                    <div class="hist-bars__track">
-                      <div class="hist-bars__bar" [style.height.%]="bar.heightPct"></div>
-                    </div>
-                    <span>{{ bar.label }}</span>
-                  </div>
-                }
-              </div>
-            } @else {
-              <p class="hist-summary__empty">Sem vendas entregues no período.</p>
-            }
-          </div>
-
-          <div class="hist-summary__hours">
-            <p class="hist-summary__section">Pedidos por horário</p>
-            <p class="hist-summary__hours-meta">
-              Média
-              <strong>{{ kpis().mediaPorHora | number: '1.1-1' }} / hora</strong>
-              @if (horaPico(); as pico) {
-                · pico às {{ pico.label }} ({{ pico.total }})
-              }
-            </p>
-            @if (hourBars().length) {
-              <div
-                class="hist-bars hist-bars--hours"
-                role="img"
-                [attr.aria-label]="'Pedidos por horário: média ' + (kpis().mediaPorHora | number: '1.1-1')"
-              >
-                @for (bar of hourBars(); track bar.label) {
-                  <div
-                    class="hist-bars__col"
-                    [class.is-peak]="bar.peak"
-                    [title]="bar.label + ': ' + bar.total + ' pedidos'"
-                  >
-                    <div class="hist-bars__track">
-                      <div class="hist-bars__bar" [style.height.%]="bar.heightPct"></div>
-                    </div>
-                    <span>{{ bar.label }}</span>
-                  </div>
-                }
-              </div>
-            } @else {
-              <p class="hist-summary__empty">Sem pedidos no período.</p>
-            }
-          </div>
-
-          <dl class="hist-summary__stats">
-            <div>
-              <dt>Total de pedidos</dt>
-              <dd>{{ kpis().pedidos }}</dd>
-            </div>
-            <div>
-              <dt>Média por hora</dt>
-              <dd>{{ kpis().mediaPorHora | number: '1.1-1' }}</dd>
-            </div>
-            <div>
-              <dt>Faturamento</dt>
-              <dd>R$ {{ kpis().faturamento | number: '1.2-2' }}</dd>
-            </div>
-            <div>
-              <dt>Lucro real</dt>
-              <dd>R$ {{ kpis().lucro | number: '1.2-2' }}</dd>
-            </div>
-            <div>
-              <dt>Margem</dt>
-              <dd>{{ kpis().margem | number: '1.1-1' }}%</dd>
-            </div>
-          </dl>
-
-          @if (variacaoFaturamentoResumo().available) {
-            <div
-              class="hist-summary__trend"
-              [class.is-up]="variacaoFaturamentoResumo().up"
-              [class.is-down]="!variacaoFaturamentoResumo().up"
-            >
-              <strong>{{ variacaoFaturamentoResumo().label }} no faturamento</strong>
-              <span>em relação ao período anterior</span>
-            </div>
-          }
-
-          @if (paymentRows().length) {
-            <div class="hist-summary__pay">
-              <p class="hist-summary__section">Formas de pagamento</p>
-              @for (pay of paymentRows(); track pay.nome) {
-                <div class="hist-pay">
-                  <div class="hist-pay__top">
-                    <span>{{ pay.nome }}</span>
-                    <span>R$ {{ pay.valor | number: '1.2-2' }} · {{ pay.pct }}%</span>
-                  </div>
-                  <div class="em-progress em-progress--lg"><span [style.width.%]="pay.pct"></span></div>
-                </div>
-              }
-            </div>
-          }
-
-        </div>
-      </aside>
     </div>
   } @else {
     <div class="em-card hist-empty-state">

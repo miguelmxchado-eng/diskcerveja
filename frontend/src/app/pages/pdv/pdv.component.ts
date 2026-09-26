@@ -159,6 +159,8 @@ export class PdvComponent implements OnInit, OnDestroy {
 
   clienteNome = '';
   telefone = '';
+  /** CPF opcional para NFC-e (só dígitos ou formatado). */
+  cpfNaNota = '';
   tipo = signal<'ENTREGA' | 'RETIRADA' | 'BALCAO'>('BALCAO');
   formaPagamento: FormaPagamentoPdv = 'PIX';
   readonly pagamentoDividido = signal(false);
@@ -1099,6 +1101,7 @@ export class PdvComponent implements OnInit, OnDestroy {
     this.descontoValor.set(0);
     this.observacao = '';
     this.limparCliente();
+    this.cpfNaNota = '';
     this.enderecoEntrega = '';
     this.entregadorNome = '';
     this.taxaEntrega.set(0);
@@ -1208,6 +1211,7 @@ export class PdvComponent implements OnInit, OnDestroy {
       clienteId: this.clienteId(),
       clienteNome: this.clienteNome || null,
       telefone: this.tipo() === 'ENTREGA' ? this.telefone || null : this.telefone || null,
+      cpfNaNota: this.cpfNaNota?.trim() || null,
       tipo: this.tipo(),
       formaPagamento: this.pagamentoDividido() ? 'MISTO' : this.formaPagamento,
       enderecoEntrega: this.tipo() === 'ENTREGA' ? this.enderecoEntrega : null,
@@ -1272,7 +1276,8 @@ export class PdvComponent implements OnInit, OnDestroy {
           this.confirmando.set(false);
           this.pedidoPendenteConfirmacao.set(null);
           this.totalConfirmacao.set(null);
-          this.snack.open(`Pedido #${id} confirmado.`, 'OK', { duration: 4000 });
+          this.snack.open(`Pedido #${id} confirmado. Emitindo nota…`, 'OK', { duration: 2500 });
+          this.aguardarNfce(id);
         },
         error: (e) => {
           this.confirmando.set(false);
@@ -1280,6 +1285,50 @@ export class PdvComponent implements OnInit, OnDestroy {
           this.snack.open(msg, 'OK', { duration: 5000 });
         },
       });
+  }
+
+  /** A emissão NFC-e roda após o commit; consulta o pedido algumas vezes. */
+  private aguardarNfce(pedidoId: number, tentativa = 0): void {
+    if (tentativa > 20) {
+      this.snack.open(
+        `Pedido #${pedidoId} confirmado, mas a nota ainda não respondeu. Tente reemitir.`,
+        'OK',
+        { duration: 8000 },
+      );
+      return;
+    }
+    window.setTimeout(() => {
+      this.http.get<PedidoResponse>(`${environment.apiUrl}/api/pedidos/${pedidoId}`).subscribe({
+        next: (p) => {
+          const st = (p.nfceStatus || '').toUpperCase();
+          if (st === 'AUTORIZADA') {
+            this.snack.open(
+              p.nfceChave
+                ? `Nota autorizada · chave …${p.nfceChave.slice(-8)}`
+                : 'Nota fiscal autorizada.',
+              p.nfceQrCode ? 'Abrir' : 'OK',
+              { duration: 12000 },
+            ).onAction().subscribe(() => {
+              if (p.nfceQrCode) {
+                window.open(p.nfceQrCode, '_blank');
+              }
+            });
+            return;
+          }
+          if (st === 'REJEITADA' || st === 'ERRO') {
+            this.snack.open(
+              `Nota não autorizada: ${p.nfceMotivo || st}`,
+              'OK',
+              { duration: 10000 },
+            );
+            return;
+          }
+          // null / ENVIANDO / etc. — continua aguardando
+          this.aguardarNfce(pedidoId, tentativa + 1);
+        },
+        error: () => this.aguardarNfce(pedidoId, tentativa + 1),
+      });
+    }, tentativa === 0 ? 800 : 1000);
   }
 }
 

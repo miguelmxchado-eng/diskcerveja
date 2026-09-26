@@ -6,6 +6,10 @@
 .idea/
 .vscode/
 .env
+*.pfx
+*.p12
 nginx/certs/
 certbot/conf/
 certbot/www/
+emissor-fiscal/data/
+emissor-fiscal/.env

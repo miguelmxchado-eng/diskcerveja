@@ -75,6 +75,31 @@ public class Pedido {
     @Column(name = "pagamento_ref", length = 80)
     private String pagamentoRef;
 
+    /** CPF/CNPJ opcional para NFC-e (consumidor). */
+    @Column(name = "cpf_na_nota", length = 14)
+    private String cpfNaNota;
+
+    @Column(name = "nfce_status", length = 20)
+    private String nfceStatus;
+
+    @Column(name = "nfce_chave", length = 50)
+    private String nfceChave;
+
+    @Column(name = "nfce_protocolo", length = 30)
+    private String nfceProtocolo;
+
+    @Column(name = "nfce_qr_code", columnDefinition = "TEXT")
+    private String nfceQrCode;
+
+    @Column(name = "nfce_motivo", length = 500)
+    private String nfceMotivo;
+
+    @Column(name = "nfce_id_externo", length = 40)
+    private String nfceIdExterno;
+
+    @Column(name = "nfce_emitida_em")
+    private Instant nfceEmitidaEm;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id")
     private Usuario usuario;
@@ -202,6 +227,70 @@ public class Pedido {
 
     public void setPagamentoRef(String pagamentoRef) {
         this.pagamentoRef = pagamentoRef;
+    }
+
+    public String getCpfNaNota() {
+        return cpfNaNota;
+    }
+
+    public void setCpfNaNota(String cpfNaNota) {
+        this.cpfNaNota = cpfNaNota;
+    }
+
+    public String getNfceStatus() {
+        return nfceStatus;
+    }
+
+    public void setNfceStatus(String nfceStatus) {
+        this.nfceStatus = nfceStatus;
+    }
+
+    public String getNfceChave() {
+        return nfceChave;
+    }
+
+    public void setNfceChave(String nfceChave) {
+        this.nfceChave = nfceChave;
+    }
+
+    public String getNfceProtocolo() {
+        return nfceProtocolo;
+    }
+
+    public void setNfceProtocolo(String nfceProtocolo) {
+        this.nfceProtocolo = nfceProtocolo;
+    }
+
+    public String getNfceQrCode() {
+        return nfceQrCode;
+    }
+
+    public void setNfceQrCode(String nfceQrCode) {
+        this.nfceQrCode = nfceQrCode;
+    }
+
+    public String getNfceMotivo() {
+        return nfceMotivo;
+    }
+
+    public void setNfceMotivo(String nfceMotivo) {
+        this.nfceMotivo = nfceMotivo;
+    }
+
+    public String getNfceIdExterno() {
+        return nfceIdExterno;
+    }
+
+    public void setNfceIdExterno(String nfceIdExterno) {
+        this.nfceIdExterno = nfceIdExterno;
+    }
+
+    public Instant getNfceEmitidaEm() {
+        return nfceEmitidaEm;
+    }
+
+    public void setNfceEmitidaEm(Instant nfceEmitidaEm) {
+        this.nfceEmitidaEm = nfceEmitidaEm;
     }
 
     public Usuario getUsuario() {

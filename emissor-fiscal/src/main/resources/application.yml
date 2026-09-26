@@ -1,0 +1,53 @@
+server:
+  port: ${SERVER_PORT:8090}
+
+spring:
+  application:
+    name: emissor-fiscal
+  datasource:
+    url: jdbc:h2:file:./data/emissor-fiscal;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+emissor:
+  cert-pfx-path: ${CERT_PFX_PATH:}
+  cert-pfx-password: ${CERT_PFX_PASSWORD:}
+  ambiente: ${AMBIENTE:homologacao}
+  uf: ${UF:GO}
+  serie: ${SERIE:1}
+  numero-inicial: ${NUMERO_INICIAL:1}
+  nfce-csc-id: ${NFCE_CSC_ID:1}
+  nfce-csc: ${NFCE_CSC:}
+  schemas-path: ${SCHEMAS_PATH:./schemas}
+  validar-xml: ${VALIDAR_XML:true}
+  emitente:
+    cnpj: ${EMITENTE_CNPJ:33319836000102}
+    razao-social: ${EMITENTE_RAZAO:ELCIANA DE PAULA MACHADO}
+    nome-fantasia: ${EMITENTE_FANTASIA:Empório Machado}
+    ie: ${EMITENTE_IE:ISENTO}
+    crt: ${EMITENTE_CRT:1}
+    logradouro: ${EMITENTE_LOGRADOURO:RUA EXEMPLO}
+    numero: ${EMITENTE_NUMERO:S/N}
+    complemento: ${EMITENTE_COMPLEMENTO:}
+    bairro: ${EMITENTE_BAIRRO:CENTRO}
+    codigo-municipio: ${EMITENTE_COD_MUNICIPIO:5208707}
+    municipio: ${EMITENTE_MUNICIPIO:GOIANIA}
+    cep: ${EMITENTE_CEP:74000000}
+    fone: ${EMITENTE_FONE:6233333333}
+
+logging:
+  level:
+    br.com.emporiomachado.emissorfiscal: INFO
+    br.com.swconsultoria: WARN

@@ -1,5 +1,6 @@
 package com.diskcerveja.manager.config;
 
+import com.diskcerveja.manager.config.EmissorFiscalProperties;
 import com.diskcerveja.manager.security.JwtProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -8,7 +9,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({JwtProperties.class, EmissorFiscalProperties.class})
 public class AppConfig {
 
     @Bean

@@ -408,6 +408,29 @@
           </div>
         </div>
 
+        <div class="produtos-step__body">
+          <div class="erp-panel__header produtos-step__section-head">
+            <h3 class="erp-panel__title">Nota fiscal (opcional)</h3>
+          </div>
+          <p class="produtos-image__hint" style="margin-top: 0">
+            Se vazio, usa o padrão da loja (cerveja: NCM 22030000, CFOP 5102, CSOSN 102).
+          </p>
+          <div class="produtos-step2-grid">
+            <mat-form-field appearance="outline" class="produtos-field">
+              <mat-label>NCM</mat-label>
+              <input matInput [(ngModel)]="novoNcm" name="ncm" maxlength="8" inputmode="numeric" placeholder="22030000" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="produtos-field">
+              <mat-label>CFOP</mat-label>
+              <input matInput [(ngModel)]="novoCfop" name="cfop" maxlength="4" inputmode="numeric" placeholder="5102" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="produtos-field">
+              <mat-label>CSOSN</mat-label>
+              <input matInput [(ngModel)]="novoCsosn" name="csosn" maxlength="4" inputmode="numeric" placeholder="102" />
+            </mat-form-field>
+          </div>
+        </div>
+
         <div class="produtos-wizard__footer">
           <button mat-stroked-button type="button" (click)="cancelarCadastro()">
             {{ editando() ? 'Voltar' : 'Cancelar' }}

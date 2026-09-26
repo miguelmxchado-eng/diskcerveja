@@ -75,6 +75,9 @@ public class EstoqueController {
                 p.isVisivelCardapio(),
                 p.isPromocaoCardapio(),
                 p.getDescricaoCardapio(),
-                p.getImagemUrl());
+                p.getImagemUrl(),
+                p.getNcm(),
+                p.getCfop(),
+                p.getCsosn());
     }
 }

@@ -31,6 +31,10 @@ export interface Produto {
   promocaoCardapio?: boolean;
   descricaoCardapio?: string | null;
   imagemUrl?: string | null;
+  /** Dados fiscais NFC-e (opcionais). */
+  ncm?: string | null;
+  cfop?: string | null;
+  csosn?: string | null;
 }
 
 export interface PedidoItemResponse {
@@ -216,6 +220,7 @@ export interface PedidoResponse {
   dataHora: string;
   clienteNome?: string;
   telefone?: string;
+  cpfNaNota?: string | null;
   tipo: 'ENTREGA' | 'RETIRADA' | 'BALCAO';
   status: string;
   total: number;
@@ -225,6 +230,11 @@ export interface PedidoResponse {
   estoqueBaixado: boolean;
   itens: PedidoItemResponse[];
   pagamentos?: PedidoPagamento[];
+  nfceStatus?: string | null;
+  nfceChave?: string | null;
+  nfceProtocolo?: string | null;
+  nfceQrCode?: string | null;
+  nfceMotivo?: string | null;
 }
 
 export interface PedidoPagamento {
@@ -276,6 +286,11 @@ export interface PedidoResumoDto {
   registradoNoCaixa: boolean;
   itens?: PedidoItemResponse[];
   pagamentos?: PedidoPagamento[];
+  nfceStatus?: string | null;
+  nfceChave?: string | null;
+  nfceProtocolo?: string | null;
+  nfceQrCode?: string | null;
+  nfceMotivo?: string | null;
 }
 
 export interface PedidoPeriodoResponse {

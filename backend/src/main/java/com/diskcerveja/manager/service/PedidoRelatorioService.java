@@ -208,7 +208,12 @@ public class PedidoRelatorioService {
                             full.getFormaPagamento(),
                             full.getStatus() == StatusPedido.ENTREGUE && comCaixa.contains(full.getId()),
                             itens,
-                            pagamentos);
+                            pagamentos,
+                            full.getNfceStatus(),
+                            full.getNfceChave(),
+                            full.getNfceProtocolo(),
+                            full.getNfceQrCode(),
+                            full.getNfceMotivo());
                 })
                 .toList();
 

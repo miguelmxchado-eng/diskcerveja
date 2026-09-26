@@ -12,10 +12,44 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  emissor-fiscal:
+    build: ./emissor-fiscal
+    environment:
+      TZ: America/Sao_Paulo
+      SERVER_PORT: 8090
+      AMBIENTE: ${AMBIENTE:-homologacao}
+      UF: GO
+      SERIE: ${SERIE:-1}
+      NUMERO_INICIAL: ${NUMERO_INICIAL:-1}
+      CERT_PFX_PATH: ${CERT_PFX_PATH:-/certs/certificado.pfx}
+      CERT_PFX_PASSWORD: ${CERT_PFX_PASSWORD:-}
+      NFCE_CSC_ID: ${NFCE_CSC_ID:-1}
+      NFCE_CSC: ${NFCE_CSC:-}
+      EMITENTE_CNPJ: ${EMITENTE_CNPJ:-33319836000102}
+      EMITENTE_RAZAO: ${EMITENTE_RAZAO:-ELCIANA DE PAULA MACHADO}
+      EMITENTE_FANTASIA: ${EMITENTE_FANTASIA:-Empório Machado}
+      EMITENTE_IE: ${EMITENTE_IE:-}
+      EMITENTE_CRT: ${EMITENTE_CRT:-1}
+      EMITENTE_LOGRADOURO: ${EMITENTE_LOGRADOURO:-RUA EDUARDO PEREIRA}
+      EMITENTE_NUMERO: ${EMITENTE_NUMERO:-S/N}
+      EMITENTE_BAIRRO: ${EMITENTE_BAIRRO:-CENTRO}
+      EMITENTE_COD_MUNICIPIO: ${EMITENTE_COD_MUNICIPIO:-5208707}
+      EMITENTE_MUNICIPIO: ${EMITENTE_MUNICIPIO:-GOIANIA}
+      EMITENTE_CEP: ${EMITENTE_CEP:-74000000}
+      EMITENTE_FONE: ${EMITENTE_FONE:-62991054117}
+      SCHEMAS_PATH: /app/schemas
+    ports:
+      - "8090:8090"
+    volumes:
+      - emissor-data:/app/data
+      # Coloque certificado.pfx em ./certs (ver certs/README.md)
+      - ${CERT_HOST_DIR:-./certs}:/certs:ro
+
   backend:
     build: ./backend
     depends_on:
       - postgres
+      - emissor-fiscal
     environment:
       TZ: America/Sao_Paulo
       DB_HOST: postgres
@@ -24,8 +58,11 @@ services:
       DB_USER: diskcerveja
       DB_PASSWORD: diskcerveja
       JWT_SECRET: disk-cerveja-change-me-in-production-use-long-random-secret-key-256bits
+      EMISSOR_FISCAL_ENABLED: ${EMISSOR_FISCAL_ENABLED:-true}
+      EMISSOR_FISCAL_URL: http://emissor-fiscal:8090
     ports:
       - "8080:8080"
 
 volumes:
   pgdata: {}
+  emissor-data: {}

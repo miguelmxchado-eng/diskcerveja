@@ -42,6 +42,7 @@ public class PedidoService {
     private final ConfigSistemaService configSistemaService;
     private final CaixaSessaoService caixaSessaoService;
     private final EstoqueService estoqueService;
+    private final NfcePedidoService nfcePedidoService;
 
     public PedidoService(
             PedidoRepository pedidoRepository,
@@ -51,7 +52,8 @@ public class PedidoService {
             ClienteRepository clienteRepository,
             ConfigSistemaService configSistemaService,
             CaixaSessaoService caixaSessaoService,
-            EstoqueService estoqueService) {
+            EstoqueService estoqueService,
+            NfcePedidoService nfcePedidoService) {
         this.pedidoRepository = pedidoRepository;
         this.produtoRepository = produtoRepository;
         this.comboRepository = comboRepository;
@@ -60,6 +62,7 @@ public class PedidoService {
         this.configSistemaService = configSistemaService;
         this.caixaSessaoService = caixaSessaoService;
         this.estoqueService = estoqueService;
+        this.nfcePedidoService = nfcePedidoService;
     }
 
     @Transactional(readOnly = true)
@@ -96,6 +99,7 @@ public class PedidoService {
         validarItens(dto.itens());
         Pedido p = new Pedido();
         aplicarClienteNoPedido(p, dto);
+        p.setCpfNaNota(normalizarCpfNaNota(dto.cpfNaNota()));
         p.setTipo(dto.tipo());
         p.setFormaPagamento(dto.formaPagamento());
         if (dto.enderecoEntrega() != null && !dto.enderecoEntrega().isBlank()) {
@@ -141,6 +145,9 @@ public class PedidoService {
         }
         if (dto.telefone() != null) {
             p.setTelefone(dto.telefone());
+        }
+        if (dto.cpfNaNota() != null) {
+            p.setCpfNaNota(normalizarCpfNaNota(dto.cpfNaNota()));
         }
         if (dto.tipo() != null) {
             p.setTipo(dto.tipo());
@@ -197,6 +204,10 @@ public class PedidoService {
             throw new IllegalStateException("Pedido entregue só pode ser cancelado.");
         }
         if (novo == StatusPedido.CANCELADO) {
+            if ("AUTORIZADA".equalsIgnoreCase(p.getNfceStatus())) {
+                throw new IllegalStateException(
+                        "Este pedido tem NFC-e autorizada. Cancele a nota no Histórico antes de cancelar o pedido.");
+            }
             if (p.isEstoqueBaixado()) {
                 estoqueService.estornarPorPedido(p, usuario);
                 p.setEstoqueBaixado(false);
@@ -212,6 +223,15 @@ public class PedidoService {
             }
             p.setStatus(StatusPedido.ENTREGUE);
             caixaSessaoService.registrarVendaPedido(p);
+            Pedido salvoEntregue = pedidoRepository.save(p);
+            if (p.getTipo() == TipoPedido.ENTREGA) {
+                Entrega e = obterOuCriarEntrega(salvoEntregue);
+                e.setStatus(StatusEntrega.CONCLUIDA);
+                e.setHorarioEntrega(Instant.now());
+                entregaRepository.save(e);
+            }
+            nfcePedidoService.agendarAposEntrega(salvoEntregue.getId());
+            return pedidoRepository.findByIdWithItens(salvoEntregue.getId()).orElse(salvoEntregue);
         } else {
             p.setStatus(novo);
         }
@@ -228,16 +248,28 @@ public class PedidoService {
                     e.setEntregadorNome(usuario.getNome());
                 }
             }
-            if (novo == StatusPedido.ENTREGUE) {
-                e.setStatus(StatusEntrega.CONCLUIDA);
-                e.setHorarioEntrega(Instant.now());
-            }
             if (novo == StatusPedido.CANCELADO) {
                 e.setStatus(StatusEntrega.CANCELADA);
             }
             entregaRepository.save(e);
         }
         return pedidoRepository.save(p);
+    }
+
+    public Pedido reemitirNfce(Long id) {
+        return nfcePedidoService.reemitir(id);
+    }
+
+    public Pedido cancelarNfce(Long id, String justificativa) {
+        return nfcePedidoService.cancelar(id, justificativa);
+    }
+
+    private static String normalizarCpfNaNota(String cpf) {
+        if (cpf == null || cpf.isBlank()) {
+            return null;
+        }
+        String d = cpf.replaceAll("\\D", "");
+        return d.isBlank() ? null : d;
     }
 
     private Entrega obterOuCriarEntrega(Pedido p) {

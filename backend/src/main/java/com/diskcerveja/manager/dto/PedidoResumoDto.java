@@ -21,4 +21,9 @@ public record PedidoResumoDto(
         FormaPagamento formaPagamento,
         boolean registradoNoCaixa,
         List<PedidoItemResponse> itens,
-        List<PedidoPagamentoResponse> pagamentos) {}
+        List<PedidoPagamentoResponse> pagamentos,
+        String nfceStatus,
+        String nfceChave,
+        String nfceProtocolo,
+        String nfceQrCode,
+        String nfceMotivo) {}

@@ -13,6 +13,8 @@ public record PedidoRequest(
         Long clienteId,
         String clienteNome,
         String telefone,
+        /** CPF/CNPJ opcional para NFC-e. */
+        String cpfNaNota,
         @NotNull TipoPedido tipo,
         @NotNull FormaPagamento formaPagamento,
         String enderecoEntrega,
