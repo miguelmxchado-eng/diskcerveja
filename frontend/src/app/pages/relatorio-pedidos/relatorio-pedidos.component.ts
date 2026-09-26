@@ -30,7 +30,7 @@ interface ChartBar {
   peak: boolean;
   /** Hora 0–23 (só no gráfico por horário). */
   hora?: number;
-  /** Exibir rótulo no eixo (evita amontoar 24 labels). */
+  /** Exibir rótulo no eixo (evita amontoar labels em períodos densos). */
   showTick?: boolean;
 }
 
@@ -188,13 +188,18 @@ export class RelatorioPedidosComponent implements OnInit, OnDestroy {
     if (!series.length) return [];
     const values = series.map((s) => Number(s.total) || 0);
     const max = Math.max(...values, 1);
+    const n = series.length;
+    // Densidade do eixo: evita datas sobrepostas em períodos longos
+    const step = n <= 8 ? 1 : n <= 14 ? 2 : n <= 22 ? 3 : n <= 35 ? 4 : 7;
     return series.map((s, i) => {
       const total = values[i];
+      const peak = total > 0 && total >= max * 0.995;
       return {
         label: s.rotulo,
         total,
         heightPct: total > 0 ? Math.max(8, Math.round((total / max) * 100)) : 3,
-        peak: total > 0 && total >= max * 0.995,
+        peak,
+        showTick: i === 0 || i === n - 1 || i % step === 0 || peak,
       };
     });
   });

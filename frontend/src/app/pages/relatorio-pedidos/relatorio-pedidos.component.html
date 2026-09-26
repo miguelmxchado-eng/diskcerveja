@@ -404,7 +404,9 @@
                       <div class="hist-bars__track">
                         <div class="hist-bars__bar" [style.height.%]="bar.heightPct"></div>
                       </div>
-                      <span class="hist-bars__tick">{{ bar.label }}</span>
+                      <span class="hist-bars__tick" [class.is-on]="bar.showTick">
+                        {{ bar.showTick ? bar.label : '' }}
+                      </span>
                     </div>
                   }
                 </div>
