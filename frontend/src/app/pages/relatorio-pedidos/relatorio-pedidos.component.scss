@@ -1284,6 +1284,17 @@
       &:hover {
         background: #faf8f4;
       }
+
+      &.hist-actions__danger {
+        margin-top: 4px;
+        border-top: 1px solid #f0ebe2;
+        border-radius: 0 0 7px 7px;
+        color: #b42318;
+
+        &:hover {
+          background: #fef3f2;
+        }
+      }
     }
   }
 }

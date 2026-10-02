@@ -612,6 +612,15 @@
                             @if (p.status === 'ENTREGUE' && (p.nfceStatus || '').toUpperCase() === 'AUTORIZADA') {
                               <button type="button" (click)="cancelarNfce(p)">Cancelar nota</button>
                             }
+                            @if (p.status !== 'CANCELADO') {
+                              <button
+                                type="button"
+                                class="hist-actions__danger"
+                                (click)="cancelarCompra(p)"
+                              >
+                                Cancelar compra
+                              </button>
+                            }
                           </div>
                         }
                       </div>

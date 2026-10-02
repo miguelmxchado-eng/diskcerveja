@@ -684,6 +684,69 @@ export class RelatorioPedidosComponent implements OnInit, OnDestroy {
       });
   }
 
+  cancelarCompra(p: PedidoResumoDto): void {
+    this.menuPedidoId.set(null);
+    const notaAutorizada = (p.nfceStatus || '').toUpperCase() === 'AUTORIZADA';
+    const aviso = notaAutorizada
+      ? `Cancelar a compra #${p.id} (R$ ${p.total.toFixed(2).replace('.', ',')})?\n\n` +
+        'A nota fiscal será cancelada na SEFAZ, o estoque volta e o valor sai do caixa.'
+      : `Cancelar a compra #${p.id} (R$ ${p.total.toFixed(2).replace('.', ',')})?\n\n` +
+        'O estoque volta e o valor sai do caixa.';
+    if (!window.confirm(aviso)) return;
+
+    if (!notaAutorizada) {
+      this.patchCancelado(p);
+      return;
+    }
+
+    const justificativa = window.prompt(
+      'Motivo do cancelamento (mínimo 15 caracteres):',
+      'Cancelamento a pedido do cliente',
+    );
+    if (justificativa == null) return;
+    if (justificativa.trim().length < 15) {
+      this.snack.open('O motivo precisa ter pelo menos 15 caracteres.', 'OK', { duration: 4000 });
+      return;
+    }
+    this.http
+      .post<PedidoResumoDto>(`${environment.apiUrl}/api/pedidos/${p.id}/nfce/cancelar`, {
+        justificativa: justificativa.trim(),
+      })
+      .subscribe({
+        next: (resp) => {
+          if ((resp.nfceStatus || '').toUpperCase() !== 'CANCELADA') {
+            this.snack.open(
+              `Não deu para cancelar a nota: ${resp.nfceMotivo || resp.nfceStatus}. A compra não foi cancelada.`,
+              'OK',
+              { duration: 8000 },
+            );
+            this.carregar({ quiet: true });
+            return;
+          }
+          this.patchCancelado(p);
+        },
+        error: (e) => {
+          const msg = e?.error?.erro ?? e?.error?.detail ?? e?.error?.message ?? 'Não foi possível cancelar a nota.';
+          this.snack.open(`${msg} A compra não foi cancelada.`, 'OK', { duration: 8000 });
+        },
+      });
+  }
+
+  private patchCancelado(p: PedidoResumoDto): void {
+    this.http.patch(`${environment.apiUrl}/api/pedidos/${p.id}/status`, { status: 'CANCELADO' }).subscribe({
+      next: () => {
+        this.snack.open(`Compra #${p.id} cancelada.`, 'OK', { duration: 5000 });
+        this.carregar({ quiet: true });
+        this.carregarProjecaoMensal();
+      },
+      error: (e) => {
+        const msg = e?.error?.erro ?? e?.error?.detail ?? e?.error?.message ?? 'Não foi possível cancelar a compra.';
+        this.snack.open(msg, 'OK', { duration: 7000 });
+        this.carregar({ quiet: true });
+      },
+    });
+  }
+
   statusBadge(status: string): string {
     const s = (status || '').toUpperCase();
     if (s === 'ENTREGUE') return 'hist-badge--ok';
