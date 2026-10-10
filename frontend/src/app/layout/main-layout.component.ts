@@ -34,6 +34,7 @@ export class MainLayoutComponent {
       title: 'Histórico de vendas',
       hint: 'Consulte pedidos, pagamentos e resultados',
     },
+    anotacoes: { title: 'Anotações', hint: 'Recados e lembretes da equipe' },
     'mais-vendidos': {
       title: 'Mais vendidos',
       hint: 'Ranking de produtos por período',

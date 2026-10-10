@@ -1,0 +1,165 @@
+<div class="em-page notas">
+  <header class="notas-hero">
+    <p class="notas-hero__eyebrow">Loja</p>
+    <h1 class="notas-hero__title">Anotações</h1>
+    <p class="notas-hero__sub">Recados, lembretes e listas para a equipe</p>
+  </header>
+
+  <section class="notas-composer" [attr.data-cor]="nova.cor" aria-label="Nova anotação">
+    <input
+      class="notas-composer__titulo"
+      type="text"
+      placeholder="Título (opcional)"
+      maxlength="120"
+      [(ngModel)]="nova.titulo"
+      name="novoTitulo"
+      (keydown)="onAtalhoSalvar($event, salvarNova.bind(this))"
+    />
+    <textarea
+      class="notas-composer__texto"
+      placeholder="Escreva uma anotação… ex.: ligar para o fornecedor de gelo amanhã"
+      rows="3"
+      maxlength="4000"
+      [(ngModel)]="nova.texto"
+      name="novoTexto"
+      (keydown)="onAtalhoSalvar($event, salvarNova.bind(this))"
+    ></textarea>
+    <div class="notas-composer__foot">
+      <div class="notas-cores" role="radiogroup" aria-label="Cor">
+        @for (c of cores; track c.id) {
+          <button
+            type="button"
+            class="notas-cor"
+            [attr.data-cor]="c.id"
+            [class.is-on]="nova.cor === c.id"
+            [attr.aria-label]="c.nome"
+            [title]="c.nome"
+            (click)="nova.cor = c.id"
+          ></button>
+        }
+      </div>
+      <button type="button" class="em-btn em-btn--gold" (click)="salvarNova()" [disabled]="salvando() || !nova.texto.trim()">
+        <mat-icon>add</mat-icon>
+        Salvar anotação
+      </button>
+    </div>
+  </section>
+
+  <section class="notas-toolbar">
+    <div class="notas-tabs" role="tablist">
+      <button type="button" role="tab" [class.is-on]="aba() === 'abertas'" (click)="trocarAba('abertas')">
+        Abertas <span>{{ contagem().abertas }}</span>
+      </button>
+      <button type="button" role="tab" [class.is-on]="aba() === 'concluidas'" (click)="trocarAba('concluidas')">
+        Concluídas <span>{{ contagem().concluidas }}</span>
+      </button>
+    </div>
+    <label class="notas-busca">
+      <mat-icon>search</mat-icon>
+      <input type="search" placeholder="Buscar nas anotações" [ngModel]="busca" (ngModelChange)="onBusca($event)" name="busca" />
+    </label>
+  </section>
+
+  @if (carregando() && !lista().length) {
+    <div class="notas-vazio">Carregando…</div>
+  } @else if (!lista().length) {
+    <div class="notas-vazio">
+      <mat-icon>{{ busca ? 'search_off' : aba() === 'abertas' ? 'sticky_note_2' : 'task_alt' }}</mat-icon>
+      @if (busca) {
+        <p>Nenhuma anotação encontrada para "{{ busca }}".</p>
+      } @else if (aba() === 'abertas') {
+        <p>Nenhuma anotação aberta.</p>
+        <span>Escreva acima para criar a primeira.</span>
+      } @else {
+        <p>Nenhuma anotação concluída ainda.</p>
+      }
+    </div>
+  } @else {
+    <div class="notas-grid">
+      @for (a of lista(); track a.id) {
+        <article class="nota" [attr.data-cor]="editandoId() === a.id ? edicao.cor : a.cor" [class.is-done]="a.concluida">
+          @if (editandoId() === a.id) {
+            <input
+              class="nota__edit-titulo"
+              type="text"
+              placeholder="Título (opcional)"
+              maxlength="120"
+              [(ngModel)]="edicao.titulo"
+              name="editTitulo"
+              (keydown)="onAtalhoSalvar($event, salvarEdicao.bind(this, a))"
+            />
+            <textarea
+              class="nota__edit-texto"
+              rows="5"
+              maxlength="4000"
+              [(ngModel)]="edicao.texto"
+              name="editTexto"
+              (keydown)="onAtalhoSalvar($event, salvarEdicao.bind(this, a))"
+            ></textarea>
+            <div class="nota__edit-foot">
+              <div class="notas-cores">
+                @for (c of cores; track c.id) {
+                  <button
+                    type="button"
+                    class="notas-cor notas-cor--sm"
+                    [attr.data-cor]="c.id"
+                    [class.is-on]="edicao.cor === c.id"
+                    [attr.aria-label]="c.nome"
+                    (click)="edicao.cor = c.id"
+                  ></button>
+                }
+              </div>
+              <div class="nota__edit-acoes">
+                <button type="button" class="em-btn em-btn--ghost" (click)="cancelarEdicao()">Cancelar</button>
+                <button type="button" class="em-btn em-btn--gold" (click)="salvarEdicao(a)">Salvar</button>
+              </div>
+            </div>
+          } @else {
+            @if (a.titulo) {
+              <h3 class="nota__titulo">{{ a.titulo }}</h3>
+            }
+            <p class="nota__texto" (dblclick)="editar(a)">{{ a.texto }}</p>
+            <footer class="nota__foot">
+              <span class="nota__meta">
+                @if (a.fixada) {
+                  <mat-icon class="nota__fixada" title="Fixada no topo">push_pin</mat-icon>
+                }
+                {{ a.autorNome || 'Equipe' }} · {{ a.criadoEm | date: 'dd/MM/yy HH:mm' }}
+                @if (editadaDepois(a)) {
+                  <em>(editada)</em>
+                }
+              </span>
+              <span class="nota__acoes">
+                @if (!a.concluida) {
+                  <button
+                    type="button"
+                    [class.is-on]="a.fixada"
+                    (click)="alternarFixada(a)"
+                    [title]="a.fixada ? 'Desafixar' : 'Fixar no topo'"
+                    [attr.aria-label]="a.fixada ? 'Desafixar' : 'Fixar no topo'"
+                  >
+                    <mat-icon>push_pin</mat-icon>
+                  </button>
+                }
+                <button
+                  type="button"
+                  (click)="alternarConcluida(a)"
+                  [title]="a.concluida ? 'Reabrir' : 'Marcar como concluída'"
+                  [attr.aria-label]="a.concluida ? 'Reabrir' : 'Marcar como concluída'"
+                >
+                  <mat-icon>{{ a.concluida ? 'undo' : 'check_circle' }}</mat-icon>
+                </button>
+                <button type="button" (click)="editar(a)" title="Editar" aria-label="Editar">
+                  <mat-icon>edit</mat-icon>
+                </button>
+                <button type="button" class="is-danger" (click)="excluir(a)" title="Excluir" aria-label="Excluir">
+                  <mat-icon>delete_outline</mat-icon>
+                </button>
+              </span>
+            </footer>
+          }
+        </article>
+      }
+    </div>
+  }
+</div>

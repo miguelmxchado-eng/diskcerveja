@@ -428,6 +428,20 @@ export interface ContaFinanceiraDto {
   observacao?: string | null;
 }
 
+export type CorAnotacao = 'AMARELO' | 'VERDE' | 'AZUL' | 'ROSA' | 'BRANCO';
+
+export interface AnotacaoDto {
+  id?: number | null;
+  titulo?: string | null;
+  texto: string;
+  cor?: CorAnotacao | null;
+  fixada?: boolean | null;
+  concluida?: boolean | null;
+  autorNome?: string | null;
+  criadoEm?: string | null;
+  atualizadoEm?: string | null;
+}
+
 export interface MaisVendidoItem {
   chave: string;
   produtoId: number | null;

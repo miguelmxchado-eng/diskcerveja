@@ -9,6 +9,7 @@ import { EstoqueComponent } from './pages/estoque/estoque.component';
 import { CaixaComponent } from './pages/caixa/caixa.component';
 import { EntregasComponent } from './pages/entregas/entregas.component';
 import { RelatorioPedidosComponent } from './pages/relatorio-pedidos/relatorio-pedidos.component';
+import { AnotacoesComponent } from './pages/anotacoes/anotacoes.component';
 import { MaisVendidosComponent } from './pages/mais-vendidos/mais-vendidos.component';
 import { ClientesComponent } from './pages/clientes/clientes.component';
 import { UsuariosComponent } from './pages/usuarios/usuarios.component';
@@ -31,6 +32,7 @@ export const routes: Routes = [
       { path: 'pdv', component: PdvComponent },
       { path: 'relatorio-pedidos', component: RelatorioPedidosComponent },
       { path: 'mais-vendidos', component: MaisVendidosComponent },
+      { path: 'anotacoes', component: AnotacoesComponent },
       { path: 'clientes', component: ClientesComponent },
       { path: 'produtos', component: ProdutosComponent },
       { path: 'estoque', component: EstoqueComponent },

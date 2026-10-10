@@ -1,0 +1,408 @@
+$gold: #d2a410;
+$ink: #171717;
+$muted: #667085;
+$faint: #98a2b3;
+$line: #e7e1d7;
+
+/* Fundo / borda de cada cor de anotação */
+@mixin cores-nota {
+  &[data-cor='AMARELO'] {
+    background: #fff6cc;
+    border-color: #f1df8f;
+  }
+  &[data-cor='VERDE'] {
+    background: #e6f4e8;
+    border-color: #bfe0c4;
+  }
+  &[data-cor='AZUL'] {
+    background: #e5effb;
+    border-color: #bdd3ef;
+  }
+  &[data-cor='ROSA'] {
+    background: #fbe7ee;
+    border-color: #efc2d2;
+  }
+  &[data-cor='BRANCO'] {
+    background: #fff;
+    border-color: $line;
+  }
+}
+
+.notas {
+  padding-top: 8px;
+}
+
+.notas-hero {
+  margin-bottom: 16px;
+
+  &__eyebrow {
+    margin: 0 0 4px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: $gold;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: $ink;
+  }
+
+  &__sub {
+    margin: 6px 0 0;
+    font-size: 0.9rem;
+    color: $muted;
+  }
+}
+
+/* —— Nova anotação —— */
+.notas-composer {
+  max-width: 720px;
+  margin-bottom: 18px;
+  padding: 14px 16px 12px;
+  border: 1px solid $line;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(23, 23, 23, 0.05);
+  transition: background 0.15s ease;
+  @include cores-nota;
+
+  &__titulo,
+  &__texto {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: $ink;
+    font-family: 'Inter', sans-serif;
+  }
+
+  &__titulo {
+    margin-bottom: 6px;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  &__texto {
+    min-height: 64px;
+    resize: vertical;
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
+
+  &__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 8px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(23, 23, 23, 0.08);
+  }
+}
+
+.notas-cores {
+  display: flex;
+  gap: 8px;
+}
+
+.notas-cor {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 2px solid rgba(23, 23, 23, 0.12);
+  border-radius: 50%;
+  cursor: pointer;
+  @include cores-nota;
+
+  &.is-on {
+    border-color: $ink;
+    box-shadow: 0 0 0 2px #fff inset;
+  }
+
+  &--sm {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+/* —— Abas e busca —— */
+.notas-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  margin-bottom: 14px;
+}
+
+.notas-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid $line;
+  border-radius: 12px;
+  background: #fff;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: #344054;
+    font: 700 0.84rem/1 'Inter', sans-serif;
+    cursor: pointer;
+
+    span {
+      min-width: 20px;
+      padding: 2px 6px;
+      border-radius: 99px;
+      background: #f1ece2;
+      color: #745a00;
+      font-size: 0.72rem;
+    }
+
+    &.is-on {
+      background: $ink;
+      color: #fff;
+
+      span {
+        background: $gold;
+        color: #fff;
+      }
+    }
+  }
+}
+
+.notas-busca {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid $line;
+  border-radius: 12px;
+  background: #fff;
+  flex: 0 1 280px;
+
+  &:focus-within {
+    border-color: $gold;
+    box-shadow: 0 0 0 3px rgba(210, 164, 16, 0.18);
+  }
+
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    color: $faint;
+  }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    font: 500 0.88rem/1 'Inter', sans-serif;
+  }
+}
+
+.notas-vazio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 48px 16px;
+  border: 1px dashed $line;
+  border-radius: 14px;
+  background: #fff;
+  color: $muted;
+  text-align: center;
+
+  mat-icon {
+    font-size: 36px;
+    width: 36px;
+    height: 36px;
+    color: $gold;
+  }
+
+  p {
+    margin: 0;
+    font-weight: 700;
+    color: $ink;
+  }
+}
+
+/* —— Cartões —— */
+.notas-grid {
+  columns: 280px;
+  column-gap: 14px;
+}
+
+.nota {
+  break-inside: avoid;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 14px 14px 10px;
+  border: 1px solid $line;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(23, 23, 23, 0.06);
+  @include cores-nota;
+
+  &.is-done {
+    opacity: 0.75;
+
+    .nota__texto,
+    .nota__titulo {
+      text-decoration: line-through;
+      text-decoration-color: rgba(23, 23, 23, 0.35);
+    }
+  }
+
+  &__titulo {
+    margin: 2px 0 0;
+    font-size: 0.98rem;
+    font-weight: 800;
+    color: $ink;
+    word-break: break-word;
+  }
+
+  &__fixada {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    vertical-align: -2px;
+    color: #b98d00;
+  }
+
+  &__texto {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: #262626;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  &__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(23, 23, 23, 0.07);
+  }
+
+  &__meta {
+    font-size: 0.72rem;
+    color: $muted;
+
+    em {
+      font-style: normal;
+      color: $faint;
+    }
+  }
+
+  &__acoes {
+    display: inline-flex;
+    gap: 2px;
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: #475467;
+      cursor: pointer;
+
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+      }
+
+      &:hover {
+        background: rgba(23, 23, 23, 0.07);
+        color: $ink;
+      }
+
+      &.is-on {
+        color: #b98d00;
+      }
+
+      &.is-danger:hover {
+        background: #fdecea;
+        color: #b71c1c;
+      }
+    }
+  }
+
+  &__edit-titulo,
+  &__edit-texto {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid rgba(23, 23, 23, 0.14);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.7);
+    color: $ink;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+
+    &:focus {
+      border-color: $gold;
+      box-shadow: 0 0 0 3px rgba(210, 164, 16, 0.18);
+    }
+  }
+
+  &__edit-titulo {
+    font-size: 0.95rem;
+    font-weight: 700;
+  }
+
+  &__edit-texto {
+    resize: vertical;
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
+
+  &__edit-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  &__edit-acoes {
+    display: flex;
+    gap: 6px;
+  }
+}
+
+@media (max-width: 640px) {
+  .notas-busca {
+    flex: 1 1 100%;
+  }
+
+  .notas-grid {
+    columns: 1;
+  }
+}
