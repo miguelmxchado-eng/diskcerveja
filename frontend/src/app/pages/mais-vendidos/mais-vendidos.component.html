@@ -1,0 +1,373 @@
+<div class="em-page mv">
+  <header class="mv-hero">
+    <p class="mv-hero__eyebrow">Vendas</p>
+    <h1 class="mv-hero__title">Produtos mais vendidos</h1>
+    <p class="mv-hero__sub">Veja o que mais sai, quanto rende e como cada produto vendeu ao longo dos dias</p>
+  </header>
+
+  <section class="mv-period" aria-label="Filtro de período">
+    <div class="mv-period__main">
+      <span class="mv-period__label">Período</span>
+      <div class="mv-period__chips">
+        <button type="button" class="mv-pill" [class.mv-pill--on]="periodoChip() === 'hoje'" (click)="selecionarPeriodo('hoje')">
+          Hoje
+        </button>
+        <button type="button" class="mv-pill" [class.mv-pill--on]="periodoChip() === '7dias'" (click)="selecionarPeriodo('7dias')">
+          7 dias
+        </button>
+        <button type="button" class="mv-pill" [class.mv-pill--on]="periodoChip() === '30dias'" (click)="selecionarPeriodo('30dias')">
+          30 dias
+        </button>
+        <button type="button" class="mv-pill" [class.mv-pill--on]="periodoChip() === 'mes'" (click)="selecionarPeriodo('mes')">
+          Este mês
+        </button>
+        <button
+          type="button"
+          class="mv-pill"
+          [class.mv-pill--on]="periodoChip() === 'mesPassado'"
+          (click)="selecionarPeriodo('mesPassado')"
+        >
+          Mês passado
+        </button>
+      </div>
+
+      <div class="mv-period__dates" [class.is-custom]="periodoChip() === 'personalizado'">
+        <label>
+          <span>De</span>
+          <input type="date" [(ngModel)]="dataInicio" name="dataInicio" [max]="dataFim || hojeMax" />
+        </label>
+        <label>
+          <span>Até</span>
+          <input type="date" [(ngModel)]="dataFim" name="dataFim" [min]="dataInicio" [max]="hojeMax" />
+        </label>
+        <button type="button" class="em-btn em-btn--gold" (click)="aplicarCalendario()" [disabled]="carregando()">
+          Filtrar
+        </button>
+      </div>
+    </div>
+
+    <div class="mv-period__actions">
+      <button type="button" class="em-btn em-btn--ghost" (click)="exportar()" [disabled]="carregando() || !dados()">
+        <mat-icon>download</mat-icon>
+        Exportar
+      </button>
+      <button type="button" class="em-btn em-btn--ghost" (click)="carregar()" [disabled]="carregando()">
+        <mat-icon>refresh</mat-icon>
+        Atualizar
+      </button>
+    </div>
+  </section>
+
+  @if (carregando() && !dados()) {
+    <div class="mv-loading">Carregando produtos…</div>
+  } @else if (erro()) {
+    <div class="mv-empty">
+      <mat-icon>error_outline</mat-icon>
+      <p>{{ erro() }}</p>
+      <button type="button" class="em-btn em-btn--gold" (click)="carregar()">Tentar de novo</button>
+    </div>
+  } @else if (dados()) {
+    @if (dados(); as d) {
+    <div class="mv-content" [class.is-loading]="carregando()">
+      <p class="mv-periodo-info">
+        <mat-icon>event</mat-icon>
+        <span>
+          <strong>{{ periodoTexto() }}</strong> · comparado com {{ periodoAnteriorTexto() }} · só pedidos concluídos
+        </span>
+      </p>
+
+      <div class="mv-kpis">
+        <article class="mv-kpi">
+          <div class="mv-kpi__top">
+            <span class="mv-kpi__ico"><mat-icon>inventory_2</mat-icon></span>
+            @if (kpiVarUnidades(); as v) {
+              <span class="mv-delta" [class.is-up]="v.up" [class.is-down]="!v.up">{{ v.label }}</span>
+            }
+          </div>
+          <p class="mv-kpi__value">{{ d.totalUnidades | number: '1.0-0' }}</p>
+          <p class="mv-kpi__label">Itens vendidos</p>
+          <p class="mv-kpi__hint">em {{ d.pedidos }} {{ d.pedidos === 1 ? 'pedido' : 'pedidos' }}</p>
+        </article>
+
+        <article class="mv-kpi">
+          <div class="mv-kpi__top">
+            <span class="mv-kpi__ico"><mat-icon>payments</mat-icon></span>
+            @if (kpiVarValor(); as v) {
+              <span class="mv-delta" [class.is-up]="v.up" [class.is-down]="!v.up">{{ v.label }}</span>
+            }
+          </div>
+          <p class="mv-kpi__value">R$ {{ d.totalValor | number: '1.2-2' }}</p>
+          <p class="mv-kpi__label">Vendido em produtos</p>
+          <p class="mv-kpi__hint">vs. período anterior</p>
+        </article>
+
+        <article class="mv-kpi">
+          <div class="mv-kpi__top">
+            <span class="mv-kpi__ico"><mat-icon>trending_up</mat-icon></span>
+          </div>
+          <p class="mv-kpi__value">R$ {{ d.totalLucro | number: '1.2-2' }}</p>
+          <p class="mv-kpi__label">Lucro nos produtos</p>
+          <p class="mv-kpi__hint">margem de {{ margem() | number: '1.1-1' }}%</p>
+        </article>
+
+        <article class="mv-kpi mv-kpi--champ">
+          <div class="mv-kpi__top">
+            <span class="mv-kpi__ico"><mat-icon>emoji_events</mat-icon></span>
+          </div>
+          @if (campeao(); as c) {
+            <p class="mv-kpi__value mv-kpi__value--name" [title]="c.nome">{{ c.nome }}</p>
+            <p class="mv-kpi__label">Campeão de vendas</p>
+            <p class="mv-kpi__hint">{{ c.unidades | number: '1.0-0' }} vendidos · R$ {{ c.valor | number: '1.2-2' }}</p>
+          } @else {
+            <p class="mv-kpi__value">—</p>
+            <p class="mv-kpi__label">Campeão de vendas</p>
+            <p class="mv-kpi__hint">sem vendas no período</p>
+          }
+        </article>
+      </div>
+
+      @if (!d.itens.length) {
+        <div class="mv-empty">
+          <mat-icon>remove_shopping_cart</mat-icon>
+          <p>Nenhum produto vendido neste período.</p>
+          <span>Tente escolher outras datas.</span>
+        </div>
+      } @else {
+        <section class="mv-toolbar" aria-label="Filtros">
+          <div class="mv-seg" role="group" aria-label="Ordenar por">
+            <span class="mv-seg__label">Ver por</span>
+            <button type="button" [class.is-on]="metrica() === 'unidades'" (click)="setMetrica('unidades')">
+              Quantidade
+            </button>
+            <button type="button" [class.is-on]="metrica() === 'valor'" (click)="setMetrica('valor')">Faturamento</button>
+            <button type="button" [class.is-on]="metrica() === 'lucro'" (click)="setMetrica('lucro')">Lucro</button>
+          </div>
+
+          <label class="mv-search">
+            <mat-icon>search</mat-icon>
+            <input
+              type="search"
+              placeholder="Buscar produto"
+              [ngModel]="busca()"
+              (ngModelChange)="busca.set($event); mostrarTodos.set(false)"
+              name="busca"
+            />
+          </label>
+
+          @if (categoriasDisponiveis().length > 1) {
+            <div class="mv-cats">
+              <button type="button" class="mv-pill mv-pill--sm" [class.mv-pill--on]="!categoriaFiltro()" (click)="categoriaFiltro.set('')">
+                Todas
+              </button>
+              @for (c of categoriasDisponiveis(); track c.id) {
+                <button
+                  type="button"
+                  class="mv-pill mv-pill--sm"
+                  [class.mv-pill--on]="categoriaFiltro() === c.id"
+                  (click)="setCategoria(c.id)"
+                >
+                  {{ c.label }}
+                </button>
+              }
+            </div>
+          }
+        </section>
+
+        <div class="mv-grid">
+          <section class="mv-card">
+            <header class="mv-card__head">
+              <h2>Top 10</h2>
+              <p>Toque num produto para ver o gráfico de vendas dele</p>
+            </header>
+            @if (!rankBars().length) {
+              <p class="mv-card__empty">Nenhum produto com esse filtro.</p>
+            } @else {
+              <ol class="mv-rank">
+                @for (b of rankBars(); track b.item.chave) {
+                  <li>
+                    <button
+                      type="button"
+                      class="mv-rank__row"
+                      [class.is-sel]="selecionado()?.chave === b.item.chave"
+                      [class.is-first]="b.posicao === 1"
+                      (click)="selecionar(b.item)"
+                    >
+                      <span class="mv-rank__pos">{{ b.posicao }}</span>
+                      <span class="mv-rank__body">
+                        <span class="mv-rank__top">
+                          <span class="mv-rank__name">{{ b.item.nome }}</span>
+                          <span class="mv-rank__val">
+                            @if (metrica() === 'unidades') {
+                              {{ b.total | number: '1.0-0' }} un.
+                            } @else {
+                              R$ {{ b.total | number: '1.2-2' }}
+                            }
+                          </span>
+                        </span>
+                        <span class="mv-rank__track">
+                          <span class="mv-rank__bar" [style.width.%]="b.widthPct"></span>
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                }
+              </ol>
+            }
+          </section>
+
+          <section class="mv-card">
+            <header class="mv-card__head">
+              <h2>Por categoria</h2>
+              <p>{{ metrica() === 'unidades' ? 'Quantidade vendida' : 'Faturamento' }} de cada tipo de produto</p>
+            </header>
+            @if (!fatias().length) {
+              <p class="mv-card__empty">Sem dados.</p>
+            } @else {
+              <div class="mv-donut-wrap">
+                <div class="mv-donut" [style.background]="donutBg()" role="img" aria-label="Gráfico por categoria">
+                  <div class="mv-donut__hole">
+                    <strong>{{ fatias().length }}</strong>
+                    <span>{{ fatias().length === 1 ? 'categoria' : 'categorias' }}</span>
+                  </div>
+                </div>
+                <ul class="mv-legend">
+                  @for (f of fatias(); track f.categoria) {
+                    <li>
+                      <button
+                        type="button"
+                        [class.is-on]="categoriaFiltro() === f.categoria"
+                        (click)="setCategoria(f.categoria)"
+                        title="Filtrar por {{ f.label }}"
+                      >
+                        <span class="mv-legend__dot" [style.background]="f.cor"></span>
+                        <span class="mv-legend__name">{{ f.label }}</span>
+                        <span class="mv-legend__pct">{{ f.pct | number: '1.0-0' }}%</span>
+                      </button>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          </section>
+        </div>
+
+        <section class="mv-card mv-evo" #evo>
+          <header class="mv-card__head mv-evo__head">
+            <div>
+              <h2>
+                @if (selecionado(); as s) {
+                  {{ s.nome }}
+                } @else {
+                  Todos os produtos
+                }
+                <small>{{ evolucaoUsaValor() ? 'faturamento' : 'quantidade' }} {{ agrupamentoTexto() }}</small>
+              </h2>
+              @if (melhorDia(); as m) {
+                <p>
+                  Melhor {{ agrupamentoTexto() === 'por dia' ? 'dia' : agrupamentoTexto() === 'por semana' ? 'semana' : 'mês' }}:
+                  <strong>{{ m.titulo }}</strong> ·
+                  @if (evolucaoUsaValor()) {
+                    R$ {{ m.total | number: '1.2-2' }}
+                  } @else {
+                    {{ m.total | number: '1.0-0' }} un.
+                  }
+                </p>
+              }
+            </div>
+            @if (selecionado()) {
+              <button type="button" class="em-btn em-btn--ghost" (click)="limparSelecao()">
+                <mat-icon>close</mat-icon>
+                Ver todos
+              </button>
+            }
+          </header>
+
+          @if (carregandoSerie()) {
+            <p class="mv-card__empty">Carregando gráfico…</p>
+          } @else if (!diaBars().length) {
+            <p class="mv-card__empty">Sem dados.</p>
+          } @else {
+            <div class="mv-bars">
+              @for (b of diaBars(); track $index) {
+                <div class="mv-bars__col" [class.is-peak]="b.peak" [title]="b.titulo + ': ' + (evolucaoUsaValor() ? 'R$ ' + (b.total | number: '1.2-2') : (b.total | number: '1.0-0') + ' un.')">
+                  <span class="mv-bars__value" [class.is-visible]="b.peak || diaBars().length <= 14">
+                    @if (b.total > 0) {
+                      {{ evolucaoUsaValor() ? (b.total | number: '1.0-0') : b.total }}
+                    }
+                  </span>
+                  <span class="mv-bars__track">
+                    <span class="mv-bars__bar" [style.height.%]="b.heightPct"></span>
+                  </span>
+                  <span class="mv-bars__tick">{{ b.showTick ? b.label : '' }}</span>
+                </div>
+              }
+            </div>
+          }
+        </section>
+
+        <section class="mv-card mv-table-card">
+          <header class="mv-card__head">
+            <h2>Ranking completo</h2>
+            <p>{{ itensFiltrados().length }} {{ itensFiltrados().length === 1 ? 'produto' : 'produtos' }}</p>
+          </header>
+          <div class="mv-table-wrap">
+            <table class="mv-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Produto</th>
+                  <th class="num">Qtd.</th>
+                  <th class="num">Faturamento</th>
+                  <th class="num">Lucro</th>
+                  <th class="num">% do total</th>
+                  <th class="num">vs. anterior</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (i of itensTabela(); track i.chave; let idx = $index) {
+                  <tr [class.is-sel]="selecionado()?.chave === i.chave">
+                    <td class="mv-table__pos">{{ idx + 1 }}</td>
+                    <td>
+                      <span class="mv-table__name">{{ i.nome }}</span>
+                      <span class="mv-badge">{{ categoriaLabel(i.categoria) }}</span>
+                    </td>
+                    <td class="num strong">{{ i.unidades | number: '1.0-0' }}</td>
+                    <td class="num">R$ {{ i.valor | number: '1.2-2' }}</td>
+                    <td class="num" [class.neg]="i.lucro < 0">R$ {{ i.lucro | number: '1.2-2' }}</td>
+                    <td class="num">
+                      <span class="mv-share">
+                        <span class="mv-share__bar"><span [style.width.%]="participacao(i)"></span></span>
+                        {{ participacao(i) | number: '1.1-1' }}%
+                      </span>
+                    </td>
+                    <td class="num">
+                      @if (variacaoItem(i); as v) {
+                        <span class="mv-delta" [class.is-up]="v.up" [class.is-down]="!v.up">{{ v.label }}</span>
+                      } @else {
+                        <span class="mv-muted">—</span>
+                      }
+                    </td>
+                    <td class="mv-table__act">
+                      <button type="button" class="mv-icon-btn" (click)="selecionar(i); rolarParaGrafico()" title="Ver gráfico por dia">
+                        <mat-icon>bar_chart</mat-icon>
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (temMaisItens()) {
+            <div class="mv-table-more">
+              <button type="button" class="em-btn em-btn--ghost" (click)="mostrarTodos.set(!mostrarTodos())">
+                {{ mostrarTodos() ? 'Mostrar menos' : 'Mostrar todos (' + itensFiltrados().length + ')' }}
+              </button>
+            </div>
+          }
+        </section>
+      }
+    </div>
+    }
+  }
+</div>

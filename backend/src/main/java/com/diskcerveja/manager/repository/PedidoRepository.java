@@ -177,6 +177,115 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
     List<Object[]> topProdutosEntregues(
             @Param("ini") java.sql.Timestamp ini, @Param("fim") java.sql.Timestamp fim);
 
+    /**
+     * Ranking completo de itens vendidos (pedidos entregues), agrupado por produto + forma de venda
+     * (unidade/embalagem), combo ou descrição avulsa.
+     */
+    @Query(
+            value =
+                    """
+            SELECT i.produto_id,
+                   i.combo_id,
+                   i.venda_unidade,
+                   CASE WHEN i.produto_id IS NULL AND i.combo_id IS NULL
+                        THEN COALESCE(NULLIF(TRIM(i.descricao), ''), 'Item') END AS descricao_avulsa,
+                   COALESCE(MAX(NULLIF(TRIM(i.descricao), '')), MAX(pr.nome), MAX(c.nome), 'Item') AS nome,
+                   COALESCE(MAX(pr.categoria), MAX(c.categoria), 'OUTROS') AS categoria,
+                   CAST(SUM(i.quantidade) AS bigint) AS unidades,
+                   COALESCE(SUM(i.preco_unitario * i.quantidade), 0) AS valor,
+                   COALESCE(SUM(i.custo_unitario * i.quantidade), 0) AS custo,
+                   CAST(COUNT(DISTINCT p.id) AS bigint) AS pedidos
+            FROM pedido_item i
+            JOIN pedido p ON p.id = i.pedido_id
+            LEFT JOIN produto pr ON pr.id = i.produto_id
+            LEFT JOIN combo c ON c.id = i.combo_id
+            WHERE p.status = 'ENTREGUE'
+              AND p.data_hora >= :ini AND p.data_hora < :fim
+            GROUP BY 1, 2, 3, 4
+            """,
+            nativeQuery = true)
+    List<Object[]> rankingItensEntregues(
+            @Param("ini") java.sql.Timestamp ini, @Param("fim") java.sql.Timestamp fim);
+
+    @Query(
+            value =
+                    """
+            SELECT CAST((p.data_hora AT TIME ZONE 'America/Sao_Paulo') AS DATE) AS dia,
+                   CAST(SUM(i.quantidade) AS bigint) AS unidades,
+                   COALESCE(SUM(i.preco_unitario * i.quantidade), 0) AS valor
+            FROM pedido_item i
+            JOIN pedido p ON p.id = i.pedido_id
+            WHERE p.status = 'ENTREGUE'
+              AND p.data_hora >= :ini AND p.data_hora < :fim
+            GROUP BY 1
+            ORDER BY 1
+            """,
+            nativeQuery = true)
+    List<Object[]> itensEntreguesPorDia(
+            @Param("ini") java.sql.Timestamp ini, @Param("fim") java.sql.Timestamp fim);
+
+    @Query(
+            value =
+                    """
+            SELECT CAST((p.data_hora AT TIME ZONE 'America/Sao_Paulo') AS DATE) AS dia,
+                   CAST(SUM(i.quantidade) AS bigint) AS unidades,
+                   COALESCE(SUM(i.preco_unitario * i.quantidade), 0) AS valor
+            FROM pedido_item i
+            JOIN pedido p ON p.id = i.pedido_id
+            WHERE p.status = 'ENTREGUE'
+              AND p.data_hora >= :ini AND p.data_hora < :fim
+              AND i.produto_id = :produtoId AND i.venda_unidade = :vendaUnidade
+            GROUP BY 1
+            ORDER BY 1
+            """,
+            nativeQuery = true)
+    List<Object[]> produtoEntreguePorDia(
+            @Param("ini") java.sql.Timestamp ini,
+            @Param("fim") java.sql.Timestamp fim,
+            @Param("produtoId") long produtoId,
+            @Param("vendaUnidade") boolean vendaUnidade);
+
+    @Query(
+            value =
+                    """
+            SELECT CAST((p.data_hora AT TIME ZONE 'America/Sao_Paulo') AS DATE) AS dia,
+                   CAST(SUM(i.quantidade) AS bigint) AS unidades,
+                   COALESCE(SUM(i.preco_unitario * i.quantidade), 0) AS valor
+            FROM pedido_item i
+            JOIN pedido p ON p.id = i.pedido_id
+            WHERE p.status = 'ENTREGUE'
+              AND p.data_hora >= :ini AND p.data_hora < :fim
+              AND i.combo_id = :comboId
+            GROUP BY 1
+            ORDER BY 1
+            """,
+            nativeQuery = true)
+    List<Object[]> comboEntreguePorDia(
+            @Param("ini") java.sql.Timestamp ini,
+            @Param("fim") java.sql.Timestamp fim,
+            @Param("comboId") long comboId);
+
+    @Query(
+            value =
+                    """
+            SELECT CAST((p.data_hora AT TIME ZONE 'America/Sao_Paulo') AS DATE) AS dia,
+                   CAST(SUM(i.quantidade) AS bigint) AS unidades,
+                   COALESCE(SUM(i.preco_unitario * i.quantidade), 0) AS valor
+            FROM pedido_item i
+            JOIN pedido p ON p.id = i.pedido_id
+            WHERE p.status = 'ENTREGUE'
+              AND p.data_hora >= :ini AND p.data_hora < :fim
+              AND i.produto_id IS NULL AND i.combo_id IS NULL
+              AND COALESCE(NULLIF(TRIM(i.descricao), ''), 'Item') = :descricao
+            GROUP BY 1
+            ORDER BY 1
+            """,
+            nativeQuery = true)
+    List<Object[]> avulsoEntreguePorDia(
+            @Param("ini") java.sql.Timestamp ini,
+            @Param("fim") java.sql.Timestamp fim,
+            @Param("descricao") String descricao);
+
     @Query(
             "select distinct p from Pedido p left join fetch p.entrega left join fetch p.usuario where p.tipo = :tipo and p.status in (:s1, :s2, :s3) order by p.dataHora desc")
     List<Pedido> findEntregaPainel(

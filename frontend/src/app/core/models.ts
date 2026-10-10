@@ -427,3 +427,45 @@ export interface ContaFinanceiraDto {
   formaPagamento?: string | null;
   observacao?: string | null;
 }
+
+export interface MaisVendidoItem {
+  chave: string;
+  produtoId: number | null;
+  comboId: number | null;
+  vendaUnidade: boolean;
+  nome: string;
+  categoria: string;
+  unidades: number;
+  valor: number;
+  lucro: number;
+  pedidos: number;
+  unidadesAnterior: number;
+  valorAnterior: number;
+}
+
+export interface MaisVendidosDia {
+  dia: string;
+  unidades: number;
+  valor: number;
+}
+
+export interface MaisVendidosResponse {
+  inicio: string;
+  fim: string;
+  inicioAnterior: string;
+  fimAnterior: string;
+  pedidos: number;
+  totalUnidades: number;
+  totalValor: number;
+  totalLucro: number;
+  totalUnidadesAnterior: number;
+  totalValorAnterior: number;
+  itens: MaisVendidoItem[];
+  categorias: { categoria: string; unidades: number; valor: number }[];
+  porDia: MaisVendidosDia[];
+}
+
+export interface MaisVendidosSerieResponse {
+  chave: string;
+  porDia: MaisVendidosDia[];
+}
