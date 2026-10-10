@@ -51,6 +51,8 @@ public class SecurityConfig {
                             "/dashboard",
                             "/pdv",
                             "/relatorio-pedidos",
+                            "/mais-vendidos",
+                            "/anotacoes",
                             "/clientes",
                             "/produtos",
                             "/estoque",
