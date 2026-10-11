@@ -19,7 +19,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { DecimalPipe } from '@angular/common';
 import { StatusLabelPipe } from '../../shared/pipes/status-label.pipe';
 import { environment } from '../../../environments/environment';
-import { ComboResponse, ClienteDto, ConfigCaixaResponse, PedidoResponse, PdvInsightsResponse, Produto, ProdutoSugestao } from '../../core/models';
+import { ComboResponse, ClienteDto, ConfigCaixaResponse, PedidoResponse, PdvInsightsResponse, Produto } from '../../core/models';
 import { ComboService } from '../../core/combo.service';
 import { ClienteService } from '../../core/cliente.service';
 import { BarcodeScanResult } from '../../shared/barcode/barcode-scan.types';
@@ -30,7 +30,6 @@ import { ScanDebounce } from '../../shared/barcode/scan-debounce';
 import { ScanHistory, ScanHistoryEntry } from '../../shared/barcode/scan-history';
 import { HidScannerService } from '../../shared/barcode/hid-scanner.service';
 import { isPixQrPayload, normalizeScannedCode } from '../../shared/barcode/barcode-format.util';
-import { codigoPrincipal } from '../../shared/barcode/produto-codigo-display';
 import {
   ConfirmDialogComponent,
   ConfirmDialogData,
@@ -87,7 +86,6 @@ type AtalhoPdv =
   | 'combos'
   | 'favoritos';
 
-type Ordenacao = 'maisVendidos' | 'nome' | 'precoAsc' | 'precoDesc' | 'estoque';
 type FormaPagamentoPdv = 'PIX' | 'DINHEIRO' | 'CARTAO';
 
 @Component({
@@ -121,7 +119,6 @@ export class PdvComponent implements OnInit, OnDestroy {
 
   q = signal('');
   codigoBarras = '';
-  ordenacao = signal<Ordenacao>('maisVendidos');
   observacao = '';
 
   produtos = signal<Produto[]>([]);
@@ -136,9 +133,6 @@ export class PdvComponent implements OnInit, OnDestroy {
   pagina = signal(1);
   favoritos = signal<number[]>(this.lerFavoritos());
   rankingVendas = signal<Map<number, number>>(new Map());
-  alertaEstoqueQuente = signal<{ produtoId: number; nome: string; estoqueAtual: number }[]>([]);
-  sugestoesLevaJunto = signal<ProdutoSugestao[]>([]);
-  private sugestoesIdle?: ReturnType<typeof setTimeout>;
   ultimoScan = signal<{ code: string; nome: string; qtd: number; preco: number } | null>(null);
   historicoScans = signal<ScanHistoryEntry[]>([]);
   scanFlash = signal(false);
@@ -221,8 +215,6 @@ export class PdvComponent implements OnInit, OnDestroy {
     let list = [...this.produtos()];
     const atalho = this.atalhoAtivo();
     const termo = this.q().trim().toLowerCase();
-    const ord = this.ordenacao();
-
     if (atalho === 'cervejas') list = list.filter((p) => p.categoria === 'CERVEJAS');
     else if (atalho === 'destilados') list = list.filter((p) => p.categoria === 'DESTILADOS');
     else if (atalho === 'petiscos') list = list.filter((p) => p.categoria === 'PETISCOS');
@@ -246,32 +238,16 @@ export class PdvComponent implements OnInit, OnDestroy {
       );
     }
 
-    switch (ord) {
-      case 'nome':
-        list.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
-        break;
-      case 'precoAsc':
-        list.sort((a, b) => Number(a.preco) - Number(b.preco));
-        break;
-      case 'precoDesc':
-        list.sort((a, b) => Number(b.preco) - Number(a.preco));
-        break;
-      case 'estoque':
-        list.sort((a, b) => b.estoqueAtual - a.estoqueAtual);
-        break;
-      default: {
-        const rank = this.rankingVendas();
-        if (rank.size) {
-          list.sort((a, b) => {
-            const ra = rank.get(a.id) ?? Number.MAX_SAFE_INTEGER;
-            const rb = rank.get(b.id) ?? Number.MAX_SAFE_INTEGER;
-            if (ra !== rb) return ra - rb;
-            return (a.nome || '').localeCompare(b.nome || '', 'pt-BR');
-          });
-        } else {
-          list.sort((a, b) => b.estoqueAtual - a.estoqueAtual);
-        }
-      }
+    const rank = this.rankingVendas();
+    if (rank.size) {
+      list.sort((a, b) => {
+        const ra = rank.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+        const rb = rank.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+        if (ra !== rb) return ra - rb;
+        return (a.nome || '').localeCompare(b.nome || '', 'pt-BR');
+      });
+    } else {
+      list.sort((a, b) => b.estoqueAtual - a.estoqueAtual);
     }
     return list;
   });
@@ -348,7 +324,6 @@ export class PdvComponent implements OnInit, OnDestroy {
     if (this.barcodeIdle) clearTimeout(this.barcodeIdle);
     if (this.buscaIdle) clearTimeout(this.buscaIdle);
     if (this.clienteBuscaIdle) clearTimeout(this.clienteBuscaIdle);
-    if (this.sugestoesIdle) clearTimeout(this.sugestoesIdle);
     this.hid.stopListening();
     this.scanner.close();
   }
@@ -393,61 +368,9 @@ export class PdvComponent implements OnInit, OnDestroy {
             if (item.produtoId != null) map.set(item.produtoId, idx);
           });
           this.rankingVendas.set(map);
-          this.alertaEstoqueQuente.set(
-            (d.alertaEstoqueQuente ?? []).map((a) => ({
-              produtoId: a.produtoId,
-              nome: a.nome,
-              estoqueAtual: a.estoqueAtual,
-            })),
-          );
         },
-        error: () => {
-          this.rankingVendas.set(new Map());
-          this.alertaEstoqueQuente.set([]);
-        },
+        error: () => this.rankingVendas.set(new Map()),
       });
-  }
-
-  private atualizarSugestoesLevaJunto(): void {
-    if (this.sugestoesIdle) clearTimeout(this.sugestoesIdle);
-    this.sugestoesIdle = setTimeout(() => {
-      const ids = [
-        ...new Set(
-          this.carrinho()
-            .filter((l) => !l.isCombo && l.produtoId != null)
-            .map((l) => l.produtoId!),
-        ),
-      ];
-      if (!ids.length) {
-        this.sugestoesLevaJunto.set([]);
-        return;
-      }
-      this.http
-        .get<ProdutoSugestao[]>(`${environment.apiUrl}/api/produtos/sugestoes`, {
-          params: new HttpParams().set('ids', ids.join(',')).set('limite', '4'),
-        })
-        .subscribe({
-          next: (list) => this.sugestoesLevaJunto.set(Array.isArray(list) ? list : []),
-          error: () => this.sugestoesLevaJunto.set([]),
-        });
-    }, 280);
-  }
-
-  adicionarSugestao(s: ProdutoSugestao): void {
-    const p = this.produtos().find((x) => x.id === s.produtoId);
-    if (!p) {
-      this.snack.open('Produto da sugestão não está no catálogo.', 'OK', { duration: 2500 });
-      return;
-    }
-    this.escolherEAdicionar(p);
-  }
-
-  irParaProdutoAlerta(produtoId: number): void {
-    const p = this.produtos().find((x) => x.id === produtoId);
-    if (!p) return;
-    this.atalhoAtivo.set('todos');
-    this.q.set(p.nome);
-    this.pagina.set(1);
   }
 
   buscarProdutos() {
@@ -488,10 +411,6 @@ export class PdvComponent implements OnInit, OnDestroy {
         this.q.set('');
       }, 220);
     }
-  }
-
-  onOrdenacaoChange(): void {
-    /* signal atualizado via ngModelChange no template */
   }
 
   selecionarAtalho(atalho: AtalhoPdv) {
@@ -682,10 +601,6 @@ export class PdvComponent implements OnInit, OnDestroy {
         this.caixaVerificando.set(false);
       },
     });
-  }
-
-  codigoExibicao(p: Produto): string | null {
-    return codigoPrincipal(p);
   }
 
   produtoImagemUrl(p: Produto): string {
@@ -968,9 +883,7 @@ export class PdvComponent implements OnInit, OnDestroy {
       });
     }
     this.carrinho.set(atual);
-    this.rolarListaItens();
-    this.atualizarSugestoesLevaJunto();
-  }
+    this.rolarListaItens();  }
 
   addCombo(c: ComboResponse, codigoLido?: string) {
     if (c.estoqueDisponivel <= 0) {
@@ -1002,9 +915,7 @@ export class PdvComponent implements OnInit, OnDestroy {
       });
     }
     this.carrinho.set(atual);
-    this.rolarListaItens();
-    this.atualizarSugestoesLevaJunto();
-  }
+    this.rolarListaItens();  }
 
   toggleFavorito(produto: Produto, event: MouseEvent) {
     event.stopPropagation();
@@ -1044,9 +955,7 @@ export class PdvComponent implements OnInit, OnDestroy {
     }
     atual[i] = { ...atual[i], qtd: atual[i].qtd + 1, vendaUnidade: linha.vendaUnidade === true };
     this.carrinho.set(atual);
-    this.rolarListaItens();
-    this.atualizarSugestoesLevaJunto();
-  }
+    this.rolarListaItens();  }
 
   dec(i: number) {
     const atual = [...this.carrinho()];
@@ -1055,9 +964,7 @@ export class PdvComponent implements OnInit, OnDestroy {
       return;
     }
     atual[i] = { ...atual[i], qtd: atual[i].qtd - 1 };
-    this.carrinho.set(atual);
-    this.atualizarSugestoesLevaJunto();
-  }
+    this.carrinho.set(atual);  }
 
   removerLinha(i: number): void {
     this.confirmarRemocao(i);
@@ -1080,9 +987,7 @@ export class PdvComponent implements OnInit, OnDestroy {
         if (!ok) return;
         const atual = [...this.carrinho()];
         atual.splice(i, 1);
-        this.carrinho.set(atual);
-        this.atualizarSugestoesLevaJunto();
-      });
+        this.carrinho.set(atual);      });
   }
 
   private rolarListaItens(): void {
@@ -1107,9 +1012,7 @@ export class PdvComponent implements OnInit, OnDestroy {
     this.taxaEntrega.set(0);
     this.clienteAberto.set(false);
     this.pagamentoDividido.set(false);
-    this.zerarDivisaoPagamento();
-    this.sugestoesLevaJunto.set([]);
-  }
+    this.zerarDivisaoPagamento();  }
 
   /** Total exibido no botão confirmar (carrinho ou pedido pendente). */
   totalConfirmacaoExibido(): number {
